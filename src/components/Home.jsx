@@ -1,14 +1,7 @@
-import { store } from '@/store/store'
-import React from 'react'
+import { useSelector } from 'react-redux';
+import TrainingWorkspace from './training/TrainingWorkspace';
 
-const Home = () => {
-  return (
-     <iframe
-          title="GPC Training"
-          src={`https://training.guestpostcrm.com/?email=${encodeURIComponent(store.getState().user.user?.email || "")}`}
-          className="h-[500px] w-full flex-1 border-0 bg-white"
-        />
-  )
+export default function Home() {
+  const email = useSelector(state => state.user.user?.email);
+  return <TrainingWorkspace key={email || 'guest'} email={email} />;
 }
-
-export default Home
