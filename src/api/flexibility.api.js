@@ -24,7 +24,7 @@ import { apiRequest, http } from "../services/api";
  * Same host the sidebar metadata is read and written through. `http()`
  * appends `?entryPoint=smart_gateway` itself.
  */
-export const METADATA_ENDPOINT = "https://gagan.guestpostcrm.com/index.php";
+export const METADATA_ENDPOINT = "https://kartikey.hrcrm.ai/index.php";
 
 /** Contract version the reader asks for. */
 export const FLEXIBILITY_API_VERSION = "v1";

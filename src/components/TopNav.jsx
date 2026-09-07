@@ -4,10 +4,8 @@ import {
   X,
   CircleAlert,
   BellIcon,
-  User2,
   LogOut,
   MailWarning,
-  Camera,
   Users,
   Copy,
   Check,
@@ -23,18 +21,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { useContext, useEffect, useState, createElement, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { PageContext } from "../context/pageContext";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-toastify";
 import { logout } from "../store/Slices/userSlice";
 import { SocketContext } from "../context/SocketContext";
 import GlobalSearch from "./GlobalSearch";
-import ProfileImageCropper from "./ProfileImageCropper";
-import { useOutboxStats } from "../queries/outbox.queries";
-import { useTodayPaymentReminderStats } from "../queries/reminder.queries";
+import DailyActivityDrawer from "./DailyActivityDrawer";
 import { useCrmUsers } from "../queries/users.queries";
 import { fetchGpc } from "../services/api";
 import { useIsDesktop } from "../hooks/useMediaQuery";
-import { THEMES, setTheme, getTheme } from "../utils/theme";
+import { setTheme, getTheme } from "../utils/theme";
 
 /* ─────────────────────────────────────────────────────────────
    Avatar colour palette
@@ -313,7 +309,7 @@ function UserActivityPanel({ activeUsers = [], currentUserEmail = "" }) {
 
       <AnimatePresence>
         {open && (
-          <motion.div
+          <Motion.div
             initial={{
               opacity: 0,
               y: -8,
@@ -655,7 +651,7 @@ function UserActivityPanel({ activeUsers = [], currentUserEmail = "" }) {
                 Idle — 5–15 min
               </span>
             </div>
-          </motion.div>
+          </Motion.div>
         )}
       </AnimatePresence>
     </div>
@@ -799,7 +795,7 @@ export function TopNav() {
   const { enteredEmail, handleClear, mobileSidebarOpen, setMobileSidebarOpen } =
     useContext(PageContext);
 
-  const { user, error } = useSelector((s) => s.user);
+  const { user } = useSelector((s) => s.user);
 
   /* ── Local state ── */
 
@@ -807,16 +803,12 @@ export function TopNav() {
 
   const [copied, setCopied] = useState(false);
 
-  const [selectedTheme, setSelectedTheme] = useState(getTheme);
 
   const [profilePreview, setProfilePreview] = useState(
     () =>
       sessionStorage.getItem("userProfileImage") || user?.profileImage || "",
   );
 
-  const [showCropper, setShowCropper] = useState(false);
-
-  const [cropImage, setCropImage] = useState(null);
 
   // Responsive overflow menu: below lg the right-side controls
   // are collapsed so the search field never gets squeezed off-screen.
@@ -862,23 +854,16 @@ export function TopNav() {
 
     setTheme(theme);
 
-    setSelectedTheme(theme);
+
   }, []);
 
   /* ── Theme change ── */
 
-  const handleThemeChange = (theme) => {
-    const appliedTheme = setTheme(theme);
-
-    setSelectedTheme(appliedTheme);
-  };
-
   /* ── Logout ── */
 
-  const handleLogout = () => {
-    dispatch(logout());
-
-    setShowProfileMenu(false);
+  const handleLogout = async () => {
+    const success = await dispatch(logout());
+    setShowProfileMenu(!success);
   };
   /* ── Copy email ── */
 
@@ -893,38 +878,12 @@ export function TopNav() {
       setTimeout(() => {
         setCopied(false);
       }, 1500);
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy email");
     }
   };
 
   /* ── Profile upload ── */
-
-  const handleProfileUpload = (e) => {
-    const file = e.target.files?.[0];
-
-    if (!file) return;
-
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      setCropImage(reader.result);
-
-      setShowCropper(true);
-    };
-
-    reader.readAsDataURL(file);
-  };
-
-  /* ── Profile save ── */
-
-  const handleProfileSave = (croppedImage) => {
-    setProfilePreview(croppedImage);
-
-    sessionStorage.setItem("userProfileImage", croppedImage);
-  };
-
-  /* ── Initials ── */
 
   const getUserInitials = () => {
     const name =
@@ -996,7 +955,7 @@ export function TopNav() {
         >
           <AnimatePresence mode="wait">
             {isSearchActive ? (
-              <motion.div
+              <Motion.div
                 key="banner"
                 initial={{ opacity: 0, y: -6, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1120,7 +1079,7 @@ export function TopNav() {
                     <X size={11} strokeWidth={2.5} />
                   </button>
                 </div>
-              </motion.div>
+              </Motion.div>
             ) : (
               <GlobalSearch />
             )}
@@ -1147,7 +1106,7 @@ export function TopNav() {
         <button
           type="button"
           onClick={() => setShowProfileMenu(true)}
-          aria-label="Open profile"
+          aria-label="Open daily activity"
           aria-expanded={showProfileMenu}
           className="
             flex
@@ -1250,7 +1209,7 @@ export function TopNav() {
 
         <AnimatePresence>
           {showMobileMenu && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: -8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.96 }}
@@ -1448,7 +1407,7 @@ export function TopNav() {
                     <Sparkles size={14} />
                   </span>
 
-                  <span className="flex-1">Profile & preferences</span>
+                  <span className="flex-1">Daily activity</span>
 
                   <ChevronRight size={16} className="text-muted-foreground" />
                 </button>
@@ -1481,7 +1440,7 @@ export function TopNav() {
                   <span className="flex-1">Log out</span>
                 </button>
               </div>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -1491,911 +1450,10 @@ export function TopNav() {
       ====================================================== */}
 
       <AnimatePresence>
-        {showProfileMenu && (
-          <>
-            {/* Backdrop */}
-
-            <motion.div
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              exit={{
-                opacity: 0,
-              }}
-              transition={{
-                duration: 0.2,
-              }}
-              className="
-                fixed
-                inset-0
-                z-[9998]
-                bg-foreground/45
-                backdrop-blur-[2px]
-              "
-              onClick={() => setShowProfileMenu(false)}
-            />
-
-            {/* Drawer */}
-
-            <motion.aside
-              initial={{
-                x: "100%",
-              }}
-              animate={{
-                x: 0,
-              }}
-              exit={{
-                x: "100%",
-              }}
-              transition={{
-                type: "spring",
-                stiffness: 320,
-                damping: 32,
-              }}
-              className="
-                fixed
-                right-0
-                top-0
-                z-[9999]
-                flex
-                h-screen
-                w-[min(420px,100vw)]
-                max-w-[420px]
-                flex-col
-                overflow-hidden
-                border-l
-                border-border
-                bg-background
-                text-foreground
-                shadow-2xl
-              "
-            >
-              {/* =================================================
-                  HEADER
-              ================================================== */}
-
-              <div
-                className="
-                  flex
-                  shrink-0
-                  items-center
-                  justify-between
-                  border-b
-                  border-border
-                  px-5
-                  py-4
-                "
-              >
-                <div
-                  className="
-                    flex
-                    items-center
-                    gap-3
-                  "
-                >
-                  <div
-                    className="
-                      flex
-                      h-10
-                      w-10
-                      items-center
-                      justify-center
-                      rounded-xl
-                      bg-primary
-                      text-primary-foreground
-                    "
-                  >
-                    <User2 size={19} />
-                  </div>
-
-                  <div>
-                    <h2
-                      className="
-                        text-base
-                        font-semibold
-                      "
-                    >
-                      My Account
-                    </h2>
-
-                    <p
-                      className="
-                        text-xs
-                        text-muted-foreground
-                      "
-                    >
-                      Profile & preferences
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowProfileMenu(false)}
-                  className="
-                    flex
-                    h-9
-                    w-9
-                    items-center
-                    justify-center
-                    rounded-lg
-                    text-muted-foreground
-                    transition
-                    hover:bg-accent
-                    hover:text-foreground
-                  "
-                >
-                  <X size={19} />
-                </button>
-              </div>
-
-              {/* =================================================
-                  CONTENT
-              ================================================== */}
-
-              <div
-                className="
-                  flex-1
-                  overflow-y-auto
-                  custom-scrollbar
-                "
-              >
-                {/* PROFILE */}
-
-                <section
-                  className="
-                    border-b
-                    border-border
-                    p-5
-                  "
-                >
-                  <div
-                    className="
-                      relative
-                      overflow-hidden
-                      rounded-2xl
-                      border
-                      border-border
-                      bg-card
-                      p-4
-                    "
-                  >
-                    <div
-                      className="
-                        absolute
-                        inset-x-0
-                        top-0
-                        h-20
-                      "
-                      style={{
-                        background:
-                          "linear-gradient(135deg, var(--topbtn-primary), var(--topbtn-secondary))",
-                      }}
-                    />
-
-                    <div
-                      className="
-                        relative
-                        pt-7
-                      "
-                    >
-                      <div
-                        className="
-                          flex
-                          items-end
-                          gap-3
-                        "
-                      >
-                        {/* Avatar */}
-
-                        <div
-                          className="
-                            relative
-                            shrink-0
-                          "
-                        >
-                          {profilePreview ? (
-                            <img
-                              src={profilePreview}
-                              alt={user?.name ?? "Profile"}
-                              className="
-                                h-20
-                                w-20
-                                rounded-2xl
-                                border-4
-                                border-card
-                                object-cover
-                                shadow-lg
-                              "
-                            />
-                          ) : (
-                            <span
-                              className="
-                                flex
-                                h-20
-                                w-20
-                                items-center
-                                justify-center
-                                rounded-2xl
-                                border-4
-                                border-card
-                                text-xl
-                                font-bold
-                                text-primary-foreground
-                                shadow-lg
-                              "
-                              style={{
-                                background:
-                                  "linear-gradient(135deg, var(--topbtn-primary), var(--topbtn-secondary))",
-                              }}
-                            >
-                              {getUserInitials()}
-                            </span>
-                          )}
-
-                          <label
-                            htmlFor="drawer-profile-upload"
-                            className="
-                              absolute
-                              -bottom-1
-                              -right-1
-                              flex
-                              h-8
-                              w-8
-                              cursor-pointer
-                              items-center
-                              justify-center
-                              rounded-full
-                              border-2
-                              border-card
-                              bg-primary
-                              text-primary-foreground
-                              shadow-md
-                              transition
-                              hover:opacity-90
-                            "
-                          >
-                            <Camera size={14} />
-
-                            <input
-                              id="drawer-profile-upload"
-                              type="file"
-                              accept="image/*"
-                              hidden
-                              onChange={handleProfileUpload}
-                            />
-                          </label>
-                        </div>
-
-                        {/* User */}
-
-                        <div
-                          className="
-                            min-w-0
-                            flex-1
-                            pb-1
-                          "
-                        >
-                          <h3
-                            className="
-                              truncate
-                              text-base
-                              font-semibold
-                            "
-                          >
-                            {data?.find((d) => d.description === user?.email)
-                              ?.name || user?.name}
-                          </h3>
-
-                          <p
-                            className="
-                              truncate
-                              text-xs
-                              text-muted-foreground
-                            "
-                          >
-                            {user?.email}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div
-                        className="
-                          mt-5
-                          grid
-                          grid-cols-2
-                          gap-2
-                        "
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigateTo("/profile");
-
-                            setShowProfileMenu(false);
-                          }}
-                          className="
-                            flex
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            border
-                            border-border
-                            bg-background
-                            px-3
-                            py-2.5
-                            text-sm
-                            font-medium
-                            transition
-                            hover:bg-accent
-                          "
-                        >
-                          <User2 size={15} />
-                          View profile
-                        </button>
-
-                        <label
-                          htmlFor="drawer-profile-upload"
-                          className="
-                            flex
-                            cursor-pointer
-                            items-center
-                            justify-center
-                            gap-2
-                            rounded-xl
-                            bg-primary
-                            px-3
-                            py-2.5
-                            text-sm
-                            font-medium
-                            text-primary-foreground
-                            transition
-                            hover:opacity-90
-                          "
-                        >
-                          <Camera size={15} />
-                          Change photo
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* ACCOUNT */}
-
-                <section
-                  className="
-                    border-b
-                    border-border
-                    p-5
-                  "
-                >
-                  <div className="mb-3">
-                    <h3
-                      className="
-                        text-sm
-                        font-semibold
-                      "
-                    >
-                      Account
-                    </h3>
-
-                    <p
-                      className="
-                        text-xs
-                        text-muted-foreground
-                      "
-                    >
-                      Manage your account
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigateTo("/profile");
-
-                        setShowProfileMenu(false);
-                      }}
-                      className="
-                        flex
-                        w-full
-                        items-center
-                        gap-3
-                        rounded-xl
-                        px-3
-                        py-3
-                        text-left
-                        transition
-                        hover:bg-accent
-                      "
-                    >
-                      <span
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-secondary
-                          text-secondary-foreground
-                        "
-                      >
-                        <User2 size={16} />
-                      </span>
-
-                      <span className="flex-1">
-                        <span
-                          className="
-                            block
-                            text-sm
-                            font-medium
-                          "
-                        >
-                          Edit profile
-                        </span>
-
-                        <span
-                          className="
-                            block
-                            text-xs
-                            text-muted-foreground
-                          "
-                        >
-                          Update your personal information
-                        </span>
-                      </span>
-
-                      <ChevronRight
-                        size={16}
-                        className="
-                          text-muted-foreground
-                        "
-                      />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleCopyEmail}
-                      className="
-                        flex
-                        w-full
-                        items-center
-                        gap-3
-                        rounded-xl
-                        px-3
-                        py-3
-                        text-left
-                        transition
-                        hover:bg-accent
-                      "
-                    >
-                      <span
-                        className="
-                          flex
-                          h-9
-                          w-9
-                          items-center
-                          justify-center
-                          rounded-lg
-                          bg-secondary
-                          text-secondary-foreground
-                        "
-                      >
-                        {copied ? <Check size={16} /> : <Copy size={16} />}
-                      </span>
-
-                      <span className="flex-1">
-                        <span
-                          className="
-                            block
-                            text-sm
-                            font-medium
-                          "
-                        >
-                          {copied ? "Email copied" : "Copy email"}
-                        </span>
-
-                        <span
-                          className="
-                            block
-                            max-w-[260px]
-                            truncate
-                            text-xs
-                            text-muted-foreground
-                          "
-                        >
-                          {user?.email}
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                </section>
-
-                {/* =================================================
-                    COLOR THEME
-                ================================================== */}
-
-                <section
-                  className="
-                    border-b
-                    border-border
-                    p-5
-                  "
-                >
-                  <div className="mb-4">
-                    <h3
-                      className="
-                        text-sm
-                        font-semibold
-                      "
-                    >
-                      Color theme
-                    </h3>
-
-                    <p
-                      className="
-                        text-xs
-                        text-muted-foreground
-                      "
-                    >
-                      Choose how your CRM looks
-                    </p>
-                  </div>
-
-                  <div
-                    className="
-                      grid
-                      grid-cols-2
-                      gap-3
-                    "
-                  >
-                    {THEMES.map((theme) => {
-                      const active = selectedTheme === theme.id;
-
-                      return (
-                        <button
-                          key={theme.id}
-                          type="button"
-                          onClick={() => handleThemeChange(theme.id)}
-                          className={`
-                              group
-                              relative
-                              overflow-hidden
-                              rounded-xl
-                              border
-                              p-3
-                              text-left
-                              transition-all
-
-                              ${
-                                active
-                                  ? "border-primary ring-2 ring-primary/20"
-                                  : "border-border hover:border-primary/50"
-                              }
-                            `}
-                        >
-                          {/* Theme preview */}
-
-                          <div
-                            className="
-                                mb-3
-                                h-14
-                                overflow-hidden
-                                rounded-lg
-                              "
-                            style={{
-                              background: theme.colors.primary,
-                            }}
-                          >
-                            <div
-                              className="
-                                  flex
-                                  h-full
-                                "
-                            >
-                              <div
-                                className="
-                                    w-1/3
-                                  "
-                                style={{
-                                  background: theme.colors.secondary,
-                                }}
-                              />
-
-                              <div
-                                className="
-                                    flex
-                                    flex-1
-                                    flex-col
-                                    p-2
-                                  "
-                              >
-                                <div
-                                  className="
-                                      mb-1
-                                      h-1.5
-                                      w-12
-                                      rounded-full
-                                    "
-                                  style={{
-                                    background: theme.colors.accent,
-                                  }}
-                                />
-
-                                <div className="space-y-1">
-                                  <div
-                                    className="
-                                        h-1
-                                        w-16
-                                        rounded-full
-                                        bg-white/30
-                                      "
-                                  />
-
-                                  <div
-                                    className="
-                                        h-1
-                                        w-10
-                                        rounded-full
-                                        bg-white/20
-                                      "
-                                  />
-
-                                  <div
-                                    className="
-                                        h-1
-                                        w-14
-                                        rounded-full
-                                        bg-white/20
-                                      "
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div
-                            className="
-                                flex
-                                items-center
-                                justify-between
-                                gap-2
-                              "
-                          >
-                            <div className="min-w-0">
-                              <p
-                                className="
-                                    truncate
-                                    text-sm
-                                    font-medium
-                                  "
-                              >
-                                {theme.name}
-                              </p>
-
-                              <p
-                                className="
-                                    truncate
-                                    text-[11px]
-                                    text-muted-foreground
-                                  "
-                              >
-                                {theme.description}
-                              </p>
-                            </div>
-
-                            {active && (
-                              <span
-                                className="
-                                    flex
-                                    h-5
-                                    w-5
-                                    shrink-0
-                                    items-center
-                                    justify-center
-                                    rounded-full
-                                    bg-primary
-                                    text-primary-foreground
-                                  "
-                              >
-                                <Check size={12} />
-                              </span>
-                            )}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-
-                {/* PREFERENCES */}
-
-                <section
-                  className="
-                    border-b
-                    border-border
-                    p-5
-                  "
-                >
-                  <div className="mb-3">
-                    <h3
-                      className="
-                        text-sm
-                        font-semibold
-                      "
-                    >
-                      Preferences
-                    </h3>
-
-                    <p
-                      className="
-                        text-xs
-                        text-muted-foreground
-                      "
-                    >
-                      Customize your workspace
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigateTo("/settings");
-
-                      setShowProfileMenu(false);
-                    }}
-                    className="
-                      flex
-                      w-full
-                      items-center
-                      gap-3
-                      rounded-xl
-                      px-3
-                      py-3
-                      text-left
-                      transition
-                      hover:bg-accent
-                    "
-                  >
-                    <span
-                      className="
-                        flex
-                        h-9
-                        w-9
-                        items-center
-                        justify-center
-                        rounded-lg
-                        bg-secondary
-                        text-secondary-foreground
-                      "
-                    >
-                      <Sparkles size={16} />
-                    </span>
-
-                    <span className="flex-1">
-                      <span
-                        className="
-                          block
-                          text-sm
-                          font-medium
-                        "
-                      >
-                        Workspace settings
-                      </span>
-
-                      <span
-                        className="
-                          block
-                          text-xs
-                          text-muted-foreground
-                        "
-                      >
-                        Manage CRM preferences
-                      </span>
-                    </span>
-
-                    <ChevronRight
-                      size={16}
-                      className="
-                        text-muted-foreground
-                      "
-                    />
-                  </button>
-                </section>
-              </div>
-
-              {/* =================================================
-                  FOOTER
-              ================================================== */}
-
-              <div
-                className="
-                  shrink-0
-                  border-t
-                  border-border
-                  bg-background
-                  p-4
-                "
-              >
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-3
-                    rounded-xl
-                    border
-                    border-destructive/20
-                    bg-destructive/5
-                    px-4
-                    py-3
-                    text-left
-                    text-destructive
-                    transition
-                    hover:bg-destructive/10
-                  "
-                >
-                  <span
-                    className="
-                      flex
-                      h-9
-                      w-9
-                      items-center
-                      justify-center
-                      rounded-lg
-                      bg-destructive/10
-                    "
-                  >
-                    <LogOut size={16} />
-                  </span>
-
-                  <span className="flex-1">
-                    <span
-                      className="
-                        block
-                        text-sm
-                        font-semibold
-                      "
-                    >
-                      Log out
-                    </span>
-
-                    <span
-                      className="
-                        block
-                        text-xs
-                        opacity-70
-                      "
-                    >
-                      Sign out of your account
-                    </span>
-                  </span>
-                </button>
-              </div>
-            </motion.aside>
-          </>
-        )}
+        {showProfileMenu && <DailyActivityDrawer user={user} profileImage={profilePreview} onClose={() => setShowProfileMenu(false)} onLogout={handleLogout} />}
       </AnimatePresence>
 
-      {/* =====================================================
-          IMAGE CROPPER
-      ====================================================== */}
 
-      <ProfileImageCropper
-        isOpen={showCropper}
-        image={cropImage}
-        onClose={() => setShowCropper(false)}
-        onSave={handleProfileSave}
-      />
     </div>
   );
 }

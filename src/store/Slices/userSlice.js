@@ -1,3 +1,4 @@
+import { recordActivity } from "../../services/dailyActivity";
 import { createSlice } from "@reduxjs/toolkit";
 import { AUTH_URL } from "../constants";
 import { showConsole } from "../../assets/assets";
@@ -7,6 +8,7 @@ const userSlice = createSlice({
   name: "user",
   initialState: {
     loading: false,
+    loggingOut: false,
     user: {},
     isAuthenticated: false,
     db_name: '',
@@ -51,9 +53,10 @@ const userSlice = createSlice({
       state.error = action.payload;
     },
     logoutRequest(state) {
-      state.loading = true;
+      state.loggingOut = true;
     },
     logoutSuccess(state, action) {
+      state.loggingOut = false;
       state.loading = false;
       state.isAuthenticated = false;
       state.user = {};
@@ -66,7 +69,7 @@ const userSlice = createSlice({
       state.message = action.payload;
     },
     logoutFailed(state, action) {
-      state.loading = false;
+      state.loggingOut = false;
       state.error = action.payload;
     },
     clearAllErrors(state) {
@@ -94,6 +97,7 @@ export const getUser = (email = null) => {
         })
       );
       setConfig(data.crmEndpoint, data.db_name, data.user.email);
+      void recordActivity(data.user.email, "login").catch(() => {});
       dispatch(userSlice.actions.clearAllErrors());
     } catch (error) {
       console.log("Full Error:", error.response);
@@ -155,10 +159,13 @@ export const getUser = (email = null) => {
 };
 
 export const logout = () => {
-  return async (dispatch) => {
+  return async (dispatch, getState) => {
+    if (getState().user.loggingOut) return false;
+    const email = getState().user.user?.email;
     dispatch(userSlice.actions.logoutRequest());
 
     try {
+      await recordActivity(email, "logout");
       const data = await apiRequest({
         endpoint: `${AUTH_URL}?controller=auth`,
         params: { action: "logout" },
@@ -174,12 +181,14 @@ export const logout = () => {
 
       dispatch(userSlice.actions.logoutSuccess(data.message));
       dispatch(userSlice.actions.clearAllErrors());
+      return true;
     } catch (error) {
       dispatch(
         userSlice.actions.logoutFailed(
-          error?.response?.data?.message || "Logout Failed"
+          error?.response?.data?.message || error.message || "Logout Failed"
         )
       );
+      return false;
     }
   };
 };

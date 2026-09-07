@@ -121,7 +121,7 @@ export const getDetailLayout = () => ({
 
 export const getLayout = async (module = 'orders', view_key = "table") => {
     const data = await apiRequest({
-        endpoint: "https://gagan.guestpostcrm.com/index.php?entryPoint=flexibility&api_version=v1",
+        endpoint: "https://kartikey.hrcrm.ai/index.php?entryPoint=flexibility&api_version=v1",
         /*
          * `_` busts the browser's HTTP cache.
          *
