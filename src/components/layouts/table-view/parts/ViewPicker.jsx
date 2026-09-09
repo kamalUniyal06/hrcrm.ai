@@ -1,12 +1,4 @@
-/**
- * Which published view is being edited.
- *
- * The list is derived from the Sidebar global-component response, so it stays
- * in step with the app's own navigation instead of being a second hardcoded
- * registry. Modules switched off in the sidebar are flagged rather than
- * hidden: a hidden module still has a published table view whose columns
- * someone may need to fix before turning it back on.
- */
+
 
 import React, { useMemo, useState } from "react";
 
@@ -35,12 +27,12 @@ export default function ViewPicker({
     const filtered = !needle
       ? views
       : (views ?? []).filter(
-          (view) =>
-            view.label?.toLowerCase().includes(needle) ||
-            view.moduleKey?.toLowerCase().includes(needle) ||
-            view.viewKey?.toLowerCase().includes(needle) ||
-            view.groupName?.toLowerCase().includes(needle),
-        );
+        (view) =>
+          view.label?.toLowerCase().includes(needle) ||
+          view.moduleKey?.toLowerCase().includes(needle) ||
+          view.viewKey?.toLowerCase().includes(needle) ||
+          view.groupName?.toLowerCase().includes(needle),
+      );
 
     return groupTableViews(filtered);
   }, [query, views]);
@@ -168,10 +160,9 @@ export default function ViewPicker({
                         text-left
                         transition-colors
 
-                        ${
-                          isActive
-                            ? "bg-primary/10 ring-1 ring-primary/30"
-                            : "hover:bg-accent/60"
+                        ${isActive
+                          ? "bg-primary/10 ring-1 ring-primary/30"
+                          : "hover:bg-accent/60"
                         }
                       `}
                     >
@@ -216,10 +207,9 @@ export default function ViewPicker({
                           shrink-0
                           transition-opacity
 
-                          ${
-                            isActive
-                              ? "text-primary opacity-100"
-                              : "text-muted-foreground opacity-0 group-hover:opacity-60"
+                          ${isActive
+                            ? "text-primary opacity-100"
+                            : "text-muted-foreground opacity-0 group-hover:opacity-60"
                           }
                         `}
                       />

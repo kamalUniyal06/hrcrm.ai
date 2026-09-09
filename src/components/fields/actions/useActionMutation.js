@@ -1,10 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { resolveRequest } from "./actionResolver";
 import { fetchGpc, http } from "../../../services/api";
-import { orderKeys } from "../../../queries/orders.queries";
 
 export default function useActionMutation() {
-    const queryClient = useQueryClient();
+
 
     const mutation = useMutation({
         mutationFn: async ({
@@ -89,33 +88,7 @@ export default function useActionMutation() {
             );
         },
 
-        onSuccess: async (
-            result,
-            variables
-        ) => {
-            const {
-                action,
-            } = variables;
 
-            const queryKeys =
-                action?.invalidate
-                    ?.queryKeys ?? [];
-
-            /*
-             * Invalidate all configured
-             * query keys.
-             */
-            await Promise.all(
-                queryKeys.map(
-                    (queryKey) =>
-                        queryClient.invalidateQueries(
-                            {
-                                queryKey: orderKeys.all,
-                            }
-                        )
-                )
-            );
-        },
     });
 
     return mutation;

@@ -43,14 +43,14 @@ export const RANK_MOVE_FLAG = "rank_move_requested";
 
 /** A move could not be stored. */
 export class RankMoveError extends Error {
-  constructor(message, { cause, response, code } = {}) {
-    super(message);
+    constructor(message, { cause, response, code } = {}) {
+        super(message);
 
-    this.name = "RankMoveError";
-    this.cause = cause;
-    this.response = response;
-    this.code = code;
-  }
+        this.name = "RankMoveError";
+        this.cause = cause;
+        this.response = response;
+        this.code = code;
+    }
 }
 
 /**
@@ -63,43 +63,43 @@ export class RankMoveError extends Error {
  * user repeats the move.
  */
 const CONFLICT_PATTERNS = [
-  "conflict",
-  "duplicate",
-  "stale",
-  "out of date",
-  "moved",
-  "rank_conflict",
-  "rank_stale",
-  "neighbour",
-  "neighbor",
-  "version mismatch",
+    "conflict",
+    "duplicate",
+    "stale",
+    "out of date",
+    "moved",
+    "rank_conflict",
+    "rank_stale",
+    "neighbour",
+    "neighbor",
+    "version mismatch",
 ];
 
 export function isRankConflictError(error) {
-  if (!error) {
-    return false;
-  }
+    if (!error) {
+        return false;
+    }
 
-  const status = error.response?.status ?? error.status;
+    const status = error.response?.status ?? error.status;
 
-  if (status === 409 || status === 412) {
-    return true;
-  }
+    if (status === 409 || status === 412) {
+        return true;
+    }
 
-  const code = String(error.code ?? "").toLowerCase();
+    const code = String(error.code ?? "").toLowerCase();
 
-  if (
-    code === "rank_conflict" ||
-    code === "rank_stale" ||
-    code === "conflict" ||
-    code === "duplicate"
-  ) {
-    return true;
-  }
+    if (
+        code === "rank_conflict" ||
+        code === "rank_stale" ||
+        code === "conflict" ||
+        code === "duplicate"
+    ) {
+        return true;
+    }
 
-  const message = String(error.message ?? "").toLowerCase();
+    const message = String(error.message ?? "").toLowerCase();
 
-  return CONFLICT_PATTERNS.some((pattern) => message.includes(pattern));
+    return CONFLICT_PATTERNS.some((pattern) => message.includes(pattern));
 }
 
 /**
@@ -114,73 +114,72 @@ export function isRankConflictError(error) {
  * the body is what decides success.
  */
 export async function requestRankMove({
-  module,
-  id,
-  previousId,
-  nextId,
-  scopeFields = {},
+    module,
+    id,
+    previousId,
+    nextId,
+    scopeFields = {},
 }) {
-  if (!module || !id) {
-    throw new RankMoveError("a rank move needs a module and a record id");
-  }
+    if (!module || !id) {
+        throw new RankMoveError("a rank move needs a module and a record id");
+    }
 
-  if (previousId && String(previousId) === String(id)) {
-    throw new RankMoveError(
-      `record ${id} cannot be its own previous neighbour`,
-    );
-  }
+    if (previousId && String(previousId) === String(id)) {
+        throw new RankMoveError(
+            `record ${id} cannot be its own previous neighbour`,
+        );
+    }
 
-  if (nextId && String(nextId) === String(id)) {
-    throw new RankMoveError(`record ${id} cannot be its own next neighbour`);
-  }
+    if (nextId && String(nextId) === String(id)) {
+        throw new RankMoveError(`record ${id} cannot be its own next neighbour`);
+    }
 
-  let response;
+    let response;
 
-  try {
-    response = await http({
-      endpoint: METADATA_ENDPOINT,
-      method: "POST",
-      body: {
-        action: "update",
-        module,
-        id,
-        data: {
-          /* Destination scope first, e.g. { group_name }. */
-          ...scopeFields,
+    try {
+        response = await http({
+            endpoint: METADATA_ENDPOINT,
+            method: "POST",
+            body: {
+                action: "update",
+                module,
+                id,
+                data: {
+                    /* Destination scope first, e.g. { group_name }. */
+                    ...scopeFields,
 
-          [RANK_MOVE_FLAG]: 1,
+                    [RANK_MOVE_FLAG]: 1,
 
-          /* Empty string means "no neighbour on this side". */
-          rank_previous_id: previousId || "",
-          rank_next_id: nextId || "",
-        },
-      },
-    });
-  } catch (error) {
-    throw new RankMoveError(
-      `rank move failed for ${module}/${id}: ${
-        error?.message || "network error"
-      }`,
-      { cause: error, code: error?.response?.data?.code },
-    );
-  }
+                    /* Empty string means "no neighbour on this side". */
+                    rank_previous_id: previousId || "",
+                    rank_next_id: nextId || "",
+                },
+            },
+        });
+    } catch (error) {
+        throw new RankMoveError(
+            `rank move failed for ${module}/${id}: ${error?.message || "network error"
+            }`,
+            { cause: error, code: error?.response?.data?.code },
+        );
+    }
 
-  if (!response || response.success !== true) {
-    const reason =
-      response?.error ||
-      (response
-        ? "unexpected response from smart_gateway"
-        : `no response body, the ${module} update handler did not complete`);
+    if (!response || response.success !== true) {
+        const reason =
+            response?.error ||
+            (response
+                ? "unexpected response from smart_gateway"
+                : `no response body, the ${module} update handler did not complete`);
 
-    throw new RankMoveError(
-      `rank move failed for ${module}/${id}: ${reason}`,
-      { response, code: response?.code },
-    );
-  }
+        throw new RankMoveError(
+            `rank move failed for ${module}/${id}: ${reason}`,
+            { response, code: response?.code },
+        );
+    }
 
-  /*
-   * No rank comes back, by design. Nothing is written into
-   * local state from this response.
-   */
-  return response;
+    /*
+     * No rank comes back, by design. Nothing is written into
+     * local state from this response.
+     */
+    return response;
 }

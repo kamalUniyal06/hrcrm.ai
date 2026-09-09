@@ -20,4 +20,3 @@ export const useCrmUsers = () =>
         queryFn: getAllUsers,
     });
 
-
