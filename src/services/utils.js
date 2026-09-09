@@ -153,7 +153,4 @@ export const getStages = async () => {
   const data = await fetchGpc({ params: { type: 'machine_learning', stages: 1 } });
   return data ?? {}
 }
-export const getCRM = () =>
-  store.getState()
-    .user?.crmEndpoint
-    ?.split("?")[0];
+export const getCRM = "https://flight.hrcrm.ai/index.php";

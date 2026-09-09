@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, Upload } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../../store/constants";
 
-export default function CandidatePhotoUpload({ initialEmail = "" }) {
+export default function CandidatePhotoUpload({ initialEmail = "", lockedEmail = false, disabled = false, onUploaded, onBusyChange }) {
   const [email, setEmail] = useState(initialEmail);
   const [photo, setPhoto] = useState(null);
   const [preview, setPreview] = useState("");
@@ -103,6 +103,7 @@ export default function CandidatePhotoUpload({ initialEmail = "" }) {
     const controller = new AbortController();
     requestRef.current = controller;
     setUploading(true);
+    onBusyChange?.(true);
     const timeout = setTimeout(() => controller.abort(), 120000);
     try {
       const body = new FormData();
@@ -115,6 +116,9 @@ export default function CandidatePhotoUpload({ initialEmail = "" }) {
       if (!response.ok || json?.success !== true) {
         throw new Error(typeof json?.message === "string" ? json.message : typeof json?.error === "string" ? json.error : "Could not upload your photo. Please try again.");
       }
+      const imageUrl = json.image_url;
+      if (typeof imageUrl !== "string" || !/^https?:\/\/.+/i.test(imageUrl)) throw new Error("The upload did not return a valid image URL. Please try again.");
+      onUploaded?.(imageUrl);
       setUploaded(json);
     } catch (err) {
       setError(err.name === "AbortError" ? "Photo upload timed out. Please try again." : err.message || "Photo upload failed. Please try again.");
@@ -122,6 +126,7 @@ export default function CandidatePhotoUpload({ initialEmail = "" }) {
       clearTimeout(timeout);
       requestRef.current = null;
       setUploading(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -131,11 +136,12 @@ export default function CandidatePhotoUpload({ initialEmail = "" }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6">
       <h2 className="text-lg font-semibold text-slate-900">Add your profile photo</h2>
-      <p className="mt-1 text-sm text-slate-500">Your resume is parsed. Upload a photo or take one with your camera.</p>
+      <p className="mt-1 text-sm text-slate-500">Upload a photo or take one with your camera, then save your profile to apply it.</p>
       <form onSubmit={uploadPhoto} className="mt-5 space-y-5" aria-busy={uploading}>
+        <fieldset disabled={disabled} className="space-y-5">
         <div className="max-w-md">
           <label htmlFor="candidate-photo-email" className="mb-2 block text-sm font-medium text-slate-700">Candidate email</label>
-          <input id="candidate-photo-email" type="email" required value={email} disabled={uploading} onChange={(event) => { setEmail(event.target.value); setUploaded(null); }} placeholder="you@example.com" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <input id="candidate-photo-email" type="email" required value={email} readOnly={lockedEmail} disabled={uploading} onChange={(event) => { setEmail(event.target.value); setUploaded(null); }} placeholder="you@example.com" className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <p className="mt-2 text-xs text-slate-500">Use the email associated with your candidate profile.</p>
         </div>
         <div>
@@ -149,9 +155,11 @@ export default function CandidatePhotoUpload({ initialEmail = "" }) {
         </div>}
         {preview && !cameraOpen && <div className="flex items-center gap-4"><img key={savedImageUrl || preview} src={savedImageUrl || preview} onError={(event) => { if (event.currentTarget.getAttribute("src") !== preview) event.currentTarget.src = preview; }} alt={uploaded ? "Uploaded candidate photo" : "Selected candidate photo preview"} className="h-28 w-28 rounded-xl border border-slate-200 object-cover" /><p className="break-all text-sm text-slate-500">{photo.name}</p></div>}
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button type="submit" disabled={!photo || !email.trim() || uploading || cameraOpen || Boolean(uploaded)} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}{uploading ? "Uploading photo..." : uploaded ? "Photo saved" : "Upload photo"}</button>
-        <p role="status" className="text-sm text-green-700">{uploaded ? "Candidate photo updated successfully." : ""}</p>
+        <button type="submit" disabled={!photo || !email.trim() || uploading || cameraOpen || Boolean(uploaded)} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}{uploading ? "Uploading photo..." : uploaded ? "Photo uploaded" : "Upload photo"}</button>
+        <p role="status" className="text-sm text-green-700">{uploaded ? "Photo uploaded. Save your profile to apply it." : ""}</p>
+        </fieldset>
       </form>
     </section>
   );
 }
+
