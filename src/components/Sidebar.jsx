@@ -6,12 +6,10 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { PageContext } from "../context/pageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { useForwardedStats } from "../queries/forwarded.queries";
 import { useQuery } from "@tanstack/react-query";
 import { userKeys } from "../queries/users.queries";
 import { getAllUsers } from "../api/users.api";
-import  {logo, headingLogo } from "../assets/assets";
-import { useGpcController } from "../queries/controller.queries";
+import { logo, headingLogo } from "../assets/assets";
 import { useLayoutPreferences } from "../queries/prefrences.queries";
 import Icon from "./ui/Icon/Icon";
 import { useSidebarStats } from "../queries/sidebar.queries";
@@ -78,16 +76,7 @@ export function Sidebar() {
 
   const sidebarSections = layoutData ?? [];
 
-  /**
-   * What actually renders: groups and fields in rank order,
-   * with anything switched off in the layout editor
-   * (is_active = 0) removed. A group whose fields are all
-   * inactive drops out too, rather than leaving an empty
-   * heading behind.
-   *
-   * Ordering comes from `rank`, an opaque string compared
-   * byte for byte. Nothing here reads `weight`.
-   */
+
   const { visibleGroups, rankReports } = useMemo(() => {
     const reports = [];
 
@@ -101,11 +90,6 @@ export function Sidebar() {
     };
   }, [layoutData]);
 
-  /**
-   * A missing or duplicated rank is invalid migrated data,
-   * not something to order around. Report it and refetch the
-   * layout once so a transient cache merge can heal itself.
-   */
   const rankReloadAttempted = useRef(false);
 
   useEffect(() => {
@@ -135,13 +119,8 @@ export function Sidebar() {
     queryFn: getAllUsers,
   });
 
-  const { data } = useGpcController();
 
-  const summary = data?.summary ?? {};
 
-  const currentUser = usersData?.find((u) => u.description === user.email);
-
-  const currentUserId = currentUser?.id;
 
   const [openSettingsCard, setOpenSettingsCard] = useState(false);
   const cardRef = useRef(null);
@@ -159,8 +138,6 @@ export function Sidebar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const { isPending: forwardStatLoading, data: forwardStats } =
-    useForwardedStats(currentUserId);
 
   const { isPending: sidebarCountPending, data: sidebarCounts } =
     useSidebarStats({
@@ -589,95 +566,7 @@ export function Sidebar() {
               ))}
             </div>
 
-            {/* SIDEBAR FOOTER */}
-            {sidebarSections?.sidebar_footer && (
-              <div
-                onClick={() => {
-                  if (!isDesktop) setMobileSidebarOpen(false);
-                  navigateTo("/settings/controller");
-                }}
-                className="
-                  my-6
-                  flex
-                  cursor-pointer
-                  items-center
-                  justify-center
-                  border-t
-                  border-sidebar-border
-                  p-2
-                  rounded-full
-                  shadow-lg
-                  shadow-[color-mix(in_srgb,var(--foreground)_100%,transparent)]
-                "
-              >
-                {/* Progress Circle */}
-                <div
-                  className="
-                    relative z-10
-                    grid size-14
-                    shrink-0
-                    place-items-center
-                    rounded-full
-                    after:absolute
-                    after:inset-1.5
-                    after:rounded-full
-                    after:bg-[var(--sidebar-primary)]
-                  "
-                  style={{
-                    background: `conic-gradient(
-                      var(--topbtn-primary) ${summary?.total_score ?? 0}%,
-                      color-mix(
-                        in srgb,
-                        var(--sidebar-primary) 33%,
-                        transparent
-                      ) 0%
-                    )`,
-                  }}
-                >
-                  <span
-                    className="
-                      relative z-10
-                      text-sm
-                      font-semibold
-                      text-[var(--sidebar-primary-foreground)]
-                    "
-                  >
-                    {summary?.total_score ?? 0}%
-                  </span>
-                </div>
 
-                {/* Automation Score Card */}
-                {!collapsed && (
-                  <div
-                    className="
-                      -ml-3
-                      flex h-12 w-[170px]
-                      max-h-[850px]:hidden
-                      items-center
-                      rounded-r-xl
-                      border
-                      border-[var(--sidebar-border)]
-                      bg-gradient-to-b
-                      from-[var(--sidebar-primary)]
-                      to-[var(--sidebar-secondary)]
-                      pl-6 pr-4
-                      shadow-md
-                    "
-                  >
-                    <p
-                      className="
-                        text-sm
-                        font-medium
-                        leading-5
-                        text-[var(--sidebar-primary-foreground)]
-                      "
-                    >
-                      {sidebarSections?.sidebar_footer?.description}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </motion.aside>
