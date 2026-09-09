@@ -1,4 +1,5 @@
 import { http } from "../../../services/api";
+import { readResumeSections, writeResumeSections } from "./resumeSections";
 
 export const candidateFields = {
   first_name: "First name", last_name: "Last name", email1: "Email", phone_mobile: "Mobile phone",
@@ -17,6 +18,9 @@ export function normalizeCandidate(record = {}, email) {
   draft.phone_mobile ||= record.phone || record.mobile || "";
   draft.current_designation ||= record.designation || record.title || "";
   draft.description ||= record.summary || "";
+  const history = readResumeSections(draft.description);
+  draft.description = history.about;
+  draft.resumeSections = record.resumeSections || history.sections;
   for (const key of ["linkedin_url", "github_url"]) if (/^https?:\/\/$/i.test(draft[key])) draft[key] = "";
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(draft.dob)) {
     const [month, day, year] = draft.dob.split("/");
@@ -38,6 +42,8 @@ export async function findCandidate(email) {
 
 export async function saveCandidate(id, draft, email) {
   const data = { ...normalizeCandidate(draft, email), candidate_source: draft.candidate_source || "career_portal" };
+  data.description = writeResumeSections(data.description, data.resumeSections);
+  delete data.resumeSections;
   const response = await http({ method: "POST", body: { action: id ? "update" : "create", module: "hrc_candidates", ...(id ? { id } : {}), data } });
   if (response?.success !== true) throw new Error(response?.message || "Could not save your profile. Please try again.");
   return { ...data, id: id || response.id || response.record?.id || response.data?.id };
