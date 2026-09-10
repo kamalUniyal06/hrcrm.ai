@@ -75,12 +75,12 @@ const userSlice = createSlice({
   },
 });
 
-export const getUser = (email = null) => {
+export const getUser = (state) => {
   return async (dispatch) => {
     dispatch(userSlice.actions.loadUserRequest());
 
     try {
-      const data = await apiRequest({ endpoint: `${AUTH_URL}?controller=auth`, params: { action: 'me', email: email }, withCredentials: true }
+      const data = await apiRequest({ endpoint: `${AUTH_URL}?controller=auth`, params: { action: 'me', state }, withCredentials: true }
       );
       showConsole && console.log("user", data);
       dispatch(

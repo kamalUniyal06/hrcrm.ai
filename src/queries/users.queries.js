@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { getAllUsers } from "../api/users.api";
+import { getAllUsers, getUserInfo } from "../api/users.api";
+import { store } from "@/store/store";
 export const userKeys = {
     all: ["users"],
 
@@ -13,10 +14,21 @@ export const userKeys = {
         "id",
         id,
     ],
+    info: (email) => [
+        "users",
+        "email",
+        email,
+    ],
 };
 export const useCrmUsers = () =>
     useQuery({
         queryKey: userKeys.lists,
         queryFn: getAllUsers,
+    });
+
+export const useUserInfo = () =>
+    useQuery({
+        queryKey: userKeys.info(store.getState().user.user.email),
+        queryFn: getUserInfo,
     });
 

@@ -1,5 +1,6 @@
+import { Action } from "@radix-ui/react-alert-dialog";
 import { showConsole } from "../assets/assets";
-import { fetchGpc } from "../services/api";
+import { fetchGpc, http } from "../services/api";
 import { setCurrentUser } from "../services/utils";
 import { store } from "../store/store";
 
@@ -10,3 +11,11 @@ export const getAllUsers = async () => {
     setCurrentUser(currentUser)
     return data ?? [];
 }
+export const getUserInfo = async () => http({
+    method: "POST",
+    body: {
+        action: 'fetch',
+        module: "hrc_candidates",
+        filters: { email1: store.getState().user.user.email },
+    }
+})

@@ -28,7 +28,6 @@ import Views from "./components/layouts/detail-view/Views";
 import CreateView from "./components/layouts/create-view/CreateView";
 import TableView from "./components/layouts/table-view/TableView";
 
-import { store } from "./store/store";
 import Home from "./components/Home";
 import { PageContextProvider } from "./context/pageContext";
 import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
@@ -205,18 +204,26 @@ export default function App() {
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search);
 
-    const email = searchParams.get("email");
+    const job_id = searchParams.get("job_id");
 
-    // Only allow email param when URL has no extra path
-    const isOnlyDomain =
-      window.location.pathname === "/" || window.location.pathname === "";
-
-    if (isOnlyDomain && email) {
-      dispatch(getUser(email));
+    if (job_id?.trim()) {
+      dispatch(getUser({ job_id }));
     } else {
       dispatch(getUser());
     }
   }, [dispatch]);
+
+  useEffect(() => {
+    if (!isAuthenticated || loading) return;
+    const redirectJobLink = () => {
+      if (router.state.navigation.state !== "idle") return;
+      const { pathname, search } = router.state.location;
+      if (new URLSearchParams(search).get("job_id")?.trim() && pathname !== "/profile") {
+        void router.navigate({ pathname: "/profile", search }, { replace: true });
+      }
+    };
+    redirectJobLink();
+  }, [isAuthenticated, loading]);
 
   useEffect(() => {
     if (error) {

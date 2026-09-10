@@ -1,8 +1,9 @@
+import { store } from "../store/store";
+import { useSidebarLayout } from "./sidebar.queries";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
     fetchCrmModules,
-    fetchLayout,
     updateLayout,
 } from "../api/prefrences.api";
 
@@ -10,10 +11,7 @@ import {
 export const preferenceKeys = {
     all: ["preferences"],
 
-    layout: () => [
-        "preferences",
-        "layout"
-    ],
+    layout: () => ["sidebar", "layout", store.getState().user.user?.email?.trim() || ""],
 
     crmModules: () => [
         "preferences",
@@ -23,13 +21,7 @@ export const preferenceKeys = {
 };
 
 
-export const useLayoutPreferences = () =>
-    useQuery({
-        queryKey: preferenceKeys.layout(),
-        queryFn: fetchLayout,
-        staleTime:
-            5 * 60 * 1000,
-    });
+export const useLayoutPreferences = useSidebarLayout;
 
 export const useCrmModules = () =>
     useQuery({
@@ -59,6 +51,7 @@ export function useUpdateLayout() {
         },
 
         onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["sidebar", "layout"] });
             // Refresh entity queries
             queryClient.invalidateQueries({
                 queryKey: preferenceKeys.all,

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, Camera, Check, CheckCircle2, FileText, GraduationCap, Loader2, Mail, MapPin, Pencil, Save, ShieldCheck, Sparkles, Upload, UserRound } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../store/constants";
 import CandidatePhotoUpload from "./profile/CandidatePhotoUpload";
@@ -13,10 +14,12 @@ const secondaryButton = "rounded-xl border border-slate-200 bg-white px-5 py-3 t
 
 export default function Profile() {
   const email = useSelector(state => state.user.user?.email)?.trim() || "";
-  return <CandidateProfile key={email} email={email} />;
+  const [searchParams] = useSearchParams();
+  const jobId = searchParams.get("job_id")?.trim() || "";
+  return <CandidateProfile key={`${email}:${jobId}`} email={email} jobId={jobId} />;
 }
 
-function CandidateProfile({ email }) {
+function CandidateProfile({ email, jobId }) {
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
   const [record, setRecord] = useState(null);
@@ -38,6 +41,7 @@ function CandidateProfile({ email }) {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [file, setFile] = useState(null);
+  const [panNumber, setPanNumber] = useState("");
   const [stage, setStage] = useState("New Candidate -> Direct");
   const [related, setRelated] = useState({});
   const [relatedRetry, setRelatedRetry] = useState(0);
@@ -56,10 +60,10 @@ function CandidateProfile({ email }) {
       if (!active) return;
       setRecord(candidate);
       setDraft(candidate ? normalizeCandidate(candidate, email) : null);
-      setPhase(candidate ? "view" : "upload");
+      setPhase(jobId ? "upload" : candidate ? "view" : "upload");
     }).catch(err => { if (active) { setError(err.message); setPhase("error"); } });
     return () => { active = false; alive.current = false; requestRef.current?.abort(); };
-  }, [email, retry]);
+  }, [email, jobId, retry]);
 
   useEffect(() => {
     if (!candidateRelatedModules[section] || !record?.id) return;
@@ -81,6 +85,7 @@ function CandidateProfile({ email }) {
     event.preventDefault();
     if (!file || !email || requestRef.current) return;
     setError("");
+    if (!panNumber.trim()) { setError("Please enter your PAN number."); return; }
     setBusy(true);
     cancelled.current = false;
     const controller = new AbortController();
@@ -92,6 +97,8 @@ function CandidateProfile({ email }) {
       body.append("file", file, file.name);
       body.append("primary_email", email);
       body.append("stage", stage);
+      body.append("pan_card_number", panNumber.trim().toUpperCase());
+      if (jobId) body.append("job_record_id", jobId);
       const response = await fetch("https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing", { method: "POST", headers: { "x-api-key": FETCH_GPC_X_API_KEY }, body, signal: controller.signal });
       const json = await response.json();
       if (!response.ok || json?.success !== true) throw new Error(json?.message || "Unable to parse this resume. Please try another file.");
@@ -197,9 +204,9 @@ function CandidateProfile({ email }) {
       {phase === "loading" && <section role="status" aria-label="Loading your profile" className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="h-32 animate-pulse bg-indigo-50 motion-reduce:animate-none" /><div className="space-y-6 p-8"><div className="flex items-center gap-3 text-sm text-slate-500"><Loader2 size={18} className="animate-spin motion-reduce:animate-none" />Finding your candidate profile...</div><div className="grid gap-6 sm:grid-cols-2">{[0, 1, 2, 3].map(item => <div key={item} className="h-16 animate-pulse rounded-xl bg-slate-50 motion-reduce:animate-none" />)}</div></div></section>}
       {phase === "upload" && (busy ? <ResumeLoading filename={file?.name} onCancel={() => { cancelled.current = true; requestRef.current?.abort(); }} /> : <section className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[0.9fr_1.1fr]">
         <div className="relative overflow-hidden bg-gradient-to-br from-sidebar-primary to-sidebar-secondary p-8 text-white sm:p-12"><div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full border border-white/10" /><div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full border-[40px] border-white/5" /><span className="relative inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs"><Sparkles size={14} />A head start for your next chapter</span><h2 className="relative mt-8 max-w-sm text-4xl font-semibold leading-tight tracking-tight">Great experience.<br /><span className="text-white/60">Meet a great profile.</span></h2><p className="relative mt-5 max-w-sm text-sm leading-7 text-white/70">Bring your resume. We'll turn it into a profile that tells your story, one detail at a time.</p><div className="relative mt-10 space-y-5">{["Upload your resume", "Review each part of your story", "Save and make it yours"].map((text, index) => <div key={text} className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-xs text-white/70">{index + 1}</span><span className="text-sm text-white/90">{text}</span></div>)}</div></div>
-        <form onSubmit={parseResume} className="flex flex-col justify-center p-7 sm:p-12"><p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">Let's begin</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">One resume. A world of potential.</h2><p className="mt-3 text-sm leading-6 text-slate-500">Start with your latest resume. You'll be able to review and edit everything before saving.</p><div className="mt-6 space-y-4"><label className="block text-sm font-medium text-slate-700">Email<input type="email" value={email} readOnly required className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500" /></label><label className="block text-sm font-medium text-slate-700">Stage<select value={stage} onChange={event => setStage(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">{["Direct", "Via Portal", "Institute", "Campus Drive"].map(label => <option key={label} value={`New Candidate -> ${label}`}>{label}</option>)}</select></label></div><label className="group mt-7 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-7 text-center transition hover:border-indigo-400 hover:bg-indigo-50 focus-within:ring-4 focus-within:ring-indigo-100"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-indigo-500 shadow-sm transition group-hover:-translate-y-1"><Upload size={24} /></span><span className="mt-4 block text-sm font-semibold text-slate-800">{file ? file.name : "Choose your resume"}</span><span className="mt-1 block text-xs text-slate-400">PDF, DOC or DOCX</span><input aria-label="Resume file" type="file" accept=".pdf,.doc,.docx" className="mt-5 block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-indigo-600" onChange={event => { const selected = event.target.files?.[0]; setFile(null); setError(""); if (!selected) return; if (!/\.(pdf|doc|docx)$/i.test(selected.name) || !selected.size) { setError("Choose a non-empty PDF, DOC or DOCX resume."); event.target.value = ""; return; } setFile(selected); }} /></label><button disabled={!file || !email} className={`${primaryButton} mt-5 w-full`}>Build my profile<ArrowRight size={17} /></button><p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400"><FileText size={13} />Your details stay editable, always.</p></form>
+        <form onSubmit={parseResume} className="flex flex-col justify-center p-7 sm:p-12"><p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">Let's begin</p><h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">One resume. A world of potential.</h2><p className="mt-3 text-sm leading-6 text-slate-500">Start with your latest resume. You'll be able to review and edit everything before saving.</p><div className="mt-6 space-y-4"><label className="block text-sm font-medium text-slate-700">Email<input type="email" value={email} readOnly required className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500" /></label><label className="block text-sm font-medium text-slate-700">Stage<select value={stage} onChange={event => setStage(event.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm">{["Direct", "Via Portal", "Institute", "Campus Drive"].map(label => <option key={label} value={`New Candidate -> ${label}`}>{label}</option>)}</select></label><label className="block text-sm font-medium text-slate-700">PAN number <span className="text-red-500">*</span><input type="text" value={panNumber} onChange={event => setPanNumber(event.target.value.toUpperCase())} required autoComplete="off" placeholder="Enter your PAN number" className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm" /></label>{jobId && <p className="break-all text-[10px] text-slate-400">Job ID: {jobId}</p>}</div><label className="group mt-7 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-7 text-center transition hover:border-indigo-400 hover:bg-indigo-50 focus-within:ring-4 focus-within:ring-indigo-100"><span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-indigo-500 shadow-sm transition group-hover:-translate-y-1"><Upload size={24} /></span><span className="mt-4 block text-sm font-semibold text-slate-800">{file ? file.name : "Choose your resume"}</span><span className="mt-1 block text-xs text-slate-400">PDF, DOC or DOCX</span><input aria-label="Resume file" type="file" accept=".pdf,.doc,.docx" className="mt-5 block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-indigo-600" onChange={event => { const selected = event.target.files?.[0]; setFile(null); setError(""); if (!selected) return; if (!/\.(pdf|doc|docx)$/i.test(selected.name) || !selected.size) { setError("Choose a non-empty PDF, DOC or DOCX resume."); event.target.value = ""; return; } setFile(selected); }} /></label><button disabled={!file || !email || !panNumber.trim()} className={`${primaryButton} mt-5 w-full`}>Build my profile<ArrowRight size={17} /></button><p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400"><FileText size={13} />Your details stay editable, always.</p></form>
       </section>)}
-      {draft && <>
+      {draft && phase !== "upload" && <>
         <header className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="relative h-28 overflow-hidden bg-gradient-to-r from-sidebar-primary to-sidebar-secondary sm:h-32"><div className="absolute -right-10 -top-44 h-96 w-96 rounded-full border-[48px] border-white/5" /><div className="absolute right-52 top-8 h-56 w-56 rounded-full border border-white/10" /><span className="absolute left-6 top-6 text-[10px] font-medium uppercase tracking-[0.25em] text-white/70 sm:left-8">Your story. Your next chapter.</span></div>
           <div className="relative px-6 pb-6 sm:px-8"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div className="-mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-end"><div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-[5px] border-white bg-indigo-50 text-3xl font-semibold text-indigo-500 shadow-sm">{photoSrc ? <img key={photoSrc} src={photoSrc} alt="Candidate profile" className="h-full w-full object-cover" /> : [draft.first_name, draft.last_name].filter(Boolean).map(part => part[0]).join("").toUpperCase() || <UserRound size={34} />}</div><div className="min-w-0 sm:pb-1"><h2 className="break-words text-2xl font-semibold tracking-tight text-slate-900">{name}</h2><p className="mt-1 text-sm text-slate-500">{draft.current_designation || "Ready for what's next"}</p></div></div>{!editing ? <button className={secondaryButton} onClick={() => { setPhase("edit"); setNotice(""); }}><span className="flex items-center gap-2"><Pencil size={15} />Edit profile</span></button> : <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">{record?.id ? "Editing your profile" : "Draft / review before saving"}</span>}</div><div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-xs text-slate-500"><span className="inline-flex min-w-0 items-center gap-2"><Mail size={14} className="shrink-0 text-slate-400" /><span className="break-all">{email}</span></span>{draft.primary_address_city && <span className="inline-flex items-center gap-2"><MapPin size={14} className="text-slate-400" />{[draft.primary_address_city, draft.primary_address_country].filter(Boolean).join(", ")}</span>}{record?.status && <span className="inline-flex items-center gap-1.5 text-emerald-600"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{record.status}</span>}</div></div>

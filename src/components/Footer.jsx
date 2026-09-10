@@ -1,8 +1,8 @@
 import { Settings } from "lucide-react";
 import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
 import IconButton from "./ui/Buttons/IconButton";
 import { PageContext } from "../context/pageContext";
-import { useNavigate } from "react-router-dom";
 
 
 export default function Footer() {
