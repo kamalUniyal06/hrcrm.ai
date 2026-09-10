@@ -118,7 +118,7 @@ export default function CandidatePhotoUpload({ initialEmail = "", lockedEmail = 
       }
       const imageUrl = json.image_url;
       if (typeof imageUrl !== "string" || !/^https?:\/\/.+/i.test(imageUrl)) throw new Error("The upload did not return a valid image URL. Please try again.");
-      onUploaded?.(imageUrl);
+      onUploaded?.(imageUrl, photo);
       setUploaded(json);
     } catch (err) {
       setError(err.name === "AbortError" ? "Photo upload timed out. Please try again." : err.message || "Photo upload failed. Please try again.");
@@ -130,7 +130,6 @@ export default function CandidatePhotoUpload({ initialEmail = "", lockedEmail = 
     }
   };
 
-  const savedImageUrl = typeof uploaded?.image_url === "string" && /^https?:\/\//i.test(uploaded.image_url) ? uploaded.image_url : "";
   const buttonClass = "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
@@ -153,7 +152,7 @@ export default function CandidatePhotoUpload({ initialEmail = "", lockedEmail = 
           <video ref={videoRef} autoPlay muted playsInline className="aspect-video w-full rounded-xl bg-slate-900 object-cover" aria-label="Camera preview" />
           <div className="flex gap-3"><button type="button" onClick={takePhoto} disabled={!cameraReady} className={buttonClass}>Capture photo</button><button type="button" onClick={stopCamera} className={buttonClass}>Cancel camera</button></div>
         </div>}
-        {preview && !cameraOpen && <div className="flex items-center gap-4"><img key={savedImageUrl || preview} src={savedImageUrl || preview} onError={(event) => { if (event.currentTarget.getAttribute("src") !== preview) event.currentTarget.src = preview; }} alt={uploaded ? "Uploaded candidate photo" : "Selected candidate photo preview"} className="h-28 w-28 rounded-xl border border-slate-200 object-cover" /><p className="break-all text-sm text-slate-500">{photo.name}</p></div>}
+        {preview && !cameraOpen && <div className="flex items-center gap-4"><img key={preview} src={preview} alt={uploaded ? "Uploaded candidate photo" : "Selected candidate photo preview"} className="h-28 w-28 rounded-xl border border-slate-200 object-cover" /><p className="break-all text-sm text-slate-500">{photo.name}</p></div>}
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button type="submit" disabled={!photo || !email.trim() || uploading || cameraOpen || Boolean(uploaded)} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}{uploading ? "Uploading photo..." : uploaded ? "Photo uploaded" : "Upload photo"}</button>
         <p role="status" className="text-sm text-green-700">{uploaded ? "Photo uploaded. Save your profile to apply it." : ""}</p>
