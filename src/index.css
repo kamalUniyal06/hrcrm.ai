@@ -33,6 +33,19 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+  --employee-page: #f8fafc;
+  --employee-heading: #17376d;
+  --employee-text: #526174;
+  --employee-subtle: #93a0b2;
+  --employee-blue: #3783ef;
+  --employee-blue-soft: #e8f2ff;
+  --employee-green: #2dad8c;
+  --employee-green-soft: #e9f8f3;
+  --employee-yellow: #ffcc21;
+  --employee-orange: #f06835;
+  --employee-red: #df3d19;
+  --employee-row: #f8fafc;
+  --employee-track: #edf1f5;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -227,6 +240,19 @@
   --sidebar-secondary: #033081;
 
   --sidebar-ring: oklch(0.439 0 0);
+  --employee-page: #111827;
+  --employee-heading: #dbeafe;
+  --employee-text: #cbd5e1;
+  --employee-subtle: #94a3b8;
+  --employee-blue: #60a5fa;
+  --employee-blue-soft: #172554;
+  --employee-green: #34d399;
+  --employee-green-soft: #064e3b;
+  --employee-yellow: #facc15;
+  --employee-orange: #fb923c;
+  --employee-red: #f87171;
+  --employee-row: #1f2937;
+  --employee-track: #334155;
 }
 
 @theme inline {

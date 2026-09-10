@@ -1,5 +1,5 @@
-import Profile from "./pages/Profile";
+import EmployeHomePage from "./employement/pages/EmployeHomePage";
 
 export default function Home() {
-  return <Profile />;
+  return <EmployeHomePage />;
 }

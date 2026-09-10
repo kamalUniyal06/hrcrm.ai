@@ -1,15 +1,4 @@
-/**
- * The column list, in published rank order, with drag-to-reorder.
- *
- * Reordering is disabled - not just visually, but at the SortableContext -
- * whenever a write is in flight or the rank data is invalid. In both cases the
- * neighbours a new rank would be calculated from cannot be trusted: they would
- * be read off an order the server has not accepted.
- *
- * Ranks are shown as the opaque strings they are. They are never rendered as
- * a position number, because that is exactly the mistake that leads to
- * guessing a rank from the visual index.
- */
+
 
 import React from "react";
 
@@ -97,10 +86,9 @@ function SortableColumn({
         py-2
         transition-colors
 
-        ${
-          selected
-            ? "border-primary/40 bg-primary/[0.06]"
-            : "border-transparent hover:bg-accent/60"
+        ${selected
+          ? "border-primary/40 bg-primary/[0.06]"
+          : "border-transparent hover:bg-accent/60"
         }
 
         ${isDragging ? "opacity-50" : ""}

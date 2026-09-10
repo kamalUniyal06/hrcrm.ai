@@ -32,14 +32,6 @@ export function Sidebar() {
     setMobileSidebarOpen,
   } = useContext(PageContext);
 
-  /*
-  |--------------------------------------------------------------------------
-  | RESPONSIVE MODE
-  |--------------------------------------------------------------------------
-  | At `lg` and up the sidebar is a permanent, collapsible column.
-  | Below `lg` it becomes an off-canvas drawer that is always shown in its
-  | full (expanded) form, so `collapsed` is forced off there.
-  */
   const isDesktop = useIsDesktop();
   const collapsed = isDesktop ? desktopCollapsed : false;
   const drawerOpen = !isDesktop && mobileSidebarOpen;

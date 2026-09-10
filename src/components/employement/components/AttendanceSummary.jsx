@@ -1,0 +1,4 @@
+import { CheckSquare2 } from "lucide-react";
+
+const rows = [["green","1,031","on time"],["yellow","191","Work from home"],["red","212","late attendance"],["gray","66","absent"]];
+export default function AttendanceSummary(){return <section className="employee-card attendance-summary"><div className="card-title-row"><h2 className="card-title">My Attendance</h2><button className="link-button">View Stats</button></div><div className="divider"/><div className="attendance-summary__body"><div className="legend">{rows.map(([color,count,label])=><div className="legend-row" key={label}><i className={`dot dot--${color}`}/><span><strong>{count}</strong> {label}</span></div>)}</div><div className="donut"><div className="donut__inside"><strong>1,434</strong><span>/1500</span></div></div></div><div className="attendance-summary__footer"><CheckSquare2 size={18}/>Better than 91.3% employees!</div></section>}

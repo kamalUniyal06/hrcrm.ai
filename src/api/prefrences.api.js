@@ -1,18 +1,19 @@
+import { employeSidebar } from "@/services/utils";
 import { apiRequest, http } from "../services/api";
 
 const METADATA_ENDPOINT = "https://kartikey.hrcrm.ai/index.php";
 
 export const fetchLayout = async () => {
-    const data = await apiRequest({
-        endpoint: METADATA_ENDPOINT,
-        params: {
-            entryPoint: "flexibility",
-            global_component_name: "Sidebar",
-            _: Date.now(),
-        },
-    });
+    // const data = await apiRequest({
+    //     endpoint: METADATA_ENDPOINT,
+    //     params: {
+    //         entryPoint: "flexibility",
+    //         global_component_name: "Sidebar",
+    //         _: Date.now(),
+    //     },
+    // });
 
-    return data ?? {};
+    return employeSidebar ?? {};
 };
 
 export const fetchSidebarComponentId = async () => {

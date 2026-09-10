@@ -225,13 +225,8 @@ export default function App() {
       <Toaster />
       <InternetStatus />
 
-      {isAuthenticated && !loading && (
-        <>
-          {/* <MeetingWidget /> */}
-          {/* <TwakChat /> */}
-          <RouterProvider router={router} />
-        </>
-      )}
+      {isAuthenticated && !loading && <RouterProvider router={router} />
+      }
       {!isAuthenticated && loading && <LoadingPage />}
 
       {!isAuthenticated && !loading && <Login />}

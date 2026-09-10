@@ -2,11 +2,13 @@ import { Settings } from "lucide-react";
 import { useContext } from "react";
 import IconButton from "./ui/Buttons/IconButton";
 import { PageContext } from "../context/pageContext";
+import { useNavigate } from "react-router-dom";
 
 
 export default function Footer() {
 
   const { collapsed } = useContext(PageContext);
+  const navigate = useNavigate()
 
 
   return (
