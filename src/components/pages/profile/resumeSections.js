@@ -1,4 +1,4 @@
-const sectionKeys = ["education", "experiences", "skills"];
+const sectionKeys = ["experiences", "education", "skills"];
 
 export function normalizeResumeItems(items) {
   if (!Array.isArray(items)) return [];
@@ -8,9 +8,24 @@ export function normalizeResumeItems(items) {
   });
 }
 
-// Keep the existing human-readable description storage while separating it in the UI.
+// Read JSON descriptions, with a fallback for profiles saved in the older text format.
 export function readResumeSections(description = "") {
   const sections = { education: [], experiences: [], skills: [] };
+  try {
+    const data = JSON.parse(description);
+    if (data?.content?.candidate && typeof data.content.candidate === "object" && !Array.isArray(data.content.candidate)) {
+      for (const key of sectionKeys) sections[key] = normalizeResumeItems(data.content[key]);
+      const about = data.content.candidate.description || data.content.candidate.summary;
+      return { about: typeof about === "string" ? about : "", sections, parsedResume: data };
+    }
+    if (data && typeof data === "object" && !Array.isArray(data) &&
+      (sectionKeys.some(key => Array.isArray(data[key])) || typeof data.about === "string")) {
+      for (const key of sectionKeys) sections[key] = normalizeResumeItems(data[key]);
+      return { about: typeof data.about === "string" ? data.about : "", sections };
+    }
+  } catch {
+    // Plain text and legacy section headings remain editable without losing content.
+  }
   const parts = String(description).split(/(?:^|\n\n)(EDUCATION|EXPERIENCES|SKILLS)\r?\n/);
   for (let index = 1; index < parts.length; index += 2) {
     const key = parts[index].toLowerCase();
@@ -34,9 +49,8 @@ export function readResumeSections(description = "") {
 }
 
 export function writeResumeSections(about, sections) {
-  return [about, ...sectionKeys.flatMap(key => {
-    const records = normalizeResumeItems(sections?.[key]).map(item => Object.entries(item)
-      .filter(([, value]) => value.trim()).map(([label, value]) => `${label}: ${value.replaceAll("\n", "\n  ")}`).join("\n")).filter(Boolean);
-    return records.length ? [`${key.toUpperCase()}\n${records.join("\n\n")}`] : [];
-  })].filter(Boolean).join("\n\n");
+  return JSON.stringify({
+    about: about || "",
+    ...Object.fromEntries(sectionKeys.map(key => [key, normalizeResumeItems(sections?.[key])])),
+  }, null, 2);
 }
