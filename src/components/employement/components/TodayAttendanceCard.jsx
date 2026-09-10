@@ -12,72 +12,46 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 import { toast } from "react-toastify";
 
-import { useDailyActivity, useMarkPresent } from "@/components/employement/queries/dailyActivity.queries";
+import { useDailyActivity, useLogOut, useLunchIn, useLunchOut, useMarkPresent } from "@/components/employement/queries/dailyActivity.queries";
+import TodayPresentCard from "./TodayPresentCard";
 
 const TIMEZONE = "Asia/Kolkata";
 
-/**
- * ------------------------------------------------------------
- * DATE HELPERS
- * ------------------------------------------------------------
- */
+const getDateFromApiValue = (value) => {
+  if (!value) return null;
+
+  const match = String(value)
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+
+  if (!match) return null;
+
+  // API format is MM/DD/YYYY
+  const [, month, day, year] = match;
+
+  return `${year}-${month}-${day}`;
+};
 
 const getTodayDate = () => {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIMEZONE,
+    timeZone: "Asia/Kolkata",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
 };
 
-const getDateFromApiValue = (value) => {
-  if (!value) return null;
-
-  const stringValue = String(value).trim();
-
-  if (!stringValue) return null;
-
-  /*
-   * API format:
-   *
-   * 09/07/2026 13:02
-   *
-   * We only need the date portion.
-   */
-  const match = stringValue.match(
-    /^(\d{2})\/(\d{2})\/(\d{4})/
-  );
-
-  if (match) {
-    const [, day, month, year] = match;
-
-    return `${year}-${month}-${day}`;
-  }
-
-  /*
-   * Fallback for ISO dates.
-   */
-  const date = new Date(stringValue);
-
-  if (!Number.isNaN(date.getTime())) {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(date);
-  }
-
-  return null;
-};
-
 const isLoginToday = (login) => {
   if (!login) return false;
 
   const loginDate = getDateFromApiValue(login);
+  const todayDate = getTodayDate();
 
-  return loginDate === getTodayDate();
+  console.log("login:", login);
+  console.log("loginDate:", loginDate);
+  console.log("todayDate:", todayDate);
+
+  return loginDate === todayDate;
 };
 
 /**
@@ -218,7 +192,10 @@ export default function TodayAttendanceCard() {
     error,
     refetch,
   } = useDailyActivity();
-  const { mutate, isPending: markPresentLoading } = useMarkPresent();
+  const { mutate: handleMarkPresent, isPending: markPresentLoading } = useMarkPresent();
+  const { mutate: handleLunchIn, isPending: lunchInLoading } = useLunchIn();
+  const { mutate: handleLunchOut, isPending: lunchOutLoading } = useLunchOut();
+  const { mutate: handleLogOut, isPending: logOutLoading } = useLogOut();
   const [breakStartedAt, setBreakStartedAt] = useState(null);
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [actionLoading, setActionLoading] = useState(null);
@@ -254,8 +231,8 @@ export default function TodayAttendanceCard() {
    */
 
   const isPresentToday = useMemo(() => {
-    return isLoginToday(record?.login);
-  }, [record?.login]);
+    return isLoginToday(record?.date_entered);
+  }, [record?.date_entered]);
 
   const isOnBreak = Boolean(breakStartedAt);
 
@@ -416,17 +393,6 @@ export default function TodayAttendanceCard() {
     }
   };
 
-  /**
-   * ----------------------------------------------------------
-   * MARK PRESENT
-   * ----------------------------------------------------------
-   *
-   * Replace this with your actual mutation.
-   */
-
-  const handleMarkPresent = () => {
-    mutate();
-  };
 
   /**
    * ----------------------------------------------------------
@@ -435,21 +401,7 @@ export default function TodayAttendanceCard() {
    */
 
   const handleTakeBreak = () => {
-    executeAction("break", async () => {
-      /*
-       * TODO:
-       *
-       * await startBreak({
-       *   id: record?.id,
-       * });
-       */
-
-      /*
-       * Start local timer immediately so the UI feels
-       * instantaneous.
-       */
-      startBreakTimer();
-    });
+    handleLunchIn()
   };
 
   /**
@@ -459,17 +411,7 @@ export default function TodayAttendanceCard() {
    */
 
   const handleBackFromBreak = () => {
-    executeAction("back", async () => {
-      /*
-       * TODO:
-       *
-       * await endBreak({
-       *   id: record?.id,
-       * });
-       */
-
-      stopBreakTimer();
-    });
+    handleLunchOut()
   };
 
   /**
@@ -478,19 +420,7 @@ export default function TodayAttendanceCard() {
    * ----------------------------------------------------------
    */
 
-  const handleCheckOut = () => {
-    executeAction("checkout", async () => {
-      /*
-       * TODO:
-       *
-       * await checkOut({
-       *   id: record?.id,
-       * });
-       */
 
-      stopBreakTimer();
-    });
-  };
 
   /**
    * ----------------------------------------------------------
@@ -600,7 +530,7 @@ export default function TodayAttendanceCard() {
           disabled={
             markPresentLoading
           }
-          onClick={handleMarkPresent}
+          onClick={() => handleMarkPresent()}
           className="mark-present disabled:cursor-not-allowed disabled:opacity-60"
         >
           {markPresentLoading ? (
@@ -629,176 +559,13 @@ export default function TodayAttendanceCard() {
    */
 
   return (
-    <section className="employee-card today-card">
-      <div className="card-title-row">
-        <h2 className="card-title">
-          Today
-        </h2>
-
-        <span className="status-badge present">
-          {isOnBreak ? "On Break" : "Present"}
-        </span>
-      </div>
-
-      <div className="divider" />
-
-      <div className="today-card__body">
-        <div className="min-w-0 flex-1">
-          {isOnBreak ? (
-            <>
-              <div className="mb-2 flex items-center gap-2">
-                <Coffee
-                  className="text-orange-500"
-                  size={27}
-                />
-
-                <span className="text-sm font-medium">
-                  You're on a break
-                </span>
-              </div>
-
-              <p className="today-card__message">
-                Take your time. Your break is
-                being tracked.
-              </p>
-
-              <div className="mt-4 flex items-center gap-2">
-                <TimerReset
-                  size={18}
-                  className="text-orange-500"
-                />
-
-                <span className="text-2xl font-semibold tabular-nums">
-                  {formatDuration(
-                    breakSeconds
-                  )}
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              <Fingerprint
-                className="today-card__icon"
-                size={27}
-              />
-
-              <p className="today-card__message">
-                You're marked present today.
-                Have a productive day!
-              </p>
-
-              <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                <span>
-                  Login:{" "}
-                  <strong className="text-foreground">
-                    {formatTime(record?.login)}
-                  </strong>
-                </span>
-
-                {record?.logout && (
-                  <span>
-                    Logout:{" "}
-                    <strong className="text-foreground">
-                      {formatTime(
-                        record?.logout
-                      )}
-                    </strong>
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="progress-ring">
-          <div className="progress-ring__content">
-            <strong>
-              {isOnBreak ? "—" : "100%"}
-            </strong>
-
-            <span>
-              {isOnBreak
-                ? "on break"
-                : "in office"}
-            </span>
-
-            <small>
-              {isOnBreak
-                ? "BREAK"
-                : "GOOD"}
-            </small>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {isOnBreak ? (
-          <button
-            type="button"
-            disabled={
-              actionLoading === "back"
-            }
-            onClick={handleBackFromBreak}
-            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {actionLoading === "back" ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Updating...
-              </>
-            ) : (
-              <>
-                <Play size={17} />
-                I'm Back From Break
-              </>
-            )}
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={
-              actionLoading === "break" ||
-              actionLoading === "checkout"
-            }
-            onClick={handleTakeBreak}
-            className="flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-4 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {actionLoading === "break" ? (
-              <>
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Starting Break...
-              </>
-            ) : (
-              <>
-                <Coffee size={17} />
-                Take a Break
-              </>
-            )}
-          </button>
-        )}
-
-        <button
-          type="button"
-          disabled={
-            isOnBreak ||
-            actionLoading === "checkout"
-          }
-          onClick={handleCheckOut}
-          className="flex h-11 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
-        >
-          {actionLoading === "checkout" ? (
-            <>
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Checking Out...
-            </>
-          ) : (
-            <>
-              <LogOut size={17} />
-              Check Out
-            </>
-          )}
-        </button>
-      </div>
-    </section>
-  );
+    <TodayPresentCard
+      record={record}
+      isOnBreak={isOnBreak}
+      breakSeconds={breakSeconds}
+      actionLoading={actionLoading || lunchInLoading || lunchOutLoading || logOutLoading}
+      handleTakeBreak={handleTakeBreak}
+      handleBackFromBreak={handleBackFromBreak}
+      handleCheckOut={handleLogOut}
+    />)
 }
