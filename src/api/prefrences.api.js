@@ -1,19 +1,11 @@
-import { apiRequest, http } from "../services/api";
+import { http } from "../services/api";
 
-const METADATA_ENDPOINT = "https://kartikey.hrcrm.ai/index.php";
+import { fetchSidebar } from "./sidebar.api";
+import { store } from "../store/store";
 
-export const fetchLayout = async () => {
-    const data = await apiRequest({
-        endpoint: METADATA_ENDPOINT,
-        params: {
-            entryPoint: "flexibility",
-            global_component_name: "Sidebar",
-            _: Date.now(),
-        },
-    });
+const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
 
-    return data ?? {};
-};
+export const fetchLayout = async () => fetchSidebar(store.getState().user.user?.email);
 
 export const fetchSidebarComponentId = async () => {
     const response = await http({

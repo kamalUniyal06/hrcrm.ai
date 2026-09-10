@@ -10,14 +10,14 @@ import { useQuery } from "@tanstack/react-query";
 import { userKeys } from "../queries/users.queries";
 import { getAllUsers } from "../api/users.api";
 import { logo, headingLogo } from "../assets/assets";
-import { useLayoutPreferences } from "../queries/prefrences.queries";
 import Icon from "./ui/Icon/Icon";
-import { useSidebarStats } from "../queries/sidebar.queries";
+import { useSidebarLayout, useSidebarStats } from "../queries/sidebar.queries";
 import {
   normalizeSidebarResponse,
   selectVisibleGroups,
 } from "../utils/sidebarLayout";
 import { useIsDesktop } from "../hooks/useMediaQuery";
+import { sidebarDestination } from "../utils/sidebarNavigation";
 
 export function Sidebar() {
   const navigateTo = useNavigate();
@@ -72,7 +72,8 @@ export function Sidebar() {
     data: layoutData,
     isPending: layoutLoading,
     refetch: refetchLayout,
-  } = useLayoutPreferences();
+    error: layoutError,
+  } = useSidebarLayout();
 
   const sidebarSections = layoutData ?? [];
 
@@ -264,7 +265,7 @@ export function Sidebar() {
           lg:shadow-none
         "
       >
-        {layoutLoading ? (
+        {layoutError ? <div role="alert" className="px-4 py-3 text-sm">Could not load sidebar.<button type="button" onClick={() => refetchLayout()} className="ml-2 underline">Retry</button></div> : layoutLoading ? (
           <div className="animate-pulse space-y-5 p-3">
             {[1, 2, 3].map((group) => (
               <div key={group}>
@@ -500,6 +501,8 @@ export function Sidebar() {
                       {group.data.map((item) => (
                         <button
                           key={item.id}
+                          disabled={!sidebarDestination(item)}
+                          title={!sidebarDestination(item) ? "Navigation is not configured for this item" : item.name}
                           onClick={() => {
                             if (isDesktop) {
                               setSidebarCollapsed(true);
@@ -507,7 +510,8 @@ export function Sidebar() {
                               setMobileSidebarOpen(false);
                             }
                             setActivePage(item.id);
-                            navigateTo(`/${item.navigation}`);
+                            const target = sidebarDestination(item);
+                            if (target) navigateTo(target);
                           }}
                           className={`
                                 flex w-full

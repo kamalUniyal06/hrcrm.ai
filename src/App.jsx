@@ -218,7 +218,6 @@ export default function App() {
       }
     };
     redirectJobLink();
-    return router.subscribe(redirectJobLink);
   }, [isAuthenticated, loading]);
 
   useEffect(() => {

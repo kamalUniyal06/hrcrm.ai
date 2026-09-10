@@ -36,7 +36,7 @@ import { http } from "../services/api";
  * Same host the layout metadata is read and written through.
  * `http` appends `?entryPoint=smart_gateway`.
  */
-const METADATA_ENDPOINT = "https://kartikey.hrcrm.ai/index.php";
+const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
 
 /** Flag that turns an ordinary update into a positional move. */
 export const RANK_MOVE_FLAG = "rank_move_requested";
