@@ -89,6 +89,8 @@
   padding: 5px 9px;
   font-size: 10px;
 }
+.status-badge.present{background:var(--employee-green)}
+.attendance-error{min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}.attendance-error>svg{color:var(--employee-red)}.attendance-hint{display:flex;align-items:center;gap:7px;margin-top:13px;color:var(--employee-subtle);font-size:11px}.mark-present{display:flex;align-items:center;justify-content:center;gap:7px}.mark-present:disabled,.attendance-action:disabled{cursor:not-allowed;opacity:.55}.attendance-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}.attendance-action{height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border-radius:8px;border:1px solid var(--border);background:var(--employee-row);color:var(--employee-text);font-weight:600;cursor:pointer}.attendance-action--primary{background:var(--employee-blue);color:var(--primary-foreground);border-color:var(--employee-blue)}.attendance-action--danger{background:var(--leave-red-soft);color:var(--employee-red);border-color:var(--employee-red)}
 .divider {
   height: 1px;
   background: var(--border);
@@ -496,8 +498,8 @@
   background: var(--employee-blue);
 }
 .shift-progress-ring {
-  width: 150px;
-  height: 150px;
+  width: 140px;
+  height: 140px;
   flex-shrink: 0;
 
   display: flex;
@@ -506,23 +508,22 @@
 }
 
 .shift-progress-ring__track {
-  width: 150px;
-  height: 150px;
+  width: 140px;
+  height: 140px;
 
   border-radius: 50%;
-  padding: 6px;
+  padding: 5px;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
   transform: rotate(-90deg);
-  transition: background 0.5s linear;
 }
 
 .shift-progress-ring__inner {
-  width: 138px;
-  height: 138px;
+  width: 130px;
+  height: 130px;
 
   border-radius: 50%;
 
@@ -540,17 +541,24 @@
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.08em;
+
   color: var(--muted-foreground);
+
   margin-bottom: 4px;
 }
 
 .shift-progress-ring__time {
-  font-size: 28px;
+  font-size: 25px;
   line-height: 1;
+
   font-weight: 500;
+
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
+
   color: var(--foreground);
+
+  white-space: nowrap;
 }
 
 .shift-progress-ring__total {
@@ -575,11 +583,11 @@
   }
 
   .shift-progress-ring__inner {
-    width: 113px;
-    height: 113px;
+    width: 115px;
+    height: 115px;
   }
 
   .shift-progress-ring__time {
-    font-size: 24px;
+    font-size: 21px;
   }
 }

@@ -51,7 +51,7 @@ export const employeSidebar = {
           "count_filters": [],
           "filter_by_email": "0",
           "count_email_req": 0,
-          "navigation": "/leave",
+          "navigation": "/leaves",
           "rank": "Za",
           "visible": true,
           "description": "",

@@ -46,6 +46,18 @@
   --employee-red: #df3d19;
   --employee-row: #f8fafc;
   --employee-track: #edf1f5;
+  --leave-page: #f6f8fb;
+  --leave-surface: #ffffff;
+  --leave-text: #182338;
+  --leave-muted: #778296;
+  --leave-green: #35c98a;
+  --leave-red: #ff6f61;
+  --leave-yellow: #dadd34;
+  --leave-track: #e4e7eb;
+  --leave-blue-soft: #edf4ff;
+  --leave-green-soft: #eaf9f3;
+  --leave-red-soft: #ffedf0;
+  --leave-yellow-soft: #fff7e8;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -253,6 +265,18 @@
   --employee-red: #f87171;
   --employee-row: #1f2937;
   --employee-track: #334155;
+  --leave-page: #111827;
+  --leave-surface: #1f2937;
+  --leave-text: #f1f5f9;
+  --leave-muted: #94a3b8;
+  --leave-green: #34d399;
+  --leave-red: #fb7185;
+  --leave-yellow: #eab308;
+  --leave-track: #374151;
+  --leave-blue-soft: #172554;
+  --leave-green-soft: #064e3b;
+  --leave-red-soft: #4c0519;
+  --leave-yellow-soft: #422006;
 }
 
 @theme inline {

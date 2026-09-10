@@ -328,7 +328,8 @@ export default function TodayPresentCard({
                         <>
                             <div className="mb-2 flex items-center gap-2">
                                 <Coffee
-                                    className="shrink-0 text-orange-500"
+                                    className="shrink-0"
+                                    style={{ color: "var(--employee-orange)" }}
                                     size={27}
                                 />
 
@@ -345,7 +346,8 @@ export default function TodayPresentCard({
                             <div className="mt-4 flex items-center gap-2">
                                 <TimerReset
                                     size={18}
-                                    className="shrink-0 text-orange-500"
+                                    className="shrink-0"
+                                    style={{ color: "var(--employee-orange)" }}
                                 />
 
                                 <span className="text-2xl font-semibold tabular-nums">
@@ -466,12 +468,7 @@ export default function TodayPresentCard({
             {/* ACTION BUTTONS */}
 
             {!isCheckedOut && (
-                <div
-                    className={`mt-4 grid w-full min-w-0 gap-3 ${isOnBreak || !hasTakenBreak
-                        ? "grid-cols-1 sm:grid-cols-2"
-                        : "grid-cols-1"
-                        }`}
-                >
+                <div className="attendance-actions">
                     {/* BREAK / BACK */}
 
                     {isOnBreak ? (
@@ -483,7 +480,7 @@ export default function TodayPresentCard({
                             onClick={
                                 handleBackFromBreak
                             }
-                            className="flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="attendance-action attendance-action--primary"
                         >
                             {actionLoading === "back" ? (
                                 <>
@@ -510,7 +507,7 @@ export default function TodayPresentCard({
                             onClick={
                                 handleTakeBreak
                             }
-                            className="flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-border bg-muted/30 px-4 text-sm font-medium transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                            className="attendance-action"
                         >
                             {actionLoading === "break" ? (
                                 <>
@@ -540,7 +537,7 @@ export default function TodayPresentCard({
                         onClick={
                             handleCheckOut
                         }
-                        className="flex h-11 min-w-0 items-center justify-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-medium text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-400"
+                        className="attendance-action attendance-action--danger"
                     >
                         {actionLoading ===
                             "checkout" ? (

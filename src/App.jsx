@@ -31,6 +31,7 @@ import TableView from "./components/layouts/table-view/TableView";
 import { store } from "./store/store";
 import Home from "./components/Home";
 import { PageContextProvider } from "./context/pageContext";
+import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
 
 const router = createBrowserRouter([
   {
@@ -148,6 +149,10 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "leaves",
+        element: <LeaveManagementPage />,
       },
 
       {
