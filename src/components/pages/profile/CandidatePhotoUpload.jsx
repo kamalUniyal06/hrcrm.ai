@@ -154,7 +154,7 @@ export default function CandidatePhotoUpload({ initialEmail = "", lockedEmail = 
         </div>}
         {preview && !cameraOpen && <div className="flex items-center gap-4"><img key={preview} src={preview} alt={uploaded ? "Uploaded candidate photo" : "Selected candidate photo preview"} className="h-28 w-28 rounded-xl border border-slate-200 object-cover" /><p className="break-all text-sm text-slate-500">{photo.name}</p></div>}
         {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <button type="submit" disabled={!photo || !email.trim() || uploading || cameraOpen || Boolean(uploaded)} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}{uploading ? "Uploading photo..." : uploaded ? "Photo uploaded" : "Upload photo"}</button>
+        <button type="submit" disabled={!photo || !email.trim() || uploading || cameraOpen || Boolean(uploaded)} className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sidebar-primary to-sidebar-secondary px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">{uploading ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}{uploading ? "Uploading photo..." : uploaded ? "Photo uploaded" : "Upload photo"}</button>
         <p role="status" className="text-sm text-green-700">{uploaded ? "Photo uploaded. Save your profile to apply it." : ""}</p>
         </fieldset>
       </form>

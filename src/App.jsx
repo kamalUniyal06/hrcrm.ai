@@ -15,6 +15,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import NotFoundPage from "./components/pages/NotFoundPage";
 
 import Profile from "./components/pages/Profile";
+import JobPost from "./components/pages/JobPost";
+import JobApplication from "./components/pages/JobApplication";
 import { Toaster } from "react-hot-toast";
 
 // import TwakChat from "./components/TwakTo";
@@ -148,6 +150,16 @@ const router = createBrowserRouter([
       {
         path: "profile",
         element: <Profile />,
+      },
+      {
+        path: "job-posting",
+        element: <JobPost />,
+        handle: { breadcrumb: "Job postings" },
+      },
+      {
+        path: "job-application",
+        element: <JobApplication />,
+        handle: { breadcrumb: "My applications" },
       },
       {
         path: "leaves",

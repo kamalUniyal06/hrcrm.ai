@@ -39,7 +39,7 @@ import { THEMES, setTheme, getTheme } from "../utils/theme";
 
 
 
-export function TopNav() {
+export function TopNav({ sidebarAvailable = true }) {
   const dispatch = useDispatch();
   const navigateTo = useNavigate();
 
@@ -250,7 +250,7 @@ export function TopNav() {
       ====================================================== */}
       <div className="flex min-w-0 flex-1 items-center gap-1.5 lg:flex-initial">
         {/* ── Sidebar drawer trigger — small screens only ── */}
-        <button
+        {sidebarAvailable && <button
           type="button"
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
           aria-label={
@@ -265,7 +265,7 @@ export function TopNav() {
           ) : (
             <Menu size={20} strokeWidth={2.2} />
           )}
-        </button>
+        </button>}
         <div
           className="
             flex

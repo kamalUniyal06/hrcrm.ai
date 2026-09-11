@@ -1,10 +1,11 @@
 import { TopNav } from "./components/TopNav";
 import { Sidebar } from "./components/Sidebar";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useContext, useEffect, useRef } from "react";
+import { Outlet, useLocation } from "react-router-dom";
 import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
+import { useCandidateProfile } from "./queries/candidate.queries";
 
 
 
@@ -15,6 +16,8 @@ const RootLayout = () => {
   const location = useLocation().pathname.split("/")[2];
   const pathname = useLocation().pathname;
   const mainRef = useRef(null);
+  const { data: candidate } = useCandidateProfile();
+  const hasCandidate = Boolean(candidate?.id);
 
   useEffect(() => {
     if (mainRef.current) {
@@ -40,7 +43,7 @@ const RootLayout = () => {
     <div className="flex h-screen bg-background ">
 
       {/* LEFT */}
-      <Sidebar />
+      {hasCandidate && <Sidebar />}
 
 
       {/* RIGHT */}
@@ -51,7 +54,7 @@ const RootLayout = () => {
           className="flex-1 overflow-y-auto hide-scrollbar w-full"
         >
           {/* Top Navigation */}
-          <TopNav />
+          <TopNav sidebarAvailable={hasCandidate} />
 
 
 

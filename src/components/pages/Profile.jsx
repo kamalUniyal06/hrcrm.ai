@@ -8,8 +8,10 @@ import { candidateRelatedModules, fetchCandidateRelated, saveCandidateRelated, f
 
 import ProfileSectionContent from "./profile/ProfileSectionContent";
 import ResumeLoading from "./profile/ResumeLoading";
+import { useQueryClient } from "@tanstack/react-query";
+import { candidateKey } from "../../queries/candidate.queries";
 
-const primaryButton = "inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50";
+const primaryButton = "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50";
 const secondaryButton = "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50";
 
 export default function Profile() {
@@ -20,6 +22,7 @@ export default function Profile() {
 }
 
 function CandidateProfile({ email, jobId }) {
+  const queryClient = useQueryClient();
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
   const [record, setRecord] = useState(null);
@@ -50,6 +53,14 @@ function CandidateProfile({ email, jobId }) {
   const requestRef = useRef(null);
   const alive = useRef(true);
   const saveLock = useRef(false);
+
+  // Resume parsing can create the CRM candidate before the profile is saved.
+  // Publish that confirmed record so navigation becomes available immediately.
+  useEffect(() => {
+    if (!record?.id) return;
+    void queryClient.cancelQueries({ queryKey: candidateKey(email), exact: true });
+    queryClient.setQueryData(candidateKey(email), record);
+  }, [record, email, queryClient]);
 
   useEffect(() => {
     let active = true;
