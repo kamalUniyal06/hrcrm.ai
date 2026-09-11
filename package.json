@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://app.hrcrm.ai/",
+  "homepage": "https://app.outrightcrm.com/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
