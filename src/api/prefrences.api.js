@@ -1,4 +1,3 @@
-import { employeSidebar } from "@/services/utils";
 import { apiRequest, http } from "../services/api";
 
 import { fetchSidebar } from "./sidebar.api";
@@ -30,13 +29,7 @@ export const fetchSidebarComponentId = async () => {
     return id;
 };
 
-/**
- * Return the modules installed in the current CRM.
- *
- * SmartGateway reads SuiteCRM's bean registry for this list, so the editor
- * only offers modules that really exist in the connected CRM. The selected
- * key is later saved to outr_ui_modules.fetch_from through SmartGateway.
- */
+
 export const fetchCrmModules = async () => {
     const response = await http({
         endpoint: METADATA_ENDPOINT,

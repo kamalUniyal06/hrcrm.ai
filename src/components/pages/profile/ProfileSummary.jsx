@@ -1,7 +1,6 @@
 import { motion as Motion } from "framer-motion";
 import { Loader2, Trash2, UserCircle2 } from "lucide-react";
-import { getUserName } from "./profileUtils";
-import { useCrmUsers } from "../../../queries/users.queries";
+
 
 export function MetricCard({ label, value, tone }) {
   const toneClasses = {
@@ -31,7 +30,6 @@ function ProfileSummary({
   profileDeleting,
   onDeleteProfile,
 }) {
-  const { data } = useCrmUsers()
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
@@ -44,7 +42,7 @@ function ProfileSummary({
               Profile Setup
             </p>
             <h1 className="text-2xl font-black text-slate-950">
-              {data?.find(u => u.description === user.email)?.name ?? user.name}
+              {user.name}
             </h1>
             <p className="text-sm text-slate-500">{profileEmail}</p>
           </div>

@@ -28,8 +28,6 @@ import { toast } from "react-toastify";
 import { logout } from "../store/Slices/userSlice";
 import GlobalSearch from "./GlobalSearch";
 import ProfileImageCropper from "./ProfileImageCropper";
-import { useCrmUsers } from "../queries/users.queries";
-import { fetchGpc } from "../services/api";
 import { useIsDesktop } from "../hooks/useMediaQuery";
 import { THEMES, setTheme, getTheme } from "../utils/theme";
 
@@ -43,43 +41,8 @@ export function TopNav() {
   const dispatch = useDispatch();
   const navigateTo = useNavigate();
 
-  const [stats, setStats] = useState({
-    reply_recieved: null,
-    reply_sent: null,
-    reminder_sent: null,
-  });
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const data = await fetchGpc({
-          method: "GET",
-          params: {
-            type: "statscount",
-          },
-        });
-
-        if (data?.success && data?.stats) {
-          setStats({
-            reply_recieved: data.stats.reply_recieved,
-
-            reply_sent: data.stats.reply_sent,
-
-            reminder_sent: data.stats.reminder_sent,
-          });
-        }
-      } catch (err) {
-        console.error("Failed to fetch stats:", err);
-      }
-    };
-
-    loadStats();
-  }, []);
-
-  /* ── Data ── */
 
 
-  const { data } = useCrmUsers();
 
   const { enteredEmail, handleClear, mobileSidebarOpen, setMobileSidebarOpen } =
     useContext(PageContext);
@@ -212,8 +175,7 @@ export function TopNav() {
   /* ── Initials ── */
 
   const getUserInitials = () => {
-    const name =
-      data?.find((d) => d.description === user?.email)?.name || user?.name;
+    const name = user?.name;
 
     if (!name) return "U";
 
@@ -948,8 +910,7 @@ export function TopNav() {
                               font-semibold
                             "
                           >
-                            {data?.find((d) => d.description === user?.email)
-                              ?.name || user?.name}
+                            {user?.name}
                           </h3>
 
                           <p

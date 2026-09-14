@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import * as api from "../api/entity.api";
-import { useCrmUsers } from "@/queries/users.queries";
-import { store } from "@/store/store";
+
 export const entityKeys = {
     allByEntity: (entity) => ["entity", entity],
 
@@ -58,52 +57,16 @@ export const useInfiniteEntity = ({
     email = "",
     entity,
     module,
-    layout = {},
-    dataFilters = {},
+
 }) => {
-    const { data: users = [] } = useCrmUsers();
 
-    const currentEmail =
-        store.getState().user.user.email;
-
-    const currentGpcUser = users.find(
-        (user) =>
-            user.description === currentEmail
-    );
-
-    const assignedUserId =
-        currentGpcUser?.id;
-
-    // Entity requires assigned user filtering
-    const isAssigned =
-        layout?.moduleKey === "assigned";
-
-    // Entity requires email filtering
-    const filterByEmail =
-        layout?.filter_by_email === 1;
-
-    // Add assigned user ID only for assigned entities
-    const finalDataFilters = {
-        ...dataFilters,
-        ...(isAssigned && assignedUserId
-            ? {
-                gpc_assigned_to:
-                    assignedUserId,
-            }
-            : {}),
-    };
-
-    // Assigned entities wait for assignedUserId
-    const queryEnabled =
-        !!module &&
-        (!isAssigned || !!assignedUserId);
 
     return useInfiniteQuery({
         queryKey: entityKeys.lists(
             preferences,
-            filterByEmail ? email : "",
+
             entity,
-            finalDataFilters
+
         ),
 
         queryFn: ({
@@ -138,7 +101,6 @@ export const useInfiniteEntity = ({
             return undefined;
         },
 
-        enabled: queryEnabled,
 
         staleTime:
             5 * 60 * 1000,

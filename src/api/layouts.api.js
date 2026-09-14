@@ -1,4 +1,5 @@
 import { apiRequest } from "@/services/api";
+import { LeaveHistory } from "../services/utils";
 
 export const getDetailLayout = () => ({
     "schemaVersion": "1.0",
@@ -120,21 +121,6 @@ export const getDetailLayout = () => ({
 });
 
 export const getLayout = async (module = 'orders', view_key = "table") => {
-    const data = await apiRequest({
-        endpoint: "https://flight.hrcrm.ai/index.php?entryPoint=flexibility&api_version=v1",
-        /*
-         * `_` busts the browser's HTTP cache.
-         *
-         * This is a plain GET, so the browser is free to answer it from its own
-         * cache. That matters now that presentation values are written back:
-         * after a column resize is stored, the layout is re-read to pick up the
-         * authoritative width and the new record id, and a cached body would
-         * hand back the pre-write state - making the resize appear to snap back.
-         *
-         * react-query already caches this in memory, so the HTTP cache adds
-         * nothing here except that staleness risk.
-         */
-        params: { module_key: module, view_key, _: Date.now() },
-    })
+    const data = LeaveHistory
     return data;
 }

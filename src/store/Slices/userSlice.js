@@ -1,100 +1,185 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { AUTH_URL } from "../constants";
 import { showConsole } from "../../assets/assets";
-import { apiRequest, setConfig } from "../../services/api";
+import { apiRequest } from "../../services/api";
+
+const initialState = {
+  loading: false,
+
+  // Logged-in user information
+  user: {},
+
+  // HRCRM user information
+  userInfo: {
+    id: null,
+    stage: null,
+    phase: null,
+    status: null,
+  },
+
+  isAuthenticated: false,
+  error: null,
+  message: null,
+};
 
 const userSlice = createSlice({
   name: "user",
-  initialState: {
-    loading: false,
-    user: {},
-    isAuthenticated: false,
-    db_name: '',
-    crmEndpoint: null,
-    id: null,
-    currentScore: null,
-    businessEmail: null,
-    error: null,
-    message: null,
-  },
+
+  initialState,
+
   reducers: {
     loadUserRequest(state) {
       state.loading = true;
       state.isAuthenticated = false;
+
       state.user = {};
-      state.crmEndpoint = null;
-      state.id = null;
-      state.currentScore = null;
-      state.businessEmail = null;
+
+      state.userInfo = {
+        id: null,
+        stage: null,
+        phase: null,
+        status: null,
+      };
+
       state.error = null;
+      state.message = null;
     },
+
     loadUserSuccess(state, action) {
-      const { crmEndpoint, businessEmail, user, currentScore, id, db_name } = action.payload;
+      const {
+        user,
+        userInfo,
+      } = action.payload;
+
       state.loading = false;
       state.isAuthenticated = true;
-      state.user = user;
-      state.crmEndpoint = crmEndpoint;
-      state.id = id;
-      state.db_name = db_name;
-      state.currentScore = currentScore;
-      state.businessEmail = businessEmail;
+
+      state.user = user || {};
+
+      state.userInfo = {
+        id: userInfo?.id ?? null,
+        stage: userInfo?.stage ?? null,
+        phase: userInfo?.phase ?? null,
+        status: userInfo?.status ?? null,
+      };
+
       state.error = null;
+      state.message = null;
     },
+
     loadUserFailed(state, action) {
       state.loading = false;
       state.isAuthenticated = false;
+
       state.user = {};
-      state.crmEndpoint = null;
-      state.currentScore = null;
-      state.id = null;
-      state.businessEmail = null;
+
+      state.userInfo = {
+        id: null,
+        stage: null,
+        phase: null,
+        status: null,
+      };
+
       state.error = action.payload;
     },
+
     logoutRequest(state) {
       state.loading = true;
     },
+
     logoutSuccess(state, action) {
       state.loading = false;
       state.isAuthenticated = false;
+
       state.user = {};
-      state.currentScore = null;
-      state.id = null;
-      state.crmEndpoint = null;
-      state.businessEmail = null;
-      state.db_name = '';
+
+      state.userInfo = {
+        id: null,
+        stage: null,
+        phase: null,
+        status: null,
+      };
+
       state.error = null;
       state.message = action.payload;
     },
+
     logoutFailed(state, action) {
       state.loading = false;
       state.error = action.payload;
     },
+
     clearAllErrors(state) {
       state.error = null;
     },
   },
 });
 
-export const getUser = (state) => {
+
+// ============================================================
+// GET CURRENT USER
+// ============================================================
+
+export const getUser = () => {
   return async (dispatch) => {
     dispatch(userSlice.actions.loadUserRequest());
 
     try {
-      const data = await apiRequest({ endpoint: `${AUTH_URL}?controller=auth`, params: { action: 'me', state }, withCredentials: true }
-      );
+      const data = await apiRequest({
+        endpoint: `${AUTH_URL}?controller=auth`,
+        params: {
+          action: "me",
+        },
+        withCredentials: true,
+      });
+
       showConsole && console.log("user", data);
+
+      /*
+        Backend response:
+
+        {
+          "user": {
+            "email": "user@example.com"
+          },
+          "userInfo": {
+            "id": "...",
+            "stage": "Joining",
+            "phase": "Employment",
+            "status": "Joining Confirmed"
+          }
+        }
+
+        OR if your backend returns:
+        
+        {
+          "user": {
+            "email": "user@example.com"
+          },
+          "id": "...",
+          "stage": "Joining",
+          "phase": "Employment",
+          "status": "Joining Confirmed"
+        }
+      */
+
+      const userInfo = data.userInfo || {
+        id: data.id ?? null,
+        stage: data.stage ?? null,
+        phase: data.phase ?? null,
+        status: data.status ?? null,
+      };
+
       dispatch(
         userSlice.actions.loadUserSuccess({
-          user: data.user,
-          crmEndpoint: data.crmEndpoint,
-          currentScore: data.current_score,
-          db_name: data.db_name,
-          businessEmail: data.businessEmail,
-          id: data.id,
+          user: data.user || {},
+
+          userInfo,
         })
       );
-      setConfig(data.crmEndpoint, data.db_name, data.user.email);
+
       dispatch(userSlice.actions.clearAllErrors());
+
     } catch (error) {
       console.log("Full Error:", error.response);
 
@@ -104,7 +189,9 @@ export const getUser = (state) => {
 
       if (error.response) {
         const status = error.response?.status;
-        const backendError = error.response.data?.error || "";
+
+        const backendError =
+          error.response?.data?.error || "";
 
         switch (status) {
           case 404:
@@ -112,32 +199,54 @@ export const getUser = (state) => {
             break;
 
           case 401:
+
             if (backendError.includes("Invalid token")) {
-              message = "Your session expired. Please login again.";
-            } else if (backendError.includes("Unauthorized user")) {
-              message = "You don’t have permission to access this area.";
+              message =
+                "Your session expired. Please login again.";
+
+            } else if (
+              backendError.includes("Unauthorized user")
+            ) {
+              message =
+                "You don’t have permission to access this area.";
+
             } else if (
               backendError.includes("email missing") ||
-              backendError.includes("Token and email both missing")
+              backendError.includes(
+                "Token and email both missing"
+              )
             ) {
               message = "Please login again.";
+
             } else {
               message = "Authentication failed.";
             }
+
             break;
 
           case 400:
+
             if (
-              backendError.includes("Token and email both missing")
+              backendError.includes(
+                "Token and email both missing"
+              )
             ) {
               message = "";
             } else {
-              message = backendError || "Invalid request.";
+              message =
+                backendError || "Invalid request.";
             }
+
             break;
 
           case 500:
-            message = "Server error. Please try again later.";
+            message =
+              "Server error. Please try again later.";
+            break;
+
+          case 503:
+            message =
+              "Unable to verify your account. Please try again later.";
             break;
 
           default:
@@ -145,14 +254,25 @@ export const getUser = (state) => {
               backendError ||
               "Something went wrong on our side.";
         }
+
       } else if (error.request) {
-        message = "Network error. Please check your internet connection.";
+
+        message =
+          "Network error. Please check your internet connection.";
+
       }
 
-      dispatch(userSlice.actions.loadUserFailed(message));
+      dispatch(
+        userSlice.actions.loadUserFailed(message)
+      );
     }
   };
 };
+
+
+// ============================================================
+// LOGOUT
+// ============================================================
 
 export const logout = () => {
   return async (dispatch) => {
@@ -161,33 +281,95 @@ export const logout = () => {
     try {
       const data = await apiRequest({
         endpoint: `${AUTH_URL}?controller=auth`,
-        params: { action: "logout" },
+        params: {
+          action: "logout",
+        },
         withCredentials: true,
       });
 
       // Clear all localStorage
       localStorage.clear();
 
-      // Optional: set intro again after clear
-      localStorage.setItem("displayIntro", "true");
-      setConfig("", "", "");
+      // Show intro again after logout
+      localStorage.setItem(
+        "displayIntro",
+        "true"
+      );
 
-      dispatch(userSlice.actions.logoutSuccess(data.message));
-      dispatch(userSlice.actions.clearAllErrors());
+      dispatch(
+        userSlice.actions.logoutSuccess(
+          data?.message
+        )
+      );
+
+      dispatch(
+        userSlice.actions.clearAllErrors()
+      );
+
     } catch (error) {
+
       dispatch(
         userSlice.actions.logoutFailed(
-          error?.response?.data?.message || "Logout Failed"
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          "Logout Failed"
         )
       );
     }
   };
 };
 
+
+// ============================================================
+// CLEAR USER ERRORS
+// ============================================================
+
 export const clearAllUserErrors = () => {
-  return async (dispatch) => {
-    dispatch(userSlice.actions.clearAllErrors);
+  return (dispatch) => {
+    dispatch(
+      userSlice.actions.clearAllErrors()
+    );
   };
 };
+
+
+// ============================================================
+// ACTIONS
+// ============================================================
+
 export const userAction = userSlice.actions;
+
+
+// ============================================================
+// SELECTORS
+// ============================================================
+
+export const selectUser = (state) =>
+  state.user.user;
+
+export const selectUserInfo = (state) =>
+  state.user.userInfo;
+
+export const selectIsAuthenticated = (state) =>
+  state.user.isAuthenticated;
+
+export const selectUserLoading = (state) =>
+  state.user.loading;
+
+export const selectUserError = (state) =>
+  state.user.error;
+
+export const selectUserId = (state) =>
+  state.user.userInfo?.id;
+
+export const selectUserStage = (state) =>
+  state.user.userInfo?.stage;
+
+export const selectUserPhase = (state) =>
+  state.user.userInfo?.phase;
+
+export const selectUserStatus = (state) =>
+  state.user.userInfo?.status;
+
+
 export default userSlice.reducer;

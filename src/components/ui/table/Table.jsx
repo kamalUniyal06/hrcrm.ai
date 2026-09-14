@@ -368,19 +368,6 @@ const TableView = ({
     });
   }, []);
 
-  /**
-   * Store a finished resize on the CRM.
-   *
-   * A column width is a published presentation value, not local UI state, so
-   * dragging an edge here writes the same `outr_ui_properties` override the
-   * Table View layout editor writes. The drag updates the screen immediately;
-   * this persists the width the user stopped on and re-reads the layout so the
-   * stored value becomes the rendered one.
-   *
-   * `resizeColumn` is passed as the rollback, so a rejected write puts the
-   * pre-drag width back rather than leaving the header showing a size the CRM
-   * does not have.
-   */
   const { commitColumnWidth, savingColumns } =
     useColumnWidthPersistence({
       columns,
