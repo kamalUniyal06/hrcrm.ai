@@ -1,11 +1,8 @@
-import { useUserInfo } from "@/queries/users.queries";
 import EmployeHomePage from "./employement/pages/EmployeHomePage";
-import LoadingPage from "./pages/LoadingPage";
 import Profile from "./pages/Profile";
+import { useSelector } from "react-redux";
 export default function Home() {
-  const { data, isPending } = useUserInfo()
-  const user = data?.records?.[0];
-  if (isPending) return <LoadingPage />
-  if (user?.stage == 'Full Time') return <EmployeHomePage />;
+  const userInfo = useSelector((s) => s.user.userInfo)
+  if (userInfo?.phase == 'Employment') return <EmployeHomePage />;
   return <Profile />
 }

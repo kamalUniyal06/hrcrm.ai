@@ -3,53 +3,17 @@
 import { createContext, useContext, useMemo, useState } from "react";
 
 import { useApplyForLeave } from "../queries/leaves.queries";
+import { useUserInfo } from "@/queries/users.queries";
 
 const LeaveContext = createContext(null);
 
-const initialBalances = [
-  { type: "Annual Leave", available: 15, total: 20, tone: "green" },
-  { type: "Sick Leave", available: 10, total: 12, tone: "red" },
-  { type: "Other Leave", available: 4, total: 10, tone: "yellow" },
-];
-
-const initialHistory = [
-  {
-    id: 1,
-    type: "Sick Leave",
-    start: "2026-08-12",
-    end: "2026-08-13",
-    duration: 2,
-    status: "Approved",
-  },
-  {
-    id: 2,
-    type: "Annual Leave",
-    start: "2026-07-21",
-    end: "2026-07-23",
-    duration: 3,
-    status: "Approved",
-  },
-  {
-    id: 3,
-    type: "Other Leave",
-    start: "2026-06-14",
-    end: "2026-06-14",
-    duration: 1,
-    status: "Pending",
-  },
-  {
-    id: 4,
-    type: "Sick Leave",
-    start: "2026-05-02",
-    end: "2026-05-03",
-    duration: 2,
-    status: "Rejected",
-  },
-];
-
 export function LeaveProvider({ children }) {
-  const [balances, setBalances] = useState(initialBalances);
-  const [history, setHistory] = useState(initialHistory);
+  const {
+    data: userInfo,
+    isLoading: leaveBalanceIsLoading,
+  } = useUserInfo();
+
+  const [history, setHistory] = useState([]);
   const [view, setView] = useState("overview");
 
   const {
@@ -59,14 +23,36 @@ export function LeaveProvider({ children }) {
     error,
   } = useApplyForLeave();
 
+  const employee = userInfo?.records?.[0];
+
+  const balances = useMemo(() => {
+    if (!employee) {
+      return [];
+    }
+
+    return [
+      {
+        type: "Annual Leave",
+        available: Number(employee.available_planned_leaves || 0),
+        total: Number(employee.available_planned_leaves || 0),
+        tone: "green",
+      },
+      {
+        type: "Sick Leave",
+        available: Number(employee.available_sick_leaves || 0),
+        total: Number(employee.available_sick_leaves || 0),
+        tone: "red",
+      },
+    ];
+  }, [employee]);
+
   const applyLeave = (request) => {
     mutate(request, {
       onSuccess: () => {
-        // Only go back to overview when API succeeds
         setView("overview");
       },
       onError: () => {
-        // Stay on the current/apply page
+        // Stay on current page
       },
     });
   };
@@ -82,6 +68,7 @@ export function LeaveProvider({ children }) {
       isPending,
       data,
       error,
+      leaveBalanceIsLoading,
     }),
     [
       balances,
@@ -91,6 +78,7 @@ export function LeaveProvider({ children }) {
       isPending,
       data,
       error,
+      leaveBalanceIsLoading,
     ],
   );
 
@@ -105,9 +93,7 @@ export const useLeave = () => {
   const value = useContext(LeaveContext);
 
   if (!value) {
-    throw new Error(
-      "useLeave must be used inside LeaveProvider"
-    );
+    throw new Error("useLeave must be used inside LeaveProvider");
   }
 
   return value;

@@ -8,7 +8,6 @@ import { PageContext } from "../context/pageContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { userKeys } from "../queries/users.queries";
-import { getAllUsers } from "../api/users.api";
 import { logo, headingLogo } from "../assets/assets";
 import Icon from "./ui/Icon/Icon";
 import { useSidebarLayout, useSidebarStats } from "../queries/sidebar.queries";
@@ -105,12 +104,7 @@ export function Sidebar() {
     refetchLayout?.();
   }, [rankReports, refetchLayout]);
 
-  const { user } = useSelector((s) => s.user);
 
-  const { data: usersData, isPending: usersPending } = useQuery({
-    queryKey: userKeys.lists,
-    queryFn: getAllUsers,
-  });
 
 
 
