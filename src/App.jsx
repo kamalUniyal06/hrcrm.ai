@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-
 import { SettingsPage } from "./components/pages/settingpages/SettingsPage";
 import { useDispatch, useSelector } from "react-redux";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
