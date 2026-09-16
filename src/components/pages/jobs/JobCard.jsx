@@ -1,9 +1,9 @@
 import { createElement, useState } from "react";
-import { ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, MapPin, Wallet } from "lucide-react";
+import { ArrowUpRight, BriefcaseBusiness, Building2, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, MapPin, Trash2, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { fieldLabel, plainText, readable, requirementItems, titleOf, valueOf } from "./jobFormatting";
 
-export default function JobCard({ job, application, applied, applicationsOnly, dropdowns, jobDropdowns, pending, canApply, onApply, isAdmin = false }) {
+export default function JobCard({ job, application, applied, applicationsOnly, dropdowns, jobDropdowns, pending, canApply, onApply, onDelete, isAdmin = false }) {
   const [expanded, setExpanded] = useState(false);
   const title = job ? titleOf(job) : "Job posting unavailable";
   const company = fieldLabel(job, ["company_name", "company", "hrc_clients_hrc_job_postings_1_name"], jobDropdowns);
@@ -42,7 +42,7 @@ export default function JobCard({ job, application, applied, applicationsOnly, d
       {!job && <p className="mt-5 text-sm leading-6 text-slate-600">This posting is no longer available. You can still follow your application status here.</p>}
     </div>
     <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-7">
-      {isAdmin ? <p className="text-sm font-medium text-slate-600">Posting status: {fieldLabel(job, ["job_status"], jobDropdowns, true) || "Not set"}</p> : applicationsOnly ? <div className="space-y-1"><p className="flex items-center gap-2 text-xs font-medium text-slate-600"><CalendarDays size={14} />{application.date_entered ? `Applied ${application.date_entered_uni_format || application.date_entered}` : "Application submitted"}</p><p className="break-all text-[11px] text-slate-500">Reference: {application.jobid}</p></div> : <>
+      {isAdmin ? <><p className="text-sm font-medium text-slate-600">Posting status: {fieldLabel(job, ["job_status"], jobDropdowns, true) || "Not set"}</p><button type="button" disabled={!job?.id || !onDelete} onClick={() => onDelete(job)} aria-label={`Delete ${title}`} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2.5 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-500 disabled:opacity-50"><Trash2 size={16} /></button></> : applicationsOnly ? <div className="space-y-1"><p className="flex items-center gap-2 text-xs font-medium text-slate-600"><CalendarDays size={14} />{application.date_entered ? `Applied ${application.date_entered_uni_format || application.date_entered}` : "Application submitted"}</p><p className="break-all text-[11px] text-slate-500">Reference: {application.jobid}</p></div> : <>
         <div className="text-xs leading-5 text-slate-500">{applied ? <Link to="/job-application" className="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:underline">Track application<ArrowUpRight size={14} /></Link> : <>Your next chapter<span className="block font-medium text-slate-700">Apply with your profile</span></>}</div>
         <button type="button" disabled={applied || !!pending || !canApply || !job?.id} onClick={() => onApply(String(job.id).trim())} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 disabled:cursor-not-allowed ${applied ? "border border-emerald-200 bg-emerald-50 text-emerald-700" : "bg-gradient-to-r from-search-primary to-search-secondary text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"}`}>{applied ? <><CheckCircle2 size={16} />Already applied</> : submitting ? <><Loader2 size={16} className="animate-spin" />Applying…</> : <>Apply now<ArrowUpRight size={16} /></>}</button>
       </>}

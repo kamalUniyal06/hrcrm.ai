@@ -22,6 +22,13 @@ async function fetchAll(body) {
 
 export const fetchJobPostings = () => fetchAll({ action: "fetch", module: "hrc_job_postings" });
 
+export async function deleteJobPosting(id) {
+  if (!id) throw new Error("A job posting ID is required.");
+  const response = await http({ method: "POST", body: { action: "delete", module: "hrc_job_postings", id } });
+  if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not delete the job posting. Please retry.");
+  return response;
+}
+
 export async function createJobPosting(data) {
   const response = await http({ method: "POST", body: { action: "create", module: "hrc_job_postings", data } });
   if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not create the job posting. Please retry.");

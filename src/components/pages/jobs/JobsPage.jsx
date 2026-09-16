@@ -13,6 +13,7 @@ import { findCandidate } from "../profile/candidateApi";
 import { applyToJob, fetchJobApplications, fetchJobPostings } from "./jobsApi";
 import JobCard from "./JobCard";
 import CreateJobDialog from "./CreateJobDialog";
+import DeleteJobDialog from "./DeleteJobDialog";
 import { plainText, titleOf, valueOf } from "./jobFormatting";
 
 export default function JobsPage({ applicationsOnly = false }) {
@@ -34,6 +35,7 @@ export default function JobsPage({ applicationsOnly = false }) {
 
 function CandidateJobs({ email, applicationsOnly, isAdmin }) {
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   const [candidate, setCandidate] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -315,10 +317,22 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
                   isAdmin={isAdmin}
                   canApply={!isAdmin && !!candidate && !error}
                   onApply={apply}
+                  onDelete={job => { if (isAdmin) setDeleting(job); }}
                 />
               ))}
             </div>
           </>
+        )}
+        {isAdmin && deleting && (
+          <DeleteJobDialog
+            job={deleting}
+            onClose={() => setDeleting(null)}
+            onDeleted={id => {
+              setJobs(previous => previous.filter(job => job.id !== id));
+              setDeleting(null);
+              setNotice("Job posting deleted successfully.");
+            }}
+          />
         )}
         {isAdmin && creating && (
           <CreateJobDialog

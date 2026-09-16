@@ -149,8 +149,13 @@ const router = createBrowserRouter([
 
       {
         path: "candidates",
-        element: <CandidatesPage />,
+        element: <CandidatesPage key="candidates" />,
         handle: { breadcrumb: "Candidates" },
+      },
+      {
+        path: "shortlisted",
+        element: <CandidatesPage key="shortlisted" shortlistedOnly />,
+        handle: { breadcrumb: "Shortlisted" },
       },
       {
         path: "profile",

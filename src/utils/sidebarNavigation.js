@@ -1,5 +1,7 @@
 export function sidebarDestination(item) {
   const name = String(item.name || "").trim();
+  if (/^short[\s-]?listed(?:\s+candidates)?$/i.test(name)) return "/shortlisted";
+  if (/^candidates?$/i.test(name)) return "/candidates";
   if (/^(my\s+)?profile$/i.test(name)) return "/profile";
   if (/^job[\s-]+post(?:ing)?s?$/i.test(name)) return "/job-posting";
   if (/^(?:my\s+)?(?:job[\s-]+)?applications?$/i.test(name)) return "/job-application";
