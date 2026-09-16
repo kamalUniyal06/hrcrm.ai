@@ -22,6 +22,12 @@ async function fetchAll(body) {
 
 export const fetchJobPostings = () => fetchAll({ action: "fetch", module: "hrc_job_postings" });
 
+export async function createJobPosting(data) {
+  const response = await http({ method: "POST", body: { action: "create", module: "hrc_job_postings", data } });
+  if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not create the job posting. Please retry.");
+  return response;
+}
+
 export function fetchJobApplications(candidateId) {
   if (!candidateId) throw new Error("Save your candidate profile before applying.");
   return fetchAll({ action: "fetch_related", module: "hrc_candidates", id: candidateId, related_module: "hrc_job_applications" });

@@ -16,6 +16,7 @@ import NotFoundPage from "./components/pages/NotFoundPage";
 import Profile from "./components/pages/Profile";
 import JobPost from "./components/pages/JobPost";
 import JobApplication from "./components/pages/JobApplication";
+import CandidatesPage from "./components/pages/candidates/CandidatesPage";
 import { Toaster } from "react-hot-toast";
 
 // import TwakChat from "./components/TwakTo";
@@ -146,6 +147,11 @@ const router = createBrowserRouter([
         },
       },
 
+      {
+        path: "candidates",
+        element: <CandidatesPage />,
+        handle: { breadcrumb: "Candidates" },
+      },
       {
         path: "profile",
         element: <Profile />,
