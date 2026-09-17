@@ -1,15 +1,14 @@
-import axios from "axios";
 import { FETCH_GPC_X_API_KEY } from "../store/constants";
 import CryptoJS from "crypto-js";
 const SECRET = import.meta.env.VITE_SMARTGATEWAY_SECRET_KEY;
 import { store } from "../store/store";
 import { getCRM, getCurrentUser } from "./utils";
+import { crmClient } from "./crmClient";
 
 let CRMENDPOINT = "";
 let DB_NAME = "";
 let USER_EMAIL = "";
 const getCurrentUserId = () => getCurrentUser()?.id;
-
 
 export function setConfig(endpoint, db_name, dash_user_email) {
   CRMENDPOINT = endpoint;
@@ -17,9 +16,12 @@ export function setConfig(endpoint, db_name, dash_user_email) {
   USER_EMAIL = dash_user_email;
 }
 
-const apiClient = axios.create({
-  baseURL: "",
-});
+/**
+ * Shared Axios instance.  crmClient carries request/response interceptors
+ * that attach the CRM Bearer token for requests to flight.hrcrm.ai and
+ * retry once on a 401.  Non-CRM requests pass through unchanged.
+ */
+const apiClient = crmClient;
 
 export const apiRequest = async ({
   endpoint,
@@ -33,22 +35,19 @@ export const apiRequest = async ({
     ...params,
     ...(DB_NAME ? { db_name: DB_NAME } : {}),
     ...(USER_EMAIL ? { dash_user_email: USER_EMAIL } : {}),
-  }
+  };
   const response = await apiClient({
     url: endpoint,
     method,
     data: body,
     headers,
     params: {
-      ...params1
+      ...params1,
     },
     withCredentials,
   });
   return response.data;
 };
-
-
-
 
 const generateToken = () => {
   const payload = {
@@ -59,14 +58,14 @@ const generateToken = () => {
   const json = JSON.stringify(payload);
 
   const signature = CryptoJS.HmacSHA256(json, SECRET).toString(
-    CryptoJS.enc.Hex
+    CryptoJS.enc.Hex,
   );
 
   return btoa(`${json}||${signature}`);
 };
 
 export const http = async ({
-  endpoint = '',
+  endpoint = "",
   method = "GET",
   rightee = false,
   body = null,
@@ -91,7 +90,7 @@ export const http = async ({
   }
 
   const response = await apiClient({
-    url: `${rightee ? 'https://crm.outrightsystems.org/index.php' : endpoint || getCRM}?entryPoint=smart_gateway`,
+    url: `${rightee ? "https://crm.outrightsystems.org/index.php" : endpoint || getCRM}?entryPoint=smart_gateway`,
     method,
     data: body,
     params: params1,
@@ -125,7 +124,7 @@ export const smartGateway = async ({
   }
 
   const response = await apiClient({
-    url: `${rightee ? 'https://crm.outrightsystems.org/index.php' : getCRM}?entryPoint=smart_gateway`,
+    url: `${rightee ? "https://crm.outrightsystems.org/index.php" : getCRM}?entryPoint=smart_gateway`,
     method,
     data: body,
     params: params1,
@@ -146,7 +145,8 @@ export const fetchGpc = async ({
     ...(DB_NAME ? { db_name: DB_NAME } : {}),
     ...(USER_EMAIL ? { dash_user_email: USER_EMAIL } : {}),
   };
-  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  const isFormData =
+    typeof FormData !== "undefined" && body instanceof FormData;
   const requestHeaders = {
     "X-Api-Key": FETCH_GPC_X_API_KEY,
     ...headers,

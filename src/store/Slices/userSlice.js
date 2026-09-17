@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { AUTH_URL } from "../constants";
 import { showConsole } from "../../assets/assets";
 import { apiRequest } from "../../services/api";
+import { clearCrmToken } from "../../services/crmAuth";
 
 const initialState = {
   loading: false,
@@ -46,10 +47,7 @@ const userSlice = createSlice({
     },
 
     loadUserSuccess(state, action) {
-      const {
-        user,
-        userInfo,
-      } = action.payload;
+      const { user, userInfo } = action.payload;
 
       state.loading = false;
       state.isAuthenticated = true;
@@ -115,7 +113,6 @@ const userSlice = createSlice({
   },
 });
 
-
 // ============================================================
 // GET CURRENT USER
 // ============================================================
@@ -175,11 +172,10 @@ export const getUser = () => {
           user: data.user || {},
 
           userInfo,
-        })
+        }),
       );
 
       dispatch(userSlice.actions.clearAllErrors());
-
     } catch (error) {
       console.log("Full Error:", error.response);
 
@@ -190,8 +186,7 @@ export const getUser = () => {
       if (error.response) {
         const status = error.response?.status;
 
-        const backendError =
-          error.response?.data?.error || "";
+        const backendError = error.response?.data?.error || "";
 
         switch (status) {
           case 404:
@@ -199,25 +194,15 @@ export const getUser = () => {
             break;
 
           case 401:
-
             if (backendError.includes("Invalid token")) {
-              message =
-                "Your session expired. Please login again.";
-
-            } else if (
-              backendError.includes("Unauthorized user")
-            ) {
-              message =
-                "You don’t have permission to access this area.";
-
+              message = "Your session expired. Please login again.";
+            } else if (backendError.includes("Unauthorized user")) {
+              message = "You don’t have permission to access this area.";
             } else if (
               backendError.includes("email missing") ||
-              backendError.includes(
-                "Token and email both missing"
-              )
+              backendError.includes("Token and email both missing")
             ) {
               message = "Please login again.";
-
             } else {
               message = "Authentication failed.";
             }
@@ -225,50 +210,33 @@ export const getUser = () => {
             break;
 
           case 400:
-
-            if (
-              backendError.includes(
-                "Token and email both missing"
-              )
-            ) {
+            if (backendError.includes("Token and email both missing")) {
               message = "";
             } else {
-              message =
-                backendError || "Invalid request.";
+              message = backendError || "Invalid request.";
             }
 
             break;
 
           case 500:
-            message =
-              "Server error. Please try again later.";
+            message = "Server error. Please try again later.";
             break;
 
           case 503:
-            message =
-              "Unable to verify your account. Please try again later.";
+            message = "Unable to verify your account. Please try again later.";
             break;
 
           default:
-            message =
-              backendError ||
-              "Something went wrong on our side.";
+            message = backendError || "Something went wrong on our side.";
         }
-
       } else if (error.request) {
-
-        message =
-          "Network error. Please check your internet connection.";
-
+        message = "Network error. Please check your internet connection.";
       }
 
-      dispatch(
-        userSlice.actions.loadUserFailed(message)
-      );
+      dispatch(userSlice.actions.loadUserFailed(message));
     }
   };
 };
-
 
 // ============================================================
 // LOGOUT
@@ -287,38 +255,30 @@ export const logout = () => {
         withCredentials: true,
       });
 
+      // Clear the in-memory CRM access token so no stale token is
+      // reused after the next login.
+      clearCrmToken();
+
       // Clear all localStorage
       localStorage.clear();
 
       // Show intro again after logout
-      localStorage.setItem(
-        "displayIntro",
-        "true"
-      );
+      localStorage.setItem("displayIntro", "true");
 
-      dispatch(
-        userSlice.actions.logoutSuccess(
-          data?.message
-        )
-      );
+      dispatch(userSlice.actions.logoutSuccess(data?.message));
 
-      dispatch(
-        userSlice.actions.clearAllErrors()
-      );
-
+      dispatch(userSlice.actions.clearAllErrors());
     } catch (error) {
-
       dispatch(
         userSlice.actions.logoutFailed(
           error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          "Logout Failed"
-        )
+            error?.response?.data?.error ||
+            "Logout Failed",
+        ),
       );
     }
   };
 };
-
 
 // ============================================================
 // CLEAR USER ERRORS
@@ -326,12 +286,9 @@ export const logout = () => {
 
 export const clearAllUserErrors = () => {
   return (dispatch) => {
-    dispatch(
-      userSlice.actions.clearAllErrors()
-    );
+    dispatch(userSlice.actions.clearAllErrors());
   };
 };
-
 
 // ============================================================
 // ACTIONS
@@ -339,37 +296,26 @@ export const clearAllUserErrors = () => {
 
 export const userAction = userSlice.actions;
 
-
 // ============================================================
 // SELECTORS
 // ============================================================
 
-export const selectUser = (state) =>
-  state.user.user;
+export const selectUser = (state) => state.user.user;
 
-export const selectUserInfo = (state) =>
-  state.user.userInfo;
+export const selectUserInfo = (state) => state.user.userInfo;
 
-export const selectIsAuthenticated = (state) =>
-  state.user.isAuthenticated;
+export const selectIsAuthenticated = (state) => state.user.isAuthenticated;
 
-export const selectUserLoading = (state) =>
-  state.user.loading;
+export const selectUserLoading = (state) => state.user.loading;
 
-export const selectUserError = (state) =>
-  state.user.error;
+export const selectUserError = (state) => state.user.error;
 
-export const selectUserId = (state) =>
-  state.user.userInfo?.id;
+export const selectUserId = (state) => state.user.userInfo?.id;
 
-export const selectUserStage = (state) =>
-  state.user.userInfo?.stage;
+export const selectUserStage = (state) => state.user.userInfo?.stage;
 
-export const selectUserPhase = (state) =>
-  state.user.userInfo?.phase;
+export const selectUserPhase = (state) => state.user.userInfo?.phase;
 
-export const selectUserStatus = (state) =>
-  state.user.userInfo?.status;
-
+export const selectUserStatus = (state) => state.user.userInfo?.status;
 
 export default userSlice.reducer;
