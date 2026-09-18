@@ -194,6 +194,19 @@ export const LeaveHistory = {
         "label": "End Date",
         "type": "date"
       },
+      {
+        "weight": 1,
+        "editable": false,
+        "maxWidth": 350,
+        "minWidth": 250,
+        "resizable": true,
+        "searchable": true,
+        "sortable": true,
+        "width": 250,
+        "accessor": "description",
+        "label": "Description",
+        "type": "text"
+      },
 
       {
         "weight": 1,
@@ -209,54 +222,7 @@ export const LeaveHistory = {
         "type": "text"
       },
 
-      {
-        "weight": 1.2,
-        "editable": false,
-        "maxWidth": 220,
-        "minWidth": 160,
-        "resizable": false,
-        "searchable": false,
-        "sortable": false,
-        "sticky": true,
-        "width": 180,
-        "accessor": "action",
-        "label": "Action",
-        "type": "actions",
-        "actions": [
-          {
-            "icon": {
-              "color": "red",
-              "library": "lu",
-              "name": "LuTrash"
-            },
-            "placement": "primary",
-            "id": "cancel-leave",
-            "label": "Cancel Leave",
-            "type": "mutation",
-            "operationId": "leave-history.cancel",
-            "visibleWhen": {
-              "field": "status",
-              "operator": "equals",
-              "value": "applied"
-            },
-            "confirm": {
-              "enabled": true,
-              "title": "Cancel Leave?",
-              "description": "Are you sure you want to cancel this leave?"
-            },
-            "request": {
-              "method": "POST",
-              "endpoint": "smartgateway",
-              "params": [],
-              "body": {
-                "action": "cancel",
-                "module": "hrc_leaves",
-                "id": "{id}"
-              }
-            }
-          }
-        ]
-      }
+
     ],
 
     "bulkActions": []
