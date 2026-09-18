@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookmarkCheck,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import ScheduleInterviewDialog from "./ScheduleInterviewDialog";
+import CandidateInterviewsDialog from "../interviews/CandidateInterviewsDialog";
 import CandidateDetails from "./CandidateDetails";
 import {
   candidateName,
@@ -28,6 +30,7 @@ const pageSize = 20;
 export default function CandidatesPage({ shortlistedOnly = false }) {
   const client = useQueryClient();
   const [scheduling, setScheduling] = useState(null);
+  const [rescheduling, setRescheduling] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const candidates = useQuery({
     queryKey: ["candidates", "list"],
@@ -140,6 +143,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">
               {shortlistedOnly ? "Shortlisted candidates" : "Candidates"}
             </h1>
+            <Link to="/interviews" className="mt-3 inline-block text-sm font-semibold underline">View interviews</Link>
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
               {shortlistedOnly
                 ? "Your next great hires. Schedule an interview and take the conversation forward."
@@ -388,7 +392,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                       className="px-5 py-4"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      {shortlistedOnly ? (
+                      {shortlistedOnly ? (value(record, "status").trim().toLowerCase() !== "rejected" && <div className="flex flex-wrap gap-2">
                         <button
                           disabled={
                             !record.id ||
@@ -404,7 +408,14 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                             ? "Scheduled"
                             : "Schedule interview"}
                         </button>
-                      ) : (
+                        <button
+                          disabled={!record.id || !lookups.status.isSuccess}
+                          onClick={() => setRescheduling(record)}
+                          className="inline-flex whitespace-nowrap items-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                        >
+                          <CalendarPlus size={16} /> Reschedule interview
+                        </button>
+                      </div>) : (
                         <button
                           title={
                             value(record, "stage").toLowerCase() ===
@@ -467,6 +478,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
           </div>
         </footer>
       </section>
+      {rescheduling && <CandidateInterviewsDialog candidate={rescheduling} statusOptions={lookups.status.data} onClose={() => setRescheduling(null)} />}
       {scheduling && (
         <ScheduleInterviewDialog
           record={scheduling}

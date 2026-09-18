@@ -9,6 +9,7 @@ import "../components/EmployeeDashboard.css";
 import { useSelector } from "react-redux";
 export default function EmployeHomePage() {
     const isAdmin = useSelector((state) => state.user.userInfo?.status === "admin");
+    
     return (
         <main className="employee-dashboard">
             <DashboardHeader />

@@ -17,6 +17,7 @@ import Profile from "./components/pages/Profile";
 import JobPost from "./components/pages/JobPost";
 import JobApplication from "./components/pages/JobApplication";
 import CandidatesPage from "./components/pages/candidates/CandidatesPage";
+import Interview from "./components/pages/Interview";
 import { Toaster } from "react-hot-toast";
 
 // import TwakChat from "./components/TwakTo";
@@ -156,6 +157,11 @@ const router = createBrowserRouter([
         path: "shortlisted",
         element: <CandidatesPage key="shortlisted" shortlistedOnly />,
         handle: { breadcrumb: "Shortlisted" },
+      },
+      {
+        path: "interviews",
+        element: <Interview />,
+        handle: { breadcrumb: "Interviews" },
       },
       {
         path: "profile",

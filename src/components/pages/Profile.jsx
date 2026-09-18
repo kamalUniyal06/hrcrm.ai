@@ -105,7 +105,7 @@ function CandidateProfile({ email, jobId }) {
         if (!active) return;
         setRecord(candidate);
         setDraft(candidate ? normalizeCandidate(candidate, email) : null);
-        setPhase(jobId ? "upload" : candidate ? "view" : "upload");
+        setPhase(jobId ? "upload" : candidate?.status ? "view" : "upload");
       })
       .catch((err) => {
         if (active) {
