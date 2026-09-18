@@ -6,8 +6,9 @@ import AttendanceSummary from "../components/AttendanceSummary";
 import TeamTable from "../components/TeamTable";
 import WorkingHistory from "../components/WorkingHistory";
 import "../components/EmployeeDashboard.css";
-
+import { useSelector } from "react-redux";
 export default function EmployeHomePage() {
+    const isAdmin = useSelector((state) => state.user.userInfo?.status === "admin");
     return (
         <main className="employee-dashboard">
             <DashboardHeader />
@@ -30,7 +31,7 @@ export default function EmployeHomePage() {
                 <AttendanceSummary />
             </div>
             <div className="employee-dashboard__tables">
-                <TeamTable />
+                {!isAdmin && <TeamTable />}
                 <WorkingHistory />
             </div>
         </main>
