@@ -33,6 +33,7 @@ import TableView from "./components/layouts/table-view/TableView";
 import Home from "./components/Home";
 import { PageContextProvider } from "./context/pageContext";
 import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
+import AttendanceDashboard from "./components/employement/pages/AttendanceDashboard";
 
 const router = createBrowserRouter([
   {
@@ -151,6 +152,11 @@ const router = createBrowserRouter([
         path: "candidates",
         element: <CandidatesPage key="candidates" />,
         handle: { breadcrumb: "Candidates" },
+      },
+      {
+        path: "attendance",
+        element: <AttendanceDashboard key="candidates" />,
+        handle: { breadcrumb: "Attendance" },
       },
       {
         path: "shortlisted",

@@ -134,6 +134,7 @@ export const smartGateway = async ({
   return response.data;
 };
 export const fetchGpc = async ({
+  endpoint = "",
   method = "GET",
   body = null,
   params = {},
@@ -157,7 +158,7 @@ export const fetchGpc = async ({
   }
 
   const response = await apiClient({
-    url: CRMENDPOINT,
+    url: endpoint || CRMENDPOINT,
     method,
     data: body,
     params: params1,

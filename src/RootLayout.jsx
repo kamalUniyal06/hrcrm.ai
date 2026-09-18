@@ -18,7 +18,6 @@ const RootLayout = () => {
   const mainRef = useRef(null);
   const { data: candidate } = useCandidateProfile();
   const hasCandidate = Boolean(candidate?.id);
-
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo({
