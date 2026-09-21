@@ -1,5 +1,6 @@
 export function sidebarDestination(item) {
   const name = String(item.name || "").trim();
+  if (/^interviews?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_interviews") return "/interviews";
   if (/^short[\s-]?listed(?:\s+candidates)?$/i.test(name)) return "/shortlisted";
   if (/^candidates?$/i.test(name)) return "/candidates";
   if (/^(my\s+)?profile$/i.test(name)) return "/profile";

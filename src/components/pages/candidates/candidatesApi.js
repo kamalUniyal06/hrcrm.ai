@@ -153,3 +153,25 @@ export async function createInterview(data) {
     );
   return response;
 }
+
+export async function fetchInterviewRecord(id) {
+  const response = await http({
+    method: "POST",
+    body: { action: "fetch", module: "hrc_interviews", filters: { id }, page: 1, per_page: 1 },
+  });
+  const record = response?.records?.find((item) => String(item.id) === String(id) && String(item.deleted) !== "1");
+  if (response?.success !== true || !record)
+    throw new Error(response?.message || "This interview is no longer available. Refresh and try again.");
+  return record;
+}
+
+export async function updateInterview(id, data) {
+  if (!id) throw new Error("An interview ID is required.");
+  const response = await http({
+    method: "POST",
+    body: { action: "update", module: "hrc_interviews", id, data },
+  });
+  if (response?.success !== true)
+    throw new Error(response?.message || response?.error || "Could not save the interview. Please retry.");
+  return response;
+}

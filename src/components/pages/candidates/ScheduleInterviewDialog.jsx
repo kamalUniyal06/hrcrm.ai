@@ -3,11 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import { CalendarPlus, Check, Loader2, X } from "lucide-react";
 import toast from "react-hot-toast";
+import { interviewKey } from "../interviews/interviewUtils";
 import {
   candidateName,
   createInterview,
   updateCandidateRecord,
   workflowUpdate,
+  workflowValue,
+  fetchCandidateRecord,
+  fetchAllRecords,
 } from "./candidatesApi";
 
 const inputClass =
@@ -24,6 +28,7 @@ export default function ScheduleInterviewDialog({ record, lookups, onClose }) {
     email: record.email1 || record.email || "",
     interview_datetime: "",
     description: "",
+    job_id: String(record.job_id || ""),
   });
   const change = (event) =>
     setDraft((previous) => ({
@@ -37,15 +42,23 @@ export default function ScheduleInterviewDialog({ record, lookups, onClose }) {
     setBusy(true);
     setError("");
     try {
+      const fresh = await fetchCandidateRecord(record.id);
+      if (workflowValue(fresh, "status", lookups.status.data).trim().toLowerCase() === "rejected")
+        throw new Error("Rejected candidates cannot be scheduled.");
       const status = workflowUpdate(
-        record,
+        fresh,
         "status",
         "Scheduled",
         lookups.status.data,
       );
       if (!created) {
+        const existing = await fetchAllRecords("hrc_interviews");
+        const jobId = draft.job_id.trim();
+        if (existing.some((item) => interviewKey(item) === interviewKey({ ...draft, candidate_id: record.id, job_id: jobId })))
+          throw new Error("An interview already exists for this job or round. Open Interviews to schedule or reschedule that record.");
         if (!draft.name.trim() || !draft.email.trim())
           throw new Error("Enter a candidate name and email.");
+        if (!draft.description.trim()) throw new Error("Enter the interview round in Description.");
         const date = new Date(draft.interview_datetime);
         if (!Number.isFinite(date.getTime()) || date <= new Date())
           throw new Error("Choose an interview date and time in the future.");
@@ -53,6 +66,8 @@ export default function ScheduleInterviewDialog({ record, lookups, onClose }) {
           ...draft,
           name: draft.name.trim(),
           email: draft.email.trim(),
+          description: draft.description.trim(),
+          job_id: jobId,
           candidate_id: record.id,
           interview_datetime: date.toISOString().slice(0, 19).replace("T", " "),
         });
@@ -66,6 +81,7 @@ export default function ScheduleInterviewDialog({ record, lookups, onClose }) {
       );
       void client.invalidateQueries({ queryKey: ["candidates"] });
       void client.invalidateQueries({ queryKey: ["candidate-profile"] });
+      void client.invalidateQueries({ queryKey: ["interviews"] });
       toast.success("Interview saved. Candidate marked as Scheduled.");
       onClose();
     } catch (err) {
@@ -174,15 +190,17 @@ export default function ScheduleInterviewDialog({ record, lookups, onClose }) {
                 </span>
               </label>
               <label className="block text-sm font-medium text-slate-700">
-                Description
+                Description / round
                 <textarea
                   name="description"
+                  required
                   rows={4}
-                  placeholder="Add the interview agenda, meeting link, or preparation notes…"
+                  placeholder="Round 1, Round 2, Technical..."
                   value={draft.description}
                   onChange={change}
                   className={inputClass}
                 />
+                <span className="mt-2 block text-xs font-normal text-slate-500">Use a round name such as Round 1 or Technical. Interviews are grouped by this value.</span>
               </label>
             </fieldset>
             <footer className="mt-7 flex justify-end gap-3 border-t border-slate-100 pt-5">
