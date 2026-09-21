@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
+    AlertCircle,
     Coffee,
     Fingerprint,
     LogOut,
+    MessageSquareText,
     Play,
     TimerReset,
+    Users,
+    X,
 } from "lucide-react";
 
 const SHIFT_DURATION_SECONDS = 9 * 60 * 60;
@@ -139,6 +144,74 @@ export default function TodayPresentCard({
     );
 
     const [breakSeconds, setBreakSeconds] = useState(0);
+    const [isExitMeetingOpen, setIsExitMeetingOpen] = useState(false);
+    const [meetingHeld, setMeetingHeld] = useState("");
+    const [conductedBy, setConductedBy] = useState("");
+    const [remarks, setRemarks] = useState("");
+    const [exitMeetingError, setExitMeetingError] = useState("");
+
+    const resetExitMeetingForm = () => {
+        setMeetingHeld("");
+        setConductedBy("");
+        setRemarks("");
+        setExitMeetingError("");
+    };
+
+    const handleExitMeetingOpenChange = (open) => {
+        if (actionLoading === "checkout") return;
+
+        setIsExitMeetingOpen(open);
+        if (!open) resetExitMeetingForm();
+    };
+
+    const selectMeetingStatus = (status) => {
+        setMeetingHeld(status);
+        setExitMeetingError(
+            status === "no"
+                ? "The exit meeting must be completed before you can log out."
+                : ""
+        );
+
+        if (status === "no") {
+            setConductedBy("");
+            setRemarks("");
+        }
+    };
+
+    const submitExitMeeting = (event) => {
+        event.preventDefault();
+
+        if (meetingHeld !== "yes") {
+            setExitMeetingError(
+                "The exit meeting must be completed before you can log out."
+            );
+            return;
+        }
+
+        if (!conductedBy || !remarks.trim()) {
+            setExitMeetingError(
+                "Select who conducted the meeting and add the meeting remarks."
+            );
+            return;
+        }
+
+        setExitMeetingError("");
+        handleCheckOut({
+            exitMeetingHeld: true,
+            exitMeetingConductedBy: conductedBy,
+            exitMeetingRemarks: remarks.trim(),
+        });
+    };
+
+    useEffect(() => {
+        if (isCheckedOut) {
+            setIsExitMeetingOpen(false);
+            setMeetingHeld("");
+            setConductedBy("");
+            setRemarks("");
+            setExitMeetingError("");
+        }
+    }, [isCheckedOut]);
 
     /**
      * ------------------------------------------------------------
@@ -534,8 +607,8 @@ export default function TodayPresentCard({
                             isOnBreak ||
                             actionLoading === "checkout"
                         }
-                        onClick={
-                            handleCheckOut
+                        onClick={() =>
+                            setIsExitMeetingOpen(true)
                         }
                         className="attendance-action attendance-action--danger"
                     >
@@ -557,6 +630,164 @@ export default function TodayPresentCard({
                     </button>
                 </div>
             )}
+
+            <Dialog.Root
+                open={isExitMeetingOpen}
+                onOpenChange={handleExitMeetingOpenChange}
+            >
+                <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 z-[999] bg-slate-950/55 backdrop-blur-sm" />
+                    <Dialog.Content
+                        aria-describedby="exit-meeting-description"
+                        className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+                    >
+                        <div className="border-b border-border bg-primary px-6 py-5 text-primary-foreground">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <span className="mb-2 inline-block rounded-full bg-primary-foreground/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider">
+                                        New Process
+                                    </span>
+                                    <Dialog.Title className="text-xl font-semibold">
+                                        Exit Meeting
+                                    </Dialog.Title>
+                                    <Dialog.Description
+                                        id="exit-meeting-description"
+                                        className="mt-1 text-sm text-primary-foreground/80"
+                                    >
+                                        Complete the exit meeting details before logging out.
+                                    </Dialog.Description>
+                                </div>
+                                <Dialog.Close asChild>
+                                    <button
+                                        type="button"
+                                        disabled={actionLoading === "checkout"}
+                                        aria-label="Close exit meeting form"
+                                        className="rounded-lg p-2 text-primary-foreground transition hover:bg-primary-foreground/15 disabled:opacity-50"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </Dialog.Close>
+                            </div>
+                        </div>
+
+                        <form onSubmit={submitExitMeeting} className="space-y-5 p-6">
+                            <fieldset>
+                                <legend className="mb-3 text-sm font-semibold text-foreground">
+                                    Was the Exit Meeting held? <span className="text-destructive">*</span>
+                                </legend>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {["yes", "no"].map((status) => (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            aria-pressed={meetingHeld === status}
+                                            onClick={() => selectMeetingStatus(status)}
+                                            className={`rounded-xl border px-4 py-3 text-sm font-semibold capitalize transition ${meetingHeld === status
+                                                ? status === "yes"
+                                                    ? "border-primary bg-primary text-primary-foreground"
+                                                    : "border-destructive bg-destructive text-destructive-foreground"
+                                                : "border-border bg-muted text-muted-foreground hover:border-primary"
+                                                }`}
+                                        >
+                                            {status}
+                                        </button>
+                                    ))}
+                                </div>
+                            </fieldset>
+
+                            {meetingHeld === "yes" && (
+                                <div className="space-y-5">
+                                    <fieldset>
+                                        <legend className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
+                                            <Users size={17} className="text-primary" />
+                                            Who conducted the Exit Meeting? <span className="text-destructive">*</span>
+                                        </legend>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {["Team Lead (TL)", "Manager"].map((person) => (
+                                                <label
+                                                    key={person}
+                                                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${conductedBy === person
+                                                        ? "border-primary bg-accent text-accent-foreground"
+                                                        : "border-border bg-card text-muted-foreground hover:border-primary"
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="radio"
+                                                        name="conductedBy"
+                                                        value={person}
+                                                        checked={conductedBy === person}
+                                                        onChange={(event) => {
+                                                            setConductedBy(event.target.value);
+                                                            setExitMeetingError("");
+                                                        }}
+                                                        className="h-4 w-4 accent-[var(--primary)]"
+                                                    />
+                                                    {person}
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </fieldset>
+
+                                    <div>
+                                        <label htmlFor="exit-meeting-remarks" className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                                            <MessageSquareText size={17} className="text-primary" />
+                                            Exit Meeting Remarks <span className="text-destructive">*</span>
+                                        </label>
+                                        <textarea
+                                            id="exit-meeting-remarks"
+                                            value={remarks}
+                                            onChange={(event) => {
+                                                setRemarks(event.target.value);
+                                                setExitMeetingError("");
+                                            }}
+                                            rows={4}
+                                            required
+                                            placeholder="Add notes from the exit meeting..."
+                                            className="w-full resize-none rounded-xl border border-border bg-input-background px-4 py-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {exitMeetingError && (
+                                <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                                    <AlertCircle size={18} className="mt-0.5 shrink-0" />
+                                    <span>{exitMeetingError}</span>
+                                </div>
+                            )}
+
+                            <div className="flex flex-col-reverse gap-3 border-t border-border pt-5 sm:flex-row sm:justify-end">
+                                <Dialog.Close asChild>
+                                    <button
+                                        type="button"
+                                        disabled={actionLoading === "checkout"}
+                                        className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </Dialog.Close>
+                                <button
+                                    type="submit"
+                                    disabled={meetingHeld !== "yes" || !conductedBy || !remarks.trim() || actionLoading === "checkout"}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                    {actionLoading === "checkout" ? (
+                                        <>
+                                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                            Logging Out...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <LogOut size={17} />
+                                            Complete Logout
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
         </section>
     );
 }
