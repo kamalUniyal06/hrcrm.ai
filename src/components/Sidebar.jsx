@@ -17,9 +17,11 @@ import {
 } from "../utils/sidebarLayout";
 import { useIsDesktop } from "../hooks/useMediaQuery";
 import { sidebarDestination } from "../utils/sidebarNavigation";
+import { filterAdminNavigation, selectIsAdmin } from "../utils/pageAccess";
 
 export function Sidebar() {
   const navigateTo = useNavigate();
+  const isAdmin = useSelector(selectIsAdmin);
 
   const {
     enteredEmail: email,
@@ -77,10 +79,10 @@ export function Sidebar() {
     });
 
     return {
-      visibleGroups: selectVisibleGroups(normalized),
+      visibleGroups: filterAdminNavigation(selectVisibleGroups(normalized), isAdmin),
       rankReports: reports,
     };
-  }, [layoutData]);
+  }, [layoutData, isAdmin]);
 
   const rankReloadAttempted = useRef(false);
 
@@ -162,8 +164,6 @@ export function Sidebar() {
       ?.filter((group) => group.data.length > 0) ?? [];
 
   useEffect(() => {
-    if (!visibleGroups.length) return;
-
     setExpandedGroups(
       Object.fromEntries(visibleGroups.map((group) => [group.id, true])),
     );

@@ -6,6 +6,7 @@ import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
+import PageAccessGuard from "./components/routing/PageAccessGuard";
 
 
 
@@ -76,7 +77,7 @@ const RootLayout = () => {
               {/* Page content */}
 
               <div className="m-3 flex min-h-0 flex-1 flex-col">
-                <Outlet />
+                <PageAccessGuard><Outlet /></PageAccessGuard>
               </div>
 
             </div>
