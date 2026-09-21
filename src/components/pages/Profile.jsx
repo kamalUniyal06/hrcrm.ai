@@ -184,7 +184,7 @@ function CandidateProfile({ email, jobId }) {
       if (!response.ok || json?.success !== true)
         throw new Error(
           json?.message ||
-          "Unable to parse this resume. Please try another file.",
+            "Unable to parse this resume. Please try another file.",
         );
       const candidate = await findCandidate(email);
       if (!candidate)
@@ -293,15 +293,15 @@ function CandidateProfile({ email, jobId }) {
     "Your career, beautifully told.";
   const completed = draft
     ? [
-      "first_name",
-      "last_name",
-      "email1",
-      "phone_mobile",
-      "current_designation",
-      "primary_address_city",
-      "description",
-      "profile_image",
-    ].filter((key) => draft[key]).length
+        "first_name",
+        "last_name",
+        "email1",
+        "phone_mobile",
+        "current_designation",
+        "primary_address_city",
+        "description",
+        "profile_image",
+      ].filter((key) => draft[key]).length
     : 0;
   const tabs = [
     {
@@ -335,14 +335,14 @@ function CandidateProfile({ email, jobId }) {
     },
     ...(record?.id
       ? [
-        {
-          id: "photo",
-          label: "Profile photo",
-          icon: Camera,
-          subtitle: "Put a face to your story",
-          description: "Personalize your saved profile with a photo.",
-        },
-      ]
+          {
+            id: "photo",
+            label: "Profile photo",
+            icon: Camera,
+            subtitle: "Put a face to your story",
+            description: "Personalize your saved profile with a photo.",
+          },
+        ]
       : []),
   ];
   const activeTab = tabs.find((tab) => tab.id === section) || tabs[0];
