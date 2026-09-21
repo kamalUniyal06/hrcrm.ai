@@ -17,6 +17,7 @@ import Profile from "./components/pages/Profile";
 import JobPost from "./components/pages/JobPost";
 import JobApplication from "./components/pages/JobApplication";
 import CandidatesPage from "./components/pages/candidates/CandidatesPage";
+import EmployeesPage from "./components/pages/employees/EmployeesPage";
 import Interview from "./components/pages/Interview";
 import { Toaster } from "react-hot-toast";
 
@@ -153,6 +154,11 @@ const router = createBrowserRouter([
         path: "candidates",
         element: <CandidatesPage key="candidates" />,
         handle: { breadcrumb: "Candidates" },
+      },
+      {
+        path: "employees",
+        element: <EmployeesPage />,
+        handle: { breadcrumb: "Employees" },
       },
       {
         path: "attendance",

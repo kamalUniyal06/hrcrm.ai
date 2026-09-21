@@ -67,9 +67,9 @@ export default function CandidateDetails({ id, lookups, onClose }) {
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45 backdrop-blur-sm" />
+        <Dialog.Overlay className="fixed inset-0 z-[999] bg-slate-950/45 backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed inset-y-0 right-0 z-999 flex w-full max-w-3xl flex-col bg-white shadow-2xl"
+          className="fixed inset-y-0 right-0 z-[9999] flex w-full max-w-3xl flex-col bg-white shadow-2xl"
           onInteractOutside={(event) => event.preventDefault()}
         >
           <header className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
