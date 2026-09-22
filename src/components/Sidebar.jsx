@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Radio, PanelLeft, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Home, PanelLeft, X } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -393,50 +393,36 @@ export function Sidebar() {
               </div>
             </div>
 
-            {/* LIVE BUTTON */}
-            <button
-              onClick={() => {
-                if (!isDesktop) setMobileSidebarOpen(false);
-                setActivePage("");
-                navigateTo("");
-              }}
-              className="flex items-center justify-center"
-            >
-              {/* Icon */}
-              <div
-                className="
-                  z-10 flex h-13 w-13
-                  items-center justify-center
-                  rounded-full
-                  border-5
-                  border-[var(--topbtn-primary)]
-                  bg-[var(--card)]
-                  shadow-md
-                "
+            {/* HOME */}
+            <div className="flex justify-center items-center px-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isDesktop) setMobileSidebarOpen(false);
+                  setActivePage("");
+                  navigateTo("");
+                }}
+                className={`flex items-center gap-3 rounded-lg p-2 transition-all duration-200 hover:bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_5%,transparent)]
+            ${collapsed ? "justify-center" : "w-full"}
+            ${activePage === ""
+                    ? "bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_10%,transparent)] rounded-full shadow-lg"
+                    : ""
+                  }`}
               >
-                <Radio className="h-6 w-6" color="var(--foreground)" />
-              </div>
+                <Home
+                  className={`h-4 w-4 shrink-0 ${activePage === ""
+                    ? "scale-125 text-[var(--topbtn-primary)]"
+                    : ""
+                    }`}
+                />
 
-              {/* Live Preview */}
-              {!collapsed && (
-                <div
-                  className="
-                    -ml-3 flex h-9 w-[170px]
-                    items-center justify-center
-                    rounded-r-xl
-                    bg-gradient-to-r
-                    from-[var(--topbtn-primary)]
-                    to-[var(--topbtn-secondary)]
-                    pl-6 pr-4
-                    text-sm font-medium
-                    text-[var(--sidebar-primary-foreground)]
-                    shadow-md
-                  "
-                >
-                  Live Preview
-                </div>
-              )}
-            </button>
+                {!collapsed && (
+                  <span className="truncate ">
+                    Home
+                  </span>
+                )}
+              </button>
+            </div>
 
             {/* MENU ITEMS */}
             <div
@@ -485,70 +471,7 @@ export function Sidebar() {
                   {(collapsed || expandedGroups[group.id]) && (
                     <div className="mt-1 ml-2 space-y-1">
                       {group.data.map((item) => (
-                        <button
-                          key={item.id}
-                          disabled={!sidebarDestination(item)}
-                          title={!sidebarDestination(item) ? "Navigation is not configured for this item" : item.name}
-                          onClick={() => {
-                            if (isDesktop) {
-                              setSidebarCollapsed(true);
-                            } else {
-                              setMobileSidebarOpen(false);
-                            }
-                            setActivePage(item.id);
-                            const target = sidebarDestination(item);
-                            if (target) navigateTo(target);
-                          }}
-                          className={`
-                                flex w-full
-                                items-center gap-3
-                                rounded-lg p-2
-                                transition-all duration-200
-                                hover:bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_5%,transparent)]
-                                ${collapsed ? "justify-center" : ""}
-                                ${activePage === item.id
-                              ? "bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_10%,transparent)] rounded-full shadow-lg"
-                              : ""
-                            }
-                              `}
-                        >
-                          <Icon
-                            name={item.icon}
-                            library={item.library}
-                            className={`
-                                  h-4 w-4 shrink-0
-                                  ${activePage === item.id
-                                ? "scale-125 text-[var(--topbtn-primary)]"
-                                : ""
-                              }
-                                `}
-                          />
-
-                          {!collapsed && (
-                            <>
-                              <span className="flex-1 truncate text-left">
-                                {item.name}
-                              </span>
-
-                              {item.key &&
-                                sidebarCounts?.stats?.[item.key] &&
-                                sidebarCountPending ? (
-                                <Skeleton count={1} />
-                              ) : (
-                                <span
-                                  className="
-                                        rounded-full
-                                        bg-[color-mix(in_srgb,var(--primary)_20%,transparent)]
-                                        px-2 py-0.5
-                                        text-xs
-                                      "
-                                >
-                                  {sidebarCounts?.stats?.[item.key]?.count || 0}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </button>
+                        <MenuItem item={item} isDesktop={isDesktop} setSidebarCollapsed={setSidebarCollapsed} setActivePage={setActivePage} activePage={activePage} sidebarDestination={sidebarDestination} navigateTo={navigateTo} sidebarCounts={sidebarCounts} sidebarCountPending={sidebarCountPending} collapsed={collapsed} />
                       ))}
                     </div>
                   )}
@@ -562,4 +485,72 @@ export function Sidebar() {
       </motion.aside>
     </>
   );
+}
+function MenuItem({ item, isDesktop, setSidebarCollapsed, setActivePage, activePage, sidebarDestination, navigateTo, sidebarCounts, sidebarCountPending, collapsed }) {
+  return (
+    <button
+      key={item.id}
+      disabled={!sidebarDestination(item)}
+      title={!sidebarDestination(item) ? "Navigation is not configured for this item" : item.name}
+      onClick={() => {
+        if (isDesktop) {
+          setSidebarCollapsed(true);
+        } else {
+          setMobileSidebarOpen(false);
+        }
+        setActivePage(item.id);
+        const target = sidebarDestination(item);
+        if (target) navigateTo(target);
+      }}
+      className={`
+                                flex w-full
+                                items-center gap-3
+                                rounded-lg p-2
+                                transition-all duration-200
+                                hover:bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_5%,transparent)]
+                                ${collapsed ? "justify-center" : ""}
+                                ${activePage === item.id
+          ? "bg-[color-mix(in_srgb,var(--sidebar-primary-foreground)_10%,transparent)] rounded-full shadow-lg"
+          : ""
+        }
+                              `}
+    >
+      <Icon
+        name={item.icon}
+        library={item.library}
+        className={`
+                                  h-4 w-4 shrink-0
+                                  ${activePage === item.id
+            ? "scale-125 text-[var(--topbtn-primary)]"
+            : ""
+          }
+                                `}
+      />
+
+      {!collapsed && (
+        <>
+          <span className="flex-1 truncate text-left">
+            {item.name}
+          </span>
+
+          {item.key &&
+            sidebarCounts?.stats?.[item.key] &&
+            sidebarCountPending ? (
+            <Skeleton count={1} />
+          ) : (
+            <span
+              className="
+                                        rounded-full
+                                        bg-[color-mix(in_srgb,var(--primary)_20%,transparent)]
+                                        px-2 py-0.5
+                                        text-xs
+                                      "
+            >
+              {sidebarCounts?.stats?.[item.key]?.count || 0}
+            </span>
+          )}
+        </>
+      )}
+    </button>
+  )
 }

@@ -38,25 +38,8 @@ export default function DashboardHeader() {
         <h1>
           {getGreeting()}, {store.getState().user.user?.name}
         </h1>
-
-        <p className="employee-dashboard__subtitle">
-          You have 2 leave request pending.
-        </p>
       </div>
 
-      <div className="current-time">
-        <div>
-          <span className="current-time__label">
-            Current Time :
-          </span>
-
-          <strong>
-            {formattedDate} - {formattedTime}
-          </strong>
-        </div>
-
-        <Clock3 size={25} />
-      </div>
     </header>
   );
 }

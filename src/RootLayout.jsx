@@ -8,9 +8,6 @@ import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
 import PageAccessGuard from "./components/routing/PageAccessGuard";
 
-
-
-
 const RootLayout = () => {
 
   const { setActivePage, displayIntro } = useContext(PageContext)
