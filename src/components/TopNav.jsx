@@ -199,11 +199,11 @@ export function TopNav({ sidebarAvailable = true }) {
         items-center
         justify-between
         gap-2
-        rounded-md
+        rounded-xl
         border
-        border-border
-        bg-white
-        p-2
+        border-transparent
+        bg-transparent
+        p-1
         sm:gap-3
       "
     >

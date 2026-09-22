@@ -111,6 +111,7 @@ const TableView = ({
   searching = true,
   timefilter = true,
   fetchNextPage,
+  refreshHandler,
   hasNextPage,
   isFetchingNextPage,
   children,
@@ -460,7 +461,7 @@ const TableView = ({
     );
   };
   const handleRefresh = async () => {
-
+    refreshHandler?.()
     queryClient.resetQueries({
       queryKey: entityKeys.allByEntity(entity),
     });
