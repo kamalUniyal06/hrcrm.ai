@@ -273,6 +273,7 @@ function CandidateProfile({ email, jobId }) {
       setDraft(normalizeCandidate(saved, email));
       setPhase("view");
       setNotice("Your candidate profile has been saved.");
+      window.location.reload();
     } catch (err) {
       if (alive.current)
         setError(err.message || "Unable to save your profile.");
