@@ -16,7 +16,8 @@ import { PageContext } from "@/context/pageContext";
 
 import TableView from "@/components/ui/table/Table";
 
-import { useLeavesHistory } from "../../queries/leaves.queries";
+import { leavesKey, useLeavesHistory } from "../../queries/leaves.queries";
+import { queryClient } from "../../../../lib/queryClient";
 
 
 const LeaveHistory = () => {
@@ -184,6 +185,7 @@ const LeaveHistory = () => {
         <TableView
             data={data}
             layout={layout}
+            refreshHandler={() => queryClient.resetQueries({ queryKey: leavesKey.all })}
             entity={'leaves'}
             loading={loading}
             preferences={preferences}

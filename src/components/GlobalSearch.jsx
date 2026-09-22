@@ -12,7 +12,7 @@ import {
     useState,
 } from "react";
 
-import { motion } from "framer-motion";
+import { motion as Motion } from "framer-motion";
 import { toast } from "react-toastify";
 
 import { PageContext } from "../context/pageContext";
@@ -197,19 +197,21 @@ const GlobalSearch = () => {
             ref={searchRef}
             data-tour="top-nav-search"
             className="
-            relative flex w-full min-w-0 p-1
+            relative flex h-9 w-full min-w-0 p-0.5
             items-center rounded-full
-            border border-gray-300 bg-white
-            shadow-[0_4px_8px_rgba(0,0,0,0.22)]
-            lg:w-[450px] lg:max-w-[60vw]
+            border border-white/30
+            bg-gradient-to-r from-white via-slate-50 to-indigo-50
+            shadow-[0_3px_10px_rgba(0,0,0,0.16)]
+            transition-shadow focus-within:shadow-[0_4px_14px_rgba(0,0,0,0.24)]
+            lg:w-[430px] lg:max-w-[60vw]
         "
         >
             {/* SEARCH ICON */}
             <Search
                 className="
-                ml-3 h-5 w-5 shrink-0
-                text-gray-400
-                lg:ml-6
+                ml-2.5 h-4 w-4 shrink-0
+                text-slate-400
+                lg:ml-3
             "
             />
 
@@ -228,24 +230,24 @@ const GlobalSearch = () => {
                 text-sm text-gray-700
                 placeholder:text-gray-400
                 focus:outline-none
-                sm:text-base
+                sm:text-sm
             "
             />
 
             {/* COPY BUTTON */}
             {search && (
-                <motion.button
+                <Motion.button
                     type="button"
                     whileTap={{ scale: 0.9 }}
                     onClick={handleCopy}
                     aria-label="Copy search text"
                     className="
-                    mr-1 flex h-7 w-7 shrink-0
+                    mr-0.5 flex h-6 w-6 shrink-0
                     items-center justify-center
                     rounded-full
                     text-blue-600
                     transition hover:bg-blue-50
-                    sm:mr-2 sm:h-8 sm:w-8
+                    sm:mr-1 sm:h-7 sm:w-7
                 "
                 >
                     {copied ? (
@@ -253,27 +255,27 @@ const GlobalSearch = () => {
                     ) : (
                         <Copy className="h-4 w-4" />
                     )}
-                </motion.button>
+                </Motion.button>
             )}
 
             {/* CLEAR BUTTON */}
             {search && (
-                <motion.button
+                <Motion.button
                     type="button"
                     whileTap={{ scale: 0.9 }}
                     onClick={handleInputClear}
                     aria-label="Clear search"
                     className="
-                    mr-1 flex h-7 w-7 shrink-0
+                    mr-0.5 flex h-6 w-6 shrink-0
                     items-center justify-center
                     rounded-full
                     text-red-500
                     transition hover:bg-red-50
-                    sm:mr-2 sm:h-8 sm:w-8
+                    sm:mr-1 sm:h-7 sm:w-7
                 "
                 >
                     <X className="h-4 w-4" />
-                </motion.button>
+                </Motion.button>
             )}
 
             {/* SEARCH BUTTON */}
@@ -284,12 +286,12 @@ const GlobalSearch = () => {
                 className="
                 flex shrink-0 items-center justify-center rounded-full
                 bg-gradient-to-r from-search-primary to-search-secondary
-                h-8 w-8
-                text-base font-small text-white
+                h-7 w-7
+                text-sm font-medium text-white
                 transition
                 hover:bg-blue-700
                 active:scale-[0.98]
-                sm:h-auto sm:w-auto sm:px-4 sm:py-1
+                sm:h-7 sm:w-auto sm:px-3 sm:py-0.5
             "
             >
                 <Search className="h-4 w-4 sm:hidden" />

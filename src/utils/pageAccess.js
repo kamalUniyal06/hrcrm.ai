@@ -10,8 +10,8 @@ export function isAdminPage(pathname = "") {
   } catch {
     // Malformed paths cannot resolve to a protected route.
   }
-  return /^\/(?:employees|interviews)(?:\/|$)/i.test(path) ||
-    /^\/entity\/hrc_(?:employees|interviews)(?:\/|$)/i.test(path);
+  return /^\/(?:employees|interviews|salaries)(?:\/|$)/i.test(path) ||
+    /^\/entity\/hrc_(?:employees|interviews|salaries)(?:\/|$)/i.test(path);
 }
 
 export function filterAdminNavigation(groups, isAdmin) {

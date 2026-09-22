@@ -48,10 +48,10 @@ export const getLeavesHistory = ({ preferences, page }) =>
         body: {
             action: "fetch",
             module: "hrc_leaves",
-            filters: { employee_id: store.getState().user.userInfo.id },
+            filters: {},
             page,
             ...buildTableRequestBody(
-                preferences
+                preferences, { employee_id: store.getState().user.userInfo.id }
             ),
         }
 

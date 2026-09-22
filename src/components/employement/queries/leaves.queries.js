@@ -17,7 +17,7 @@ export const leavesKey = {
     lists: (
         filters = {}
     ) => [
-            "dailyActivity",
+            "leaves",
             "list",
             filters,
         ],

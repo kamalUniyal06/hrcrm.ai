@@ -144,6 +144,7 @@ export default function TodayPresentCard({
     );
 
     const [breakSeconds, setBreakSeconds] = useState(0);
+    const [isBreakConfirmOpen, setIsBreakConfirmOpen] = useState(false);
     const [isExitMeetingOpen, setIsExitMeetingOpen] = useState(false);
     const [meetingHeld, setMeetingHeld] = useState("");
     const [conductedBy, setConductedBy] = useState("");
@@ -212,6 +213,22 @@ export default function TodayPresentCard({
             setExitMeetingError("");
         }
     }, [isCheckedOut]);
+
+    useEffect(() => {
+        if (isOnBreak) {
+            setIsBreakConfirmOpen(false);
+        }
+    }, [isOnBreak]);
+
+    const handleBreakConfirmOpenChange = (open) => {
+        if (actionLoading === "break") return;
+        setIsBreakConfirmOpen(open);
+    };
+
+    const confirmTakeBreak = () => {
+        setIsBreakConfirmOpen(false);
+        handleTakeBreak();
+    };
 
     /**
      * ------------------------------------------------------------
@@ -577,8 +594,8 @@ export default function TodayPresentCard({
                                 actionLoading === "break" ||
                                 actionLoading === "checkout"
                             }
-                            onClick={
-                                handleTakeBreak
+                            onClick={() =>
+                                setIsBreakConfirmOpen(true)
                             }
                             className="attendance-action"
                         >
@@ -630,6 +647,84 @@ export default function TodayPresentCard({
                     </button>
                 </div>
             )}
+
+            <Dialog.Root
+                open={isBreakConfirmOpen}
+                onOpenChange={handleBreakConfirmOpenChange}
+            >
+                <Dialog.Portal>
+                    <Dialog.Overlay className="fixed inset-0 z-[999] bg-slate-950/55 backdrop-blur-sm" />
+                    <Dialog.Content
+                        aria-describedby="break-confirmation-description"
+                        className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+                    >
+                        <div className="relative bg-gradient-to-br from-orange-500 to-amber-400 px-6 pb-6 pt-7 text-white">
+                            <Dialog.Close asChild>
+                                <button
+                                    type="button"
+                                    disabled={actionLoading === "break"}
+                                    aria-label="Close break confirmation"
+                                    className="absolute right-4 top-4 rounded-lg p-2 text-white/90 transition hover:bg-white/15 disabled:opacity-50"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </Dialog.Close>
+
+                            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 shadow-sm ring-1 ring-white/25">
+                                <Coffee size={25} />
+                            </div>
+                            <Dialog.Title className="pr-10 text-xl font-semibold">
+                                Ready to take a break?
+                            </Dialog.Title>
+                            <Dialog.Description
+                                id="break-confirmation-description"
+                                className="mt-1.5 text-sm leading-6 text-white/85"
+                            >
+                                Your break timer will start immediately after you confirm.
+                            </Dialog.Description>
+                        </div>
+
+                        <div className="p-6">
+                            <div className="mb-6 flex items-start gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                                <TimerReset size={18} className="mt-0.5 shrink-0 text-orange-600" />
+                                <p>
+                                    Remember to select <strong>I&apos;m Back From Break</strong> when you return.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                <Dialog.Close asChild>
+                                    <button
+                                        type="button"
+                                        disabled={actionLoading === "break"}
+                                        className="rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </Dialog.Close>
+                                <button
+                                    type="button"
+                                    disabled={actionLoading === "break"}
+                                    onClick={confirmTakeBreak}
+                                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {actionLoading === "break" ? (
+                                        <>
+                                            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                                            Starting Break...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Coffee size={17} />
+                                            Start My Break
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </Dialog.Content>
+                </Dialog.Portal>
+            </Dialog.Root>
 
             <Dialog.Root
                 open={isExitMeetingOpen}
