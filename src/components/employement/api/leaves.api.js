@@ -25,7 +25,7 @@ export const applyForLeave = async (data) => {
 
     const response = await fetchGpc({
         endpoint:
-            "https://flight.hrcrm.ai/index.php?entryPoint=hrc",
+            "https://test.hrcrm.ai/index.php?entryPoint=hrc",
         method: "POST",
         params: {
             type: "create_leave",

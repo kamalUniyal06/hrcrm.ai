@@ -18,7 +18,7 @@ export function setConfig(endpoint, db_name, dash_user_email) {
 
 /**
  * Shared Axios instance.  crmClient carries request/response interceptors
- * that attach the CRM Bearer token for requests to flight.hrcrm.ai and
+ * that attach the CRM Bearer token for requests to test.hrcrm.ai and
  * retry once on a 401.  Non-CRM requests pass through unchanged.
  */
 const apiClient = crmClient;

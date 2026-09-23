@@ -135,7 +135,7 @@ export default function CandidatePhotoUpload({
       body.append("email", email.trim());
       body.append("image", photo, photo.name);
       const response = await crmFetch(
-        "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=upload_candidate_image",
+        "https://test.hrcrm.ai/index.php?entryPoint=hrc&type=upload_candidate_image",
         {
           method: "POST",
           headers: { "x-api-key": FETCH_GPC_X_API_KEY },
