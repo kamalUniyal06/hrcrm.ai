@@ -7,8 +7,22 @@ const people = [
     "12:45 AM",
     "10:44 AM",
   ],
-  ["MV", "Miracle Vetrovs", "UX Designer - UXD2", "—", "10:33 AM", "on leave"],
-  ["AA", "Avery Arwood", "UI Designer - UID2", "wfh", "10:21 AM", "wfh"],
+  [
+    "MV",
+    "Miracle Vetrovs",
+    "UX Designer - UXD2",
+    "—",
+    "10:33 AM",
+    "on leave",
+  ],
+  [
+    "AA",
+    "Avery Arwood",
+    "UI Designer - UID2",
+    "wfh",
+    "10:21 AM",
+    "wfh",
+  ],
   [
     "JE",
     "John Edgewood",
@@ -18,70 +32,142 @@ const people = [
     "10:08 AM",
   ],
 ];
-const Marker = ({ value, index }) => (
-  <span className="cell-status">
-    <i
-      className={`dot dot--${value === "on leave" ? "red" : value === "wfh" ? "yellow" : index === 0 ? "blue" : "gray"}`}
-    />
-    {value}
-  </span>
-);
+
+const Marker = ({ value, index }) => {
+  const dotColor =
+    value === "on leave"
+      ? "bg-red-500"
+      : value === "wfh"
+        ? "bg-yellow-500"
+        : index === 0
+          ? "bg-primary"
+          : "bg-muted-foreground";
+
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
+      <i className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
+      {value}
+    </span>
+  );
+};
+
 export default function TeamTable() {
   return (
-    <section className="employee-card table-card">
-      <h2 className="card-title">My Team</h2>
-      <div className="legend-inline">
-        <span>
-          <i className="dot dot--blue" />
+    <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+      {/* Header */}
+      <h2 className="text-base font-semibold text-foreground">
+        My Team
+      </h2>
+
+      {/* Legend */}
+      <div className="mt-3 mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <i className="h-2 w-2 rounded-full bg-primary" />
           in office
         </span>
-        <span>
-          <i className="dot dot--yellow" />
+
+        <span className="inline-flex items-center gap-1.5">
+          <i className="h-2 w-2 rounded-full bg-yellow-500" />
           work from home
         </span>
-        <span>
-          <i className="dot dot--red" />
+
+        <span className="inline-flex items-center gap-1.5">
+          <i className="h-2 w-2 rounded-full bg-red-500" />
           on leave
         </span>
-        <span>
-          <i className="dot dot--gray" />
+
+        <span className="inline-flex items-center gap-1.5">
+          <i className="h-2 w-2 rounded-full bg-muted-foreground" />
           absent
         </span>
-        <span>○ holiday</span>
+
+        <span className="inline-flex items-center gap-1.5">
+          <span className="text-sm leading-none">○</span>
+          holiday
+        </span>
       </div>
-      <div className="table-scroll">
-        <table className="employee-table">
+
+      {/* Table */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[570px] border-separate border-spacing-y-1 text-left">
           <thead>
             <tr>
-              <th>Members</th>
-              <th>Today</th>
-              <th>25/9</th>
-              <th>24/9</th>
-              <th>23/9</th>
+              <th className="rounded-l-lg bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground">
+                Members
+              </th>
+
+              <th className="bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground">
+                Today
+              </th>
+
+              <th className="bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground">
+                25/9
+              </th>
+
+              <th className="bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground">
+                24/9
+              </th>
+
+              <th className="rounded-r-lg bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground">
+                23/9
+              </th>
             </tr>
           </thead>
+
           <tbody>
-            {people.map((p, i) => (
-              <tr key={p[1]}>
-                <td>
-                  <div className="member">
-                    <span className="avatar">{p[0]}</span>
-                    <span>
-                      <strong>{p[1]}</strong>
-                      <small>{p[2]}</small>
+            {people.map((person, index) => (
+              <tr key={person[1]}>
+                {/* Member */}
+                <td className="border-b border-border px-3 py-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                      {person[0]}
                     </span>
+
+                    <div className="min-w-0">
+                      <strong className="block whitespace-nowrap text-xs font-semibold text-foreground">
+                        {person[1]}
+                      </strong>
+
+                      <small className="block whitespace-nowrap text-[10px] text-muted-foreground">
+                        {person[2]}
+                      </small>
+                    </div>
                   </div>
                 </td>
-                <td>
-                  <Marker value={p[3]} index={i} />
+
+                {/* Today */}
+                <td className="border-b border-border px-3 py-2">
+                  <Marker
+                    value={person[3]}
+                    index={index}
+                  />
                 </td>
-                <td>
-                  <Marker value={p[4]} index={0} />
+
+                {/* 25/9 */}
+                <td className="border-b border-border px-3 py-2">
+                  <Marker
+                    value={person[4]}
+                    index={0}
+                  />
                 </td>
-                <td>
-                  <Marker value={p[5]} index={p[5] === "on leave" ? 2 : 0} />
+
+                {/* 24/9 */}
+                <td className="border-b border-border px-3 py-2">
+                  <Marker
+                    value={person[5]}
+                    index={
+                      person[5] === "on leave"
+                        ? 2
+                        : 0
+                    }
+                  />
                 </td>
-                <td>○ weekend</td>
+
+                {/* 23/9 */}
+                <td className="whitespace-nowrap border-b border-border px-3 py-2 text-xs text-muted-foreground">
+                  ○ weekend
+                </td>
               </tr>
             ))}
           </tbody>

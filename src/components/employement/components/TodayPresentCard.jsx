@@ -111,6 +111,7 @@ const getWorkedSeconds = (login, logout) => {
 
 export default function TodayPresentCard({
     record,
+    loginStartedAt,
     actionLoading,
     handleTakeBreak,
     handleBackFromBreak,
@@ -143,9 +144,7 @@ export default function TodayPresentCard({
      */
     const isCheckedOut = Boolean(record?.logout);
 
-    const [shiftSecondsLeft, setShiftSecondsLeft] = useState(
-        SHIFT_DURATION_SECONDS
-    );
+    const [shiftElapsedSeconds, setShiftElapsedSeconds] = useState(0);
 
     const [breakSeconds, setBreakSeconds] = useState(0);
     const [isBreakConfirmOpen, setIsBreakConfirmOpen] = useState(false);
@@ -258,12 +257,12 @@ export default function TodayPresentCard({
         }
 
         const updateShiftTimer = () => {
-            const loginDate = parseApiDateTime(record.login);
+            const loginDate = loginStartedAt
+                ? new Date(loginStartedAt)
+                : parseApiDateTime(record.login);
 
             if (!loginDate) {
-                setShiftSecondsLeft(
-                    SHIFT_DURATION_SECONDS
-                );
+                setShiftElapsedSeconds(0);
                 return;
             }
 
@@ -271,12 +270,8 @@ export default function TodayPresentCard({
                 (Date.now() - loginDate.getTime()) / 1000
             );
 
-            const remaining = Math.max(
-                SHIFT_DURATION_SECONDS - elapsedSeconds,
-                0
-            );
+            setShiftElapsedSeconds(Math.max(elapsedSeconds, 0));
 
-            setShiftSecondsLeft(remaining);
         };
 
         updateShiftTimer();
@@ -287,7 +282,7 @@ export default function TodayPresentCard({
         );
 
         return () => clearInterval(interval);
-    }, [record?.login, isCheckedOut]);
+    }, [record?.login, loginStartedAt, isCheckedOut]);
 
     /**
      * ------------------------------------------------------------
@@ -360,42 +355,15 @@ export default function TodayPresentCard({
         workedSeconds
     );
 
-    /**
-     * ------------------------------------------------------------
-     * SHIFT PROGRESS
-     * ------------------------------------------------------------
-     */
-    const shiftProgress = useMemo(() => {
-        if (isCheckedOut) {
-            return 100;
-        }
-
-        const elapsed =
-            SHIFT_DURATION_SECONDS -
-            shiftSecondsLeft;
-
-        return Math.min(
-            Math.max(
-                (elapsed /
-                    SHIFT_DURATION_SECONDS) *
-                100,
-                0
-            ),
-            100
-        );
-    }, [
-        shiftSecondsLeft,
-        isCheckedOut,
-    ]);
-
-    const shiftTimeLeft = formatDuration(
-        shiftSecondsLeft
-    );
-
-    const breakSecondsLeft = Math.max(
-        BREAK_DURATION_SECONDS - breakSeconds,
+    const shiftOvertimeSeconds = Math.max(
+        (isCheckedOut ? workedSeconds : shiftElapsedSeconds) -
+        SHIFT_DURATION_SECONDS,
         0
     );
+
+    const hasCompletedShift =
+        (isCheckedOut ? workedSeconds : shiftElapsedSeconds) >=
+        SHIFT_DURATION_SECONDS;
 
     const breakOvertimeSeconds = Math.max(
         breakSeconds - BREAK_DURATION_SECONDS,
@@ -409,11 +377,6 @@ export default function TodayPresentCard({
 
     const isLunchOutLate =
         hasTakenBreak && completedBreakSeconds > BREAK_DURATION_SECONDS;
-
-    const breakProgress = Math.min(
-        (breakSeconds / BREAK_DURATION_SECONDS) * 100,
-        100
-    );
 
     const breakReturnTime = useMemo(() => {
         if (!isOnBreak) return null;
@@ -432,9 +395,9 @@ export default function TodayPresentCard({
         });
     }, [breakStartedAt, isOnBreak, record?.lunch_in]);
 
-    const displayedProgress = isOnBreak
-        ? breakProgress
-        : shiftProgress;
+    const displayedShiftSeconds = isCheckedOut
+        ? workedSeconds
+        : shiftElapsedSeconds;
 
     /**
      * ------------------------------------------------------------
@@ -442,15 +405,15 @@ export default function TodayPresentCard({
      * ------------------------------------------------------------
      */
     return (
-        <section className="employee-card today-card box-border w-full max-w-full min-w-0 overflow-hidden">
+        <section className="row-span-2 h-full flex flex-col gap-4 box-border w-full max-w-full min-w-0 overflow-hidden rounded-[10px] border border-border bg-card px-5 py-[18px] shadow-[0_1px_5px_var(--border)]">
             {/* HEADER */}
 
-            <div className="card-title-row flex min-w-0 items-center justify-between gap-3">
-                <h2 className="card-title truncate">
+            <div className="flex min-w-0 items-center justify-between gap-3">
+                <h2 className="truncate text-sm font-semibold text-[var(--employee-heading)]">
                     Today
                 </h2>
 
-                <span className="status-badge present shrink-0">
+                <span className="shrink-0 rounded-full bg-[var(--employee-green)] px-[9px] py-[5px] text-[10px] text-primary-foreground">
                     {isOnBreak
                         ? breakOvertimeSeconds > 0
                             ? "Break Overdue"
@@ -463,11 +426,11 @@ export default function TodayPresentCard({
                 </span>
             </div>
 
-            <div className="divider" />
+            <div className="my-[17px] h-px bg-border" />
 
             {/* BODY */}
 
-            <div className="today-card__body flex w-full max-w-full min-w-0 flex-col gap-6 overflow-hidden sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex w-full max-w-full min-w-0 flex-col gap-6 overflow-hidden sm:flex-row sm:justify-between">
                 {/* LEFT CONTENT */}
 
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -485,7 +448,7 @@ export default function TodayPresentCard({
                                 </span>
                             </div>
 
-                            <p className="today-card__message">
+                            <p className="max-w-[155px] text-xs leading-[1.6]">
                                 {breakOvertimeSeconds > 0
                                     ? "Your 40-minute lunch break has ended. Please return to work."
                                     : "Your 40-minute lunch break is being tracked."}
@@ -501,7 +464,7 @@ export default function TodayPresentCard({
                                 <span className="text-2xl font-semibold tabular-nums">
                                     {breakOvertimeSeconds > 0
                                         ? `+${formatDuration(breakOvertimeSeconds)}`
-                                        : formatDuration(breakSecondsLeft)}
+                                        : formatDuration(breakSeconds)}
                                 </span>
                             </div>
 
@@ -525,7 +488,7 @@ export default function TodayPresentCard({
                         <>
                             <div className="mb-2 flex items-center gap-2">
                                 <Fingerprint
-                                    className="today-card__icon"
+                                    className="mb-3.5 text-[var(--employee-blue)]"
                                     size={27}
                                 />
 
@@ -534,7 +497,7 @@ export default function TodayPresentCard({
                                 </span>
                             </div>
 
-                            <p className="today-card__message">
+                            <p className="max-w-[155px] text-xs leading-[1.6]">
                                 You've worked for{" "}
                                 <strong className="text-foreground">
                                     {workedTime}
@@ -574,14 +537,21 @@ export default function TodayPresentCard({
                     ) : (
                         <>
                             <Fingerprint
-                                className="today-card__icon"
+                                className="mb-3.5 text-[var(--employee-blue)]"
                                 size={27}
                             />
 
-                            <p className="today-card__message">
-                                You're marked present today.
-                                Have a productive day!
+                            <p className="max-w-[155px] text-xs leading-[1.6]">
+                                {hasCompletedShift
+                                    ? "You completed your 9-hour shift. Excellent work and dedication today!"
+                                    : "You're marked present today. Have a productive day!"}
                             </p>
+
+                            {hasCompletedShift && (
+                                <div className="mt-3 w-fit rounded-xl border border-[var(--employee-green)]/30 bg-[var(--employee-green-soft)] px-3 py-2 text-sm font-semibold text-[var(--employee-green)]">
+                                    Shift complete · Overtime +{formatDuration(shiftOvertimeSeconds)}
+                                </div>
+                            )}
 
                             <div className="mt-3 flex flex-col flex-wrap gap-4 text-sm text-muted-foreground">
                                 <span>
@@ -616,47 +586,32 @@ export default function TodayPresentCard({
                     )}
                 </div>
 
-                {/* SHIFT / WORKED TIME RING */}
-
-                <div className="flex w-full shrink-0 justify-center sm:w-auto mr-10">
-                    <div className="shift-progress-ring">
-                        <div
-                            className="shift-progress-ring__track"
-                            style={{
-                                background: `conic-gradient(
-                                    var(--primary) ${displayedProgress}%,
-                                    var(--muted) ${displayedProgress}% 100%
-                                )`,
-                            }}
-                        >
-                            <div className="shift-progress-ring__inner">
-                                <span className="shift-progress-ring__label">
-                                    {isCheckedOut
-                                        ? "WORKED"
-                                        : "SHIFT LEFT"}
-                                </span>
-
-                                <strong className="shift-progress-ring__time">
-                                    {isCheckedOut
-                                        ? workedTime
-                                        : shiftTimeLeft}
-                                </strong>
-
-                                <small className="shift-progress-ring__total">
-                                    {isCheckedOut
-                                        ? "COMPLETED"
-                                        : "9 HR SHIFT"}
-                                </small>
-                            </div>
+                {/* SIMPLE FORWARD SHIFT TIMER */}
+                <div className="w-full shrink-0 sm:w-auto sm:min-w-[120px]">
+                    <div className="rounded-2xl border border-border bg-muted/50 px-5 py-4 shadow-sm ">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            <TimerReset size={16} className="text-primary" />
+                            {isCheckedOut ? "Total worked" : "Shift worked"}
                         </div>
+
+                        <strong className="block text-2xl font-semibold tabular-nums text-foreground">
+                            {formatDuration(displayedShiftSeconds)}
+                        </strong>
+
+                        {hasCompletedShift && (
+                            <span className="mt-2 block text-sm font-semibold tabular-nums text-[var(--employee-green)]">
+                                Overtime +{formatDuration(shiftOvertimeSeconds)}
+                            </span>
+                        )}
                     </div>
                 </div>
+
             </div>
 
             {/* ACTION BUTTONS */}
 
             {!isCheckedOut && (
-                <div className="attendance-actions">
+                <div className="mt-4 grid grid-cols-2 gap-3">
                     {/* BREAK / BACK */}
 
                     {isOnBreak ? (
@@ -668,7 +623,7 @@ export default function TodayPresentCard({
                             onClick={
                                 handleBackFromBreak
                             }
-                            className="attendance-action attendance-action--primary"
+                            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--employee-blue)] bg-[var(--employee-blue)] font-semibold text-primary-foreground transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-55"
                         >
                             {actionLoading === "back" ? (
                                 <>
@@ -695,7 +650,7 @@ export default function TodayPresentCard({
                             onClick={() =>
                                 setIsBreakConfirmOpen(true)
                             }
-                            className="attendance-action"
+                            className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-[var(--employee-row)] font-semibold text-[var(--employee-text)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-55"
                         >
                             {actionLoading === "break" ? (
                                 <>
@@ -725,7 +680,7 @@ export default function TodayPresentCard({
                         onClick={() =>
                             setIsExitMeetingOpen(true)
                         }
-                        className="attendance-action attendance-action--danger"
+                        className="flex h-11 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--employee-red)] bg-[var(--leave-red-soft)] font-semibold text-[var(--employee-red)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-55"
                     >
                         {actionLoading ===
                             "checkout" ? (
