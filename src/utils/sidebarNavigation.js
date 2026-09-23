@@ -1,5 +1,7 @@
 export function sidebarDestination(item) {
   const name = String(item.name || "").trim();
+  if (/^(?:salary|salaries)(?:\s+management)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_salaries") return "/salaries";
+  if (/^employees?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_employees") return "/employees";
   if (/^interviews?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_interviews") return "/interviews";
   if (/^short[\s-]?listed(?:\s+candidates)?$/i.test(name)) return "/shortlisted";
   if (/^candidates?$/i.test(name)) return "/candidates";

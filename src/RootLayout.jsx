@@ -6,9 +6,7 @@ import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
-
-
-
+import PageAccessGuard from "./components/routing/PageAccessGuard";
 
 const RootLayout = () => {
 

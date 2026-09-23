@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useSelector } from "react-redux";
+import { selectIsAdmin } from "../../../utils/pageAccess";
 import { Link } from "react-router-dom";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -28,6 +30,7 @@ const kinds = Object.keys(workflowModules);
 const pageSize = 20;
 
 export default function CandidatesPage({ shortlistedOnly = false }) {
+  const isAdmin = useSelector(selectIsAdmin);
   const client = useQueryClient();
   const [scheduling, setScheduling] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
@@ -143,7 +146,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             <h1 className="mt-3 text-3xl font-semibold tracking-tight">
               {shortlistedOnly ? "Shortlisted candidates" : "Candidates"}
             </h1>
-            <Link to="/interviews" className="mt-3 inline-block text-sm font-semibold underline">View interviews</Link>
+            {isAdmin && <Link to="/interviews" className="mt-3 inline-block text-sm font-semibold underline">View interviews</Link>}
             <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300">
               {shortlistedOnly
                 ? "Your next great hires. Schedule an interview and take the conversation forward."
