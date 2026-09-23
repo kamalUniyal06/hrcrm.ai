@@ -229,10 +229,20 @@ const getDuration = (start, end) => {
 const formatMinutes = (minutes) => {
     if (minutes === null || minutes < 0) return "Not available";
 
-    const hours = Math.floor(minutes / 60);
-    const remainder = minutes % 60;
+    const totalMinutes = Math.floor(minutes);
+    const days = Math.floor(totalMinutes / (24 * 60));
+    const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+    const remainder = totalMinutes % 60;
 
-    return `${hours}h ${String(remainder).padStart(2, "0")}m`;
+    if (days > 0) {
+        return `${days}d ${hours}h ${String(remainder).padStart(2, "0")}m`;
+    }
+
+    if (hours > 0) {
+        return `${hours}h ${String(remainder).padStart(2, "0")}m`;
+    }
+
+    return `${remainder}m`;
 };
 
 const transformAttendanceRecords = (
@@ -646,7 +656,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
                                         <p className="mt-0.5 truncate text-sm font-semibold">{email || "Current user"}</p>
                                     </div>
                                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${late ? "bg-[var(--chart-4)] text-[var(--foreground)]" : "bg-[var(--accent)] text-[var(--accent-foreground)]"}`}>
-                                        {late ? `${lateMinutes}m late` : attendance ? "On time" : "No record"}
+                                        {late ? `${formatMinutes(lateMinutes)} late` : attendance ? "On time" : "No record"}
                                     </span>
                                 </div>
                             </div>

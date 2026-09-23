@@ -158,8 +158,7 @@ const AttendanceDayCell = ({
                     )}
 
                     {/* Lunch */}
-                    {attendance.lunch_in &&
-                        attendance.lunch_out && (
+                    {attendance.lunch_in && (
                             <div
                                 className="
                                     flex
@@ -191,8 +190,9 @@ const AttendanceDayCell = ({
 
                                 <span className="truncate">
                                     {attendance.lunch_in}
-                                    {" - "}
-                                    {attendance.lunch_out}
+                                    {attendance.lunch_out
+                                        ? ` - ${attendance.lunch_out}`
+                                        : ""}
                                 </span>
                             </div>
                         )}

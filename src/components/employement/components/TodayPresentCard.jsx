@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 const SHIFT_DURATION_SECONDS = 9 * 60 * 60;
+const BREAK_DURATION_SECONDS = 40 * 60;
 
 /**
  * API date format:
@@ -115,6 +116,8 @@ export default function TodayPresentCard({
     handleBackFromBreak,
     handleCheckOut,
 }) {
+    const [breakStartedAt, setBreakStartedAt] = useState(null);
+
     /**
      * User is currently on break when:
      *
@@ -122,7 +125,8 @@ export default function TodayPresentCard({
      * lunch_out does not exist
      */
     const isOnBreak =
-        Boolean(record?.lunch_in) && !record?.lunch_out;
+        !record?.lunch_out &&
+        (Boolean(record?.lunch_in) || Boolean(breakStartedAt));
 
     /**
      * User has already completed their break when:
@@ -225,9 +229,20 @@ export default function TodayPresentCard({
         setIsBreakConfirmOpen(open);
     };
 
-    const confirmTakeBreak = () => {
+    const confirmTakeBreak = async () => {
+        const startedAt = Date.now();
+
+        setBreakStartedAt(startedAt);
+        setBreakSeconds(0);
         setIsBreakConfirmOpen(false);
-        handleTakeBreak();
+
+        try {
+            await handleTakeBreak();
+        } catch {
+            // Roll back the optimistic timer when starting the break fails.
+            setBreakStartedAt(null);
+            setBreakSeconds(0);
+        }
     };
 
     /**
@@ -284,26 +299,23 @@ export default function TodayPresentCard({
      * If lunch_out exists, the break has ended.
      */
     useEffect(() => {
-        if (
-            !record?.lunch_in ||
-            record?.lunch_out
-        ) {
+        if (record?.lunch_out) {
+            setBreakStartedAt(null);
+            setBreakSeconds(0);
+            return;
+        }
+
+        const apiLunchIn = parseApiDateTime(record?.lunch_in);
+        const timerStartedAt = breakStartedAt ?? apiLunchIn?.getTime();
+
+        if (!timerStartedAt) {
             setBreakSeconds(0);
             return;
         }
 
         const updateBreakTimer = () => {
-            const lunchInDate = parseApiDateTime(
-                record.lunch_in
-            );
-
-            if (!lunchInDate) {
-                setBreakSeconds(0);
-                return;
-            }
-
             const elapsedSeconds = Math.floor(
-                (Date.now() - lunchInDate.getTime()) / 1000
+                (Date.now() - timerStartedAt) / 1000
             );
 
             setBreakSeconds(
@@ -322,6 +334,7 @@ export default function TodayPresentCard({
     }, [
         record?.lunch_in,
         record?.lunch_out,
+        breakStartedAt,
     ]);
 
     /**
@@ -379,9 +392,49 @@ export default function TodayPresentCard({
         shiftSecondsLeft
     );
 
-    const breakTime = formatDuration(
-        breakSeconds
+    const breakSecondsLeft = Math.max(
+        BREAK_DURATION_SECONDS - breakSeconds,
+        0
     );
+
+    const breakOvertimeSeconds = Math.max(
+        breakSeconds - BREAK_DURATION_SECONDS,
+        0
+    );
+
+    const completedBreakSeconds = useMemo(
+        () => getWorkedSeconds(record?.lunch_in, record?.lunch_out),
+        [record?.lunch_in, record?.lunch_out]
+    );
+
+    const isLunchOutLate =
+        hasTakenBreak && completedBreakSeconds > BREAK_DURATION_SECONDS;
+
+    const breakProgress = Math.min(
+        (breakSeconds / BREAK_DURATION_SECONDS) * 100,
+        100
+    );
+
+    const breakReturnTime = useMemo(() => {
+        if (!isOnBreak) return null;
+
+        const apiLunchIn = parseApiDateTime(record?.lunch_in);
+        const timerStartedAt = breakStartedAt ?? apiLunchIn?.getTime();
+
+        if (!timerStartedAt) return null;
+
+        return new Date(
+            timerStartedAt + BREAK_DURATION_SECONDS * 1000
+        ).toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+        });
+    }, [breakStartedAt, isOnBreak, record?.lunch_in]);
+
+    const displayedProgress = isOnBreak
+        ? breakProgress
+        : shiftProgress;
 
     /**
      * ------------------------------------------------------------
@@ -399,10 +452,14 @@ export default function TodayPresentCard({
 
                 <span className="status-badge present shrink-0">
                     {isOnBreak
-                        ? "On Break"
+                        ? breakOvertimeSeconds > 0
+                            ? "Break Overdue"
+                            : "On Break"
                         : isCheckedOut
                             ? "Completed"
-                            : "Present"}
+                            : isLunchOutLate
+                                ? "Late Lunch Out"
+                                : "Present"}
                 </span>
             </div>
 
@@ -429,8 +486,9 @@ export default function TodayPresentCard({
                             </div>
 
                             <p className="today-card__message">
-                                Take your time. Your break is
-                                being tracked.
+                                {breakOvertimeSeconds > 0
+                                    ? "Your 40-minute lunch break has ended. Please return to work."
+                                    : "Your 40-minute lunch break is being tracked."}
                             </p>
 
                             <div className="mt-4 flex items-center gap-2">
@@ -441,7 +499,25 @@ export default function TodayPresentCard({
                                 />
 
                                 <span className="text-2xl font-semibold tabular-nums">
-                                    {breakTime}
+                                    {breakOvertimeSeconds > 0
+                                        ? `+${formatDuration(breakOvertimeSeconds)}`
+                                        : formatDuration(breakSecondsLeft)}
+                                </span>
+                            </div>
+
+                            {breakOvertimeSeconds > 0 && (
+                                <div role="alert" className="mt-3 w-fit flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
+                                    <AlertCircle size={17} className="shrink-0" />
+                                    You are late returning from lunch.
+                                </div>
+                            )}
+
+                            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                                <span>
+                                    Return by:{" "}
+                                    <strong className="text-foreground">
+                                        {breakReturnTime ?? "--"}
+                                    </strong>
                                 </span>
                             </div>
                         </>
@@ -484,6 +560,15 @@ export default function TodayPresentCard({
                                         )}
                                     </strong>
                                 </span>
+
+                                {hasTakenBreak && (
+                                    <span>
+                                        Lunch: <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
+                                            {formatTime(record?.lunch_in)} - {formatTime(record?.lunch_out)}
+                                            {` (${formatDuration(completedBreakSeconds)})`}
+                                        </strong>
+                                    </span>
+                                )}
                             </div>
                         </>
                     ) : (
@@ -498,7 +583,7 @@ export default function TodayPresentCard({
                                 Have a productive day!
                             </p>
 
-                            <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <div className="mt-3 flex flex-col flex-wrap gap-4 text-sm text-muted-foreground">
                                 <span>
                                     Login:{" "}
                                     <strong className="text-foreground">
@@ -507,6 +592,25 @@ export default function TodayPresentCard({
                                         )}
                                     </strong>
                                 </span>
+
+                                {hasTakenBreak && (
+                                    <span>
+                                        Lunch: <strong className="text-foreground">{formatTime(record?.lunch_in)}</strong> -  <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
+                                            {formatTime(record?.lunch_out)}
+                                        </strong>
+                                    </span>
+                                )}
+
+
+
+                                {hasTakenBreak && (
+                                    <span>
+                                        Lunch duration: <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
+                                            {formatDuration(completedBreakSeconds)}
+                                            {isLunchOutLate ? " · Late" : ""}
+                                        </strong>
+                                    </span>
+                                )}
                             </div>
                         </>
                     )}
@@ -520,34 +624,28 @@ export default function TodayPresentCard({
                             className="shift-progress-ring__track"
                             style={{
                                 background: `conic-gradient(
-                                    var(--primary) ${shiftProgress}%,
-                                    var(--muted) ${shiftProgress}% 100%
+                                    var(--primary) ${displayedProgress}%,
+                                    var(--muted) ${displayedProgress}% 100%
                                 )`,
                             }}
                         >
                             <div className="shift-progress-ring__inner">
                                 <span className="shift-progress-ring__label">
-                                    {isOnBreak
-                                        ? "ON BREAK"
-                                        : isCheckedOut
-                                            ? "WORKED"
-                                            : "SHIFT LEFT"}
+                                    {isCheckedOut
+                                        ? "WORKED"
+                                        : "SHIFT LEFT"}
                                 </span>
 
                                 <strong className="shift-progress-ring__time">
-                                    {isOnBreak
-                                        ? breakTime
-                                        : isCheckedOut
-                                            ? workedTime
-                                            : shiftTimeLeft}
+                                    {isCheckedOut
+                                        ? workedTime
+                                        : shiftTimeLeft}
                                 </strong>
 
                                 <small className="shift-progress-ring__total">
-                                    {isOnBreak
-                                        ? "BREAK"
-                                        : isCheckedOut
-                                            ? "COMPLETED"
-                                            : "9 HR SHIFT"}
+                                    {isCheckedOut
+                                        ? "COMPLETED"
+                                        : "9 HR SHIFT"}
                                 </small>
                             </div>
                         </div>
@@ -633,7 +731,7 @@ export default function TodayPresentCard({
                             "checkout" ? (
                             <>
                                 <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                Checking Out...
+                                Loging Out...
                             </>
                         ) : (
                             <>
@@ -641,7 +739,7 @@ export default function TodayPresentCard({
                                     size={17}
                                     className="shrink-0"
                                 />
-                                Check Out
+                                Log Out
                             </>
                         )}
                     </button>

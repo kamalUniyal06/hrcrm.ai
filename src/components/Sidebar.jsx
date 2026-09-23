@@ -2,12 +2,9 @@ import { ChevronDown, ChevronRight, Home, PanelLeft, X } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { PageContext } from "../context/pageContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { useQuery } from "@tanstack/react-query";
-import { userKeys } from "../queries/users.queries";
 import { logo, headingLogo } from "../assets/assets";
 import Icon from "./ui/Icon/Icon";
 import { useSidebarLayout, useSidebarStats } from "../queries/sidebar.queries";
@@ -471,7 +468,7 @@ export function Sidebar() {
                   {(collapsed || expandedGroups[group.id]) && (
                     <div className="mt-1 ml-2 space-y-1">
                       {group.data.map((item) => (
-                        <MenuItem item={item} isDesktop={isDesktop} setSidebarCollapsed={setSidebarCollapsed} setActivePage={setActivePage} activePage={activePage} sidebarDestination={sidebarDestination} navigateTo={navigateTo} sidebarCounts={sidebarCounts} sidebarCountPending={sidebarCountPending} collapsed={collapsed} />
+                        <MenuItem item={item} isDesktop={isDesktop} setSidebarCollapsed={setSidebarCollapsed} setActivePage={setActivePage} activePage={activePage} sidebarDestination={sidebarDestination} navigateTo={navigateTo} sidebarCounts={sidebarCounts} sidebarCountPending={sidebarCountPending} collapsed={collapsed} setMobileSidebarOpen={setMobileSidebarOpen} />
                       ))}
                     </div>
                   )}
@@ -486,7 +483,7 @@ export function Sidebar() {
     </>
   );
 }
-function MenuItem({ item, isDesktop, setSidebarCollapsed, setActivePage, activePage, sidebarDestination, navigateTo, sidebarCounts, sidebarCountPending, collapsed }) {
+function MenuItem({ item, isDesktop, setSidebarCollapsed, setActivePage, activePage, sidebarDestination, navigateTo, sidebarCounts, sidebarCountPending, collapsed, setMobileSidebarOpen }) {
   return (
     <button
       key={item.id}

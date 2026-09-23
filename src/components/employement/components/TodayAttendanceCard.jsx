@@ -132,7 +132,7 @@ export default function TodayAttendanceCard() {
               ? "checkout"
               : null
       }
-      handleTakeBreak={() => lunchIn.mutate()}
+      handleTakeBreak={() => lunchIn.mutateAsync()}
       handleBackFromBreak={() => lunchOut.mutate()}
       handleCheckOut={() => logout.mutate()}
     />
