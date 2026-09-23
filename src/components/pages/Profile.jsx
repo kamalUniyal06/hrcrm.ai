@@ -225,18 +225,6 @@ function CandidateProfile({ email, jobId }) {
       setError("Please add your last name in Personal info before saving.");
       return;
     }
-    for (const key of ["linkedin_url", "github_url"]) {
-      if (
-        draft[key] &&
-        !/^https?:\/\/[^\s/]+(?:[/?#][^\s]*)?$/i.test(draft[key])
-      ) {
-        setSection("personal");
-        setError(
-          "Please enter a complete LinkedIn or GitHub URL, starting with https://.",
-        );
-        return;
-      }
-    }
     saveLock.current = true;
     setBusy(true);
     setError("");

@@ -97,7 +97,7 @@ export default function ProfileSectionContent({
                             key === "dob"
                               ? "date"
                               : key.endsWith("_url")
-                                ? "url"
+                                ? "text"
                                 : key === "email1"
                                   ? "email"
                                   : key === "phone_mobile"
