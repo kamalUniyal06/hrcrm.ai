@@ -6,7 +6,7 @@ export async function fetchSidebar(email) {
   if (!loginEmail)
     throw new Error("Your login email is required to load the sidebar.");
   const response = await apiRequest({
-    endpoint: "https://test.hrcrm.ai/index.php",
+    endpoint: "https://kartikey.hrcrm.ai/index.php",
     params: { entryPoint: "sidebar" },
     headers: { "X-Api-Key": FETCH_GPC_X_API_KEY },
   });

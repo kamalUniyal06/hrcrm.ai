@@ -20,7 +20,7 @@ export const getStages = async () => {
   const data = await fetchGpc({ params: { type: 'machine_learning', stages: 1 } });
   return data ?? {}
 }
-export const getCRM = "https://test.hrcrm.ai/index.php";
+export const getCRM = "https://kartikey.hrcrm.ai/index.php";
 
 export const LeaveHistory = {
   "schemaVersion": "1.0",

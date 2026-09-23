@@ -12,7 +12,7 @@
  *
  * Both paths:
  *   – Attach `Authorization: Bearer <token>` only for requests to
- *     https://test.hrcrm.ai/index.php with an allowed entry point
+ *     https://kartikey.hrcrm.ai/index.php with an allowed entry point
  *     (smart_gateway, flexibility, sidebar, hrc).
  *   – Strip the legacy `email` query param from Sidebar requests.
  *   – On a CRM 401, clear the cached token and retry exactly once.
@@ -26,7 +26,7 @@ import { getCrmToken, clearCrmToken } from "./crmAuth";
 
 /* ── constants ──────────────────────────────────────────────────────────── */
 
-const CRM_URL_PREFIX = "https://test.hrcrm.ai/";
+const CRM_URL_PREFIX = "https://kartikey.hrcrm.ai/";
 
 const ALLOWED_ENTRY_POINTS = new Set([
   "smart_gateway",
@@ -150,7 +150,7 @@ crmClient.interceptors.response.use(
 
 /**
  * Drop-in replacement for `fetch()` that adds the CRM Bearer token for
- * requests to test.hrcrm.ai with an allowed entry point.
+ * requests to kartikey.hrcrm.ai with an allowed entry point.
  *
  * Returns a standard `Response` object so callers can use `.json()`,
  * `.ok`, `.status`, abort signals, etc. exactly as before.
