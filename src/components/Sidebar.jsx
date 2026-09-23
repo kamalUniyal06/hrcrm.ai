@@ -15,6 +15,7 @@ import {
 import { useIsDesktop } from "../hooks/useMediaQuery";
 import { sidebarDestination } from "../utils/sidebarNavigation";
 import { filterAdminNavigation, selectIsAdmin } from "../utils/pageAccess";
+import { useSelector } from "react-redux";
 
 export function Sidebar() {
   const navigateTo = useNavigate();
