@@ -13,6 +13,18 @@ export const relatedFields = {
   skills: ["name", "skill_name", "skill", "version", "last_used", "total_years_total_months", "description"],
 };
 
+export async function createCandidateRelated(section, candidateId, item) {
+  const module = candidateRelatedModules[section];
+  if (!module || !candidateId) throw new Error("Save your personal information first.");
+  const data = Object.fromEntries(relatedFields[section].filter(key => Object.hasOwn(item, key)).map(key => [key, item[key]]));
+  data[`hrc_candidates_${module}_1hrc_candidates_ida`] = candidateId;
+  const response = await http({ method: "POST", body: { action: "create", module, data } });
+  if (response?.success !== true) throw new Error(response?.message || `Could not save ${section}.`);
+  const id = response.id || response.record?.id || response.data?.id;
+  if (!id) throw new Error("Save was accepted without a record ID. Reload to check the saved record before trying again.");
+  return { ...item, id };
+}
+
 export async function saveCandidateRelated(section, item, original) {
   const module = candidateRelatedModules[section];
   if (!module || !item.id || item.id !== original?.id) throw new Error("The related record is missing its ID. Reload this section and retry.");

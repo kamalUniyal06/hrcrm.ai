@@ -8,7 +8,6 @@ import {
   Camera,
   Check,
   CheckCircle2,
-  FileText,
   GraduationCap,
   Loader2,
   Mail,
@@ -17,12 +16,18 @@ import {
   Save,
   ShieldCheck,
   Sparkles,
-  Upload,
   UserRound,
 } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../store/constants";
 import { crmFetch } from "../../services/crmClient";
 import CandidatePhotoUpload from "./profile/CandidatePhotoUpload";
+import CandidateWelcome from "./profile/CandidateWelcome";
+import CandidateResumeBuilder from "./profile/CandidateResumeBuilder";
+import {
+  needsOnboarding,
+  rememberOnboardingComplete,
+  rememberOnboardingStarted,
+} from "./profile/onboardingState";
 import {
   candidateRelatedModules,
   fetchCandidateRelated,
@@ -34,6 +39,7 @@ import {
 
 import ProfileSectionContent from "./profile/ProfileSectionContent";
 import ResumeLoading from "./profile/ResumeLoading";
+import ResumeUpload from "./profile/ResumeUpload";
 import { useQueryClient } from "@tanstack/react-query";
 import { candidateKey } from "../../queries/candidate.queries";
 
@@ -42,16 +48,22 @@ const primaryButton =
 const secondaryButton =
   "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50";
 
-export default function Profile() {
+export default function Profile({ standalone = false, onComplete }) {
   const email = useSelector((state) => state.user.user?.email)?.trim() || "";
   const [searchParams] = useSearchParams();
   const jobId = searchParams.get("job_id")?.trim() || "";
   return (
-    <CandidateProfile key={`${email}:${jobId}`} email={email} jobId={jobId} />
+    <CandidateProfile
+      key={`${email}:${jobId}`}
+      email={email}
+      jobId={jobId}
+      standalone={standalone}
+      onComplete={onComplete}
+    />
   );
 }
 
-function CandidateProfile({ email, jobId }) {
+function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const queryClient = useQueryClient();
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
@@ -59,6 +71,7 @@ function CandidateProfile({ email, jobId }) {
   const [draft, setDraft] = useState(null);
   const [phase, setPhase] = useState("loading");
   const [busy, setBusy] = useState(false);
+  const [parsingPhase, setParsingPhase] = useState("processing");
   const [photoBusy, setPhotoBusy] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
   const [savedPhotoFile, setSavedPhotoFile] = useState(null);
@@ -83,6 +96,20 @@ function CandidateProfile({ email, jobId }) {
   const requestRef = useRef(null);
   const alive = useRef(true);
   const saveLock = useRef(false);
+  const selectResume = (selected) => {
+    setFile(null);
+    setError("");
+    if (!selected) return;
+    if (
+      !/\.(pdf|doc|docx)$/i.test(selected.name) ||
+      !selected.size ||
+      selected.size > 10 * 1024 * 1024
+    ) {
+      setError("Choose a non-empty PDF, DOC or DOCX resume up to 10 MB.");
+      return;
+    }
+    setFile(selected);
+  };
 
   // Resume parsing can create the CRM candidate before the profile is saved.
   // Publish that confirmed record so navigation becomes available immediately.
@@ -105,7 +132,8 @@ function CandidateProfile({ email, jobId }) {
         if (!active) return;
         setRecord(candidate);
         setDraft(candidate ? normalizeCandidate(candidate, email) : null);
-        setPhase(jobId ? "upload" : candidate?.status ? "view" : "upload");
+        const isNew = needsOnboarding(candidate);
+        setPhase(isNew ? "welcome" : jobId ? "upload" : "view");
       })
       .catch((err) => {
         if (active) {
@@ -151,12 +179,13 @@ function CandidateProfile({ email, jobId }) {
     event.preventDefault();
     if (!file || !email || requestRef.current) return;
     setError("");
-    if (!panNumber.trim()) {
-      setError("Please enter your PAN number.");
+    if (!/^[A-Z0-9]{10}$/.test(panNumber.trim())) {
+      setError("Please enter a PAN number with exactly 10 letters or numbers.");
       return;
     }
     setBusy(true);
     cancelled.current = false;
+    setParsingPhase("processing");
     const controller = new AbortController();
     requestRef.current = controller;
     const timeout = setTimeout(() => controller.abort(), 120000);
@@ -186,6 +215,7 @@ function CandidateProfile({ email, jobId }) {
           json?.message ||
             "Unable to parse this resume. Please try another file.",
         );
+      if (!cancelled.current && alive.current) setParsingPhase("fetching");
       const candidate = await findCandidate(email);
       if (!candidate)
         throw new Error(
@@ -194,12 +224,13 @@ function CandidateProfile({ email, jobId }) {
       if (!alive.current) return;
       if (cancelled.current || controller.signal.aborted) return;
       const parsed = normalizeCandidate(candidate, email);
+      if (standalone) rememberOnboardingStarted(candidate);
       setRecord(candidate);
       relatedCache.current = {};
       setRelated({});
       setSection("personal");
       setDraft(parsed);
-      setPhase("edit");
+      setPhase("builder");
       setNotice(
         "Resume parsed. Review and edit your details, then save your profile.",
       );
@@ -261,7 +292,10 @@ function CandidateProfile({ email, jobId }) {
       setDraft(normalizeCandidate(saved, email));
       setPhase("view");
       setNotice("Your candidate profile has been saved.");
-      window.location.reload();
+      rememberOnboardingComplete(saved);
+      queryClient.setQueryData(candidateKey(email), { ...existing, ...saved });
+      onComplete?.({ ...existing, ...saved });
+      window.location.replace("/profile");
     } catch (err) {
       if (alive.current)
         setError(err.message || "Unable to save your profile.");
@@ -356,22 +390,37 @@ function CandidateProfile({ email, jobId }) {
     setNotice("");
   };
   return (
-    <main className="min-h-full bg-slate-50/70 px-4 py-6 sm:px-8 sm:py-8">
-      <div className="w-full space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
-              Career space
-            </p>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
-              My profile
-            </h1>
+    <main
+      className={
+        standalone
+          ? "min-h-dvh bg-[#faf9f6] bg-[radial-gradient(ellipse_at_50%_22%,#eeebfb66,transparent_52%)] px-[18px] pb-[30px] text-[#24222b] sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
+          : "min-h-full bg-slate-50/70 px-4 py-6 sm:px-8 sm:py-8"
+      }
+    >
+
+      <div
+        className={
+          standalone ? `mx-auto max-w-[1400px] space-y-6 ${phase === "builder" || phase === "upload" ? "pt-[22px] sm:pt-0" : ""}` : "w-full space-y-6 mt-4"
+        }
+      >
+        {!standalone && (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
+                Career space
+              </p>
+              <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
+                My profile
+              </h1>
+            </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500">
+              <ShieldCheck size={14} className="text-emerald-500" />
+              {record?.id
+                ? "Profile saved"
+                : "Your next opportunity starts here"}
+            </span>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-500">
-            <ShieldCheck size={14} className="text-emerald-500" />
-            {record?.id ? "Profile saved" : "Your next opportunity starts here"}
-          </span>
-        </div>
+        )}
         {error && (
           <div
             role="alert"
@@ -436,158 +485,64 @@ function CandidateProfile({ email, jobId }) {
             </div>
           </section>
         )}
+        {phase === "welcome" && (
+          <CandidateWelcome
+            onUpload={() => {
+              setError("");
+              setPhase("upload");
+            }}
+            onCreate={() => {
+              setError("");
+              setPhase("builder");
+            }}
+          />
+        )}
+        {phase === "builder" && (
+          <CandidateResumeBuilder
+            email={email}
+            candidate={record}
+            onBack={() => setPhase("welcome")}
+            onComplete={(saved) => {
+              rememberOnboardingComplete(saved);
+              queryClient.setQueryData(candidateKey(email), saved);
+              setRecord(saved);
+              setDraft(normalizeCandidate(saved, email));
+              relatedCache.current = {};
+              setRelated({});
+              setSection("personal");
+              setPhase("view");
+              setNotice(
+                "Your profile is ready. You can update your details anytime.",
+              );
+              onComplete?.(saved);
+              window.location.replace("/profile");
+            }}
+          />
+        )}
         {phase === "upload" &&
           (busy ? (
             <ResumeLoading
               filename={file?.name}
+              phase={parsingPhase}
               onCancel={() => {
                 cancelled.current = true;
                 requestRef.current?.abort();
               }}
             />
           ) : (
-            <section className="grid overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="relative overflow-hidden bg-gradient-to-br from-sidebar-primary to-sidebar-secondary p-8 text-white sm:p-12">
-                <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full border border-white/10" />
-                <div className="pointer-events-none absolute -bottom-32 -right-16 h-80 w-80 rounded-full border-[40px] border-white/5" />
-                <span className="relative inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs">
-                  <Sparkles size={14} />A head start for your next chapter
-                </span>
-                <h2 className="relative mt-8 max-w-sm text-4xl font-semibold leading-tight tracking-tight">
-                  Great experience.
-                  <br />
-                  <span className="text-white/60">Meet a great profile.</span>
-                </h2>
-                <p className="relative mt-5 max-w-sm text-sm leading-7 text-white/70">
-                  Bring your resume. We'll turn it into a profile that tells
-                  your story, one detail at a time.
-                </p>
-                <div className="relative mt-10 space-y-5">
-                  {[
-                    "Upload your resume",
-                    "Review each part of your story",
-                    "Save and make it yours",
-                  ].map((text, index) => (
-                    <div key={text} className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/20 text-xs text-white/70">
-                        {index + 1}
-                      </span>
-                      <span className="text-sm text-white/90">{text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <form
-                onSubmit={parseResume}
-                className="flex flex-col justify-center p-7 sm:p-12"
-              >
-                <p className="text-xs font-semibold uppercase tracking-widest text-indigo-500">
-                  Let's begin
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-                  One resume. A world of potential.
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-slate-500">
-                  Start with your latest resume. You'll be able to review and
-                  edit everything before saving.
-                </p>
-                <div className="mt-6 space-y-4">
-                  <label className="block text-sm font-medium text-slate-700">
-                    Email
-                    <input
-                      type="email"
-                      value={email}
-                      readOnly
-                      required
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-500"
-                    />
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Stage
-                    <select
-                      value={stage}
-                      onChange={(event) => setStage(event.target.value)}
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                    >
-                      {[
-                        "Direct",
-                        "Via Portal",
-                        "Institute",
-                        "Campus Drive",
-                      ].map((label) => (
-                        <option key={label} value={`New Candidate -> ${label}`}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block text-sm font-medium text-slate-700">
-                    PAN number <span className="text-red-500">*</span>
-                    <input
-                      type="text"
-                      value={panNumber}
-                      onChange={(event) =>
-                        setPanNumber(event.target.value.toUpperCase())
-                      }
-                      required
-                      autoComplete="off"
-                      placeholder="Enter your PAN number"
-                      className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
-                    />
-                  </label>
-                  {jobId && (
-                    <p className="break-all text-[10px] text-slate-400">
-                      Job ID: {jobId}
-                    </p>
-                  )}
-                </div>
-                <label className="group mt-7 block cursor-pointer rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-7 text-center transition hover:border-indigo-400 hover:bg-indigo-50 focus-within:ring-4 focus-within:ring-indigo-100">
-                  <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-indigo-500 shadow-sm transition group-hover:-translate-y-1">
-                    <Upload size={24} />
-                  </span>
-                  <span className="mt-4 block text-sm font-semibold text-slate-800">
-                    {file ? file.name : "Choose your resume"}
-                  </span>
-                  <span className="mt-1 block text-xs text-slate-400">
-                    PDF, DOC or DOCX
-                  </span>
-                  <input
-                    aria-label="Resume file"
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="mt-5 block w-full text-xs text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:text-indigo-600"
-                    onChange={(event) => {
-                      const selected = event.target.files?.[0];
-                      setFile(null);
-                      setError("");
-                      if (!selected) return;
-                      if (
-                        !/\.(pdf|doc|docx)$/i.test(selected.name) ||
-                        !selected.size
-                      ) {
-                        setError("Choose a non-empty PDF, DOC or DOCX resume.");
-                        event.target.value = "";
-                        return;
-                      }
-                      setFile(selected);
-                    }}
-                  />
-                </label>
-                <button
-                  disabled={!file || !email || !panNumber.trim()}
-                  className={`${primaryButton} mt-5 w-full`}
-                >
-                  Build my profile
-                  <ArrowRight size={17} />
-                </button>
-                <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-xs text-slate-400">
-                  <FileText size={13} />
-                  Your details stay editable, always.
-                </p>
-              </form>
-            </section>
+            <ResumeUpload
+              email={email}
+              file={file}
+              panNumber={panNumber}
+              stage={stage}
+              onPanChange={setPanNumber}
+              onStageChange={setStage}
+              onFileChange={selectResume}
+              onBack={() => { setError(""); setPhase("welcome"); }}
+              onSubmit={parseResume}
+            />
           ))}
-        {draft && phase !== "upload" && (
+        {draft && (phase === "view" || phase === "edit") && (
           <>
             <header className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
               <div className="relative h-28 overflow-hidden bg-gradient-to-r from-sidebar-primary to-sidebar-secondary sm:h-32">

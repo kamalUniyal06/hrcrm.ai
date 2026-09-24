@@ -45,6 +45,7 @@ export default function ProfileSectionContent({
   draft,
   setDraft,
   editing,
+  visibleFields,
 }) {
   if (section === "personal")
     return (
@@ -56,7 +57,7 @@ export default function ProfileSectionContent({
             </h3>
             <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2">
               {group.keys
-                .filter((key) => editing || draft[key])
+                .filter((key) => (!visibleFields || visibleFields.includes(key)) && (editing || draft[key]))
                 .map((key) => (
                   <div
                     key={key}
