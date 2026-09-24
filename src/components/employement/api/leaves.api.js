@@ -57,3 +57,36 @@ export const getLeavesHistory = ({ preferences, page }) =>
 
     });
 
+// Admin dashboard feed: intentionally omit employee filters so all leave
+// records are returned. The component gates access to administrators.
+export const getAllLeaves = async () => {
+    const records = [];
+    let page = 1;
+    let totalPages = 1;
+    let metadata = {};
+    do {
+        const response = await http({
+            method: "POST",
+            body: { action: "fetch", module: "hrc_leaves", filters: {}, page, per_page: 100 },
+        });
+        if (response?.success !== true || !Array.isArray(response.records))
+            throw new Error(response?.message || response?.error || "Could not load employee leave requests.");
+        metadata = response;
+        records.push(...response.records.filter((record) => String(record.deleted) !== "1"));
+        totalPages = Number(response.total_pages) || 1;
+        page += 1;
+    } while (page <= totalPages);
+    return { ...metadata, records, total: Number(metadata.total) || records.length, total_pages: totalPages };
+};
+
+export const updateLeaveStatus = async (id, status) => {
+    if (!id) throw new Error("A leave request ID is required.");
+    if (!["Accepted", "Rejected"].includes(status)) throw new Error("Choose Accepted or Rejected.");
+    const response = await http({
+        method: "POST",
+        body: { action: "update", module: "hrc_leaves", id, data: { status } },
+    });
+    if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not update leave request.");
+    return response;
+};
+
