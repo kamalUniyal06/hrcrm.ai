@@ -16,16 +16,16 @@ import { PageContext } from "@/context/pageContext";
 
 import TableView from "@/components/ui/table/Table";
 
-import { leavesKey, useLeavesHistory } from "../../queries/leaves.queries";
+import { leavesKey, useLeaveApplications } from "../../queries/leaves.queries";
 import { queryClient } from "../../../../lib/queryClient";
 
 
-const LeaveHistory = () => {
+const LeaveApplications = () => {
     // ------------------------------------------------------------
     // Hooks — ALWAYS run in the same order
     // ------------------------------------------------------------
 
-    const preferences = useTablePreference("leaves");
+    const preferences = useTablePreference("leaves-applications");
 
 
     const {
@@ -35,10 +35,9 @@ const LeaveHistory = () => {
         isError: layoutIsError,
         refetch: layoutRefetch,
     } = useLayout(
-        "leaves-history",
+        "leave-applications",
         "table"
     );
-    const entity = "leaves-history";
 
     const {
         data,
@@ -46,7 +45,7 @@ const LeaveHistory = () => {
         hasNextPage,
         isFetchingNextPage,
         isPending,
-    } = useLeavesHistory({
+    } = useLeaveApplications({
         preferences,
     });
 
@@ -187,7 +186,7 @@ const LeaveHistory = () => {
             data={data}
             layout={layout}
             refreshHandler={() => queryClient.resetQueries({ queryKey: leavesKey.all })}
-            entity={'leaves-history'}
+            entity={'leave-applications'}
             loading={loading}
             preferences={preferences}
             fetchNextPage={fetchNextPage}
@@ -197,4 +196,4 @@ const LeaveHistory = () => {
     );
 };
 
-export default LeaveHistory;
+export default LeaveApplications;

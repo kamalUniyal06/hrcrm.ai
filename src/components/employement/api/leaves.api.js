@@ -47,6 +47,20 @@ export const getLeavesHistory = ({ preferences, page }) =>
         method: "POST",
         body: {
             action: "fetch",
+            module: "hrc_leave_transaction",
+            filters: {},
+            page,
+            ...buildTableRequestBody(
+                preferences, { employee_id: store.getState().user.userInfo.id }
+            ),
+        }
+
+    });
+export const getLeaveApplications = ({ preferences, page }) =>
+    http({
+        method: "POST",
+        body: {
+            action: "fetch",
             module: "hrc_leaves",
             filters: {},
             page,

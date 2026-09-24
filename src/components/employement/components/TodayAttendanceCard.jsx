@@ -106,18 +106,18 @@ function CardHeader({ status }) {
 
 function AttendanceProgress() {
   return (
-    <div className="relative flex h-[105px] w-[105px] shrink-0 items-center justify-center rounded-full bg-muted">
-      <div className="absolute inset-[7px] flex flex-col items-center justify-center rounded-full bg-card text-center">
-        <strong className="text-xl font-bold leading-none text-foreground">
+    <div className="relative flex h-[116px] w-[116px] shrink-0 items-center justify-center rounded-full bg-[conic-gradient(var(--muted)_0deg,var(--muted)_360deg)] p-2 shadow-inner ring-1 ring-border/70">
+      <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-card text-center shadow-sm">
+        <strong className="text-2xl font-bold leading-none text-foreground">
           0%
         </strong>
 
-        <span className="mt-1 text-[11px] font-medium text-muted-foreground">
+        <span className="mt-1.5 text-[11px] font-medium text-muted-foreground">
           in office
         </span>
 
-        <small className="mt-1 text-[9px] font-bold tracking-wider text-destructive">
-          ABSENT
+        <small className="mt-1.5 rounded-full bg-destructive/10 px-2 py-0.5 text-[9px] font-bold tracking-wider text-destructive">
+          NOT STARTED
         </small>
       </div>
     </div>
@@ -153,53 +153,76 @@ function ErrorState({ onRetry }) {
 
 function AbsentState({ isPending, onMarkPresent }) {
   return (
-    <section className="flex h-full flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <CardHeader status="Absent" />
-
-      {/* Main content */}
-      <div className="flex flex-1 items-center justify-between gap-6">
-        {/* Information */}
-        <div className="min-w-0 flex-1">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Fingerprint size={27} />
+    <section className="relative flex h-full min-h-[300px] flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-[0_16px_45px_-28px_rgba(15,23,42,0.45)]">
+      <div className="h-1 w-full shrink-0 bg-primary" />
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10">
+              <Fingerprint size={20} />
+            </div>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-bold text-[var(--employee-heading)]">
+                Today&apos;s attendance
+              </h2>
+              <p className="truncate text-xs text-muted-foreground">
+                Your workday at a glance
+              </p>
+            </div>
           </div>
 
-          <p className="mt-4 max-w-[300px] text-base font-medium leading-6 text-foreground">
-            You have not marked yourself as present today!
-          </p>
-
-          <div className="mt-3 flex items-start gap-2 text-sm text-muted-foreground">
-            <Clock3
-              size={15}
-              className="mt-0.5 shrink-0"
-            />
-
-            <span>
-              Mark your attendance to start your day.
-            </span>
-          </div>
+          <span className="shrink-0 rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-destructive">
+            Absent
+          </span>
         </div>
 
-        {/* Progress */}
-        <AttendanceProgress />
-      </div>
+        <div className="my-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-      {/* Action */}
-      <button
-        type="button"
-        disabled={isPending}
-        onClick={onMarkPresent}
-        className="mt-5 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {isPending ? (
-          "Marking Present..."
-        ) : (
-          <>
-            <LogIn size={17} />
-            Mark Present
-          </>
-        )}
-      </button>
+        {/* Main content */}
+        <div className="grid flex-1 items-center gap-5 rounded-2xl border border-border/70 bg-gradient-to-br from-muted/45 via-card to-card p-5 sm:grid-cols-[minmax(0,1fr)_auto]">
+          {/* Information */}
+          <div className="min-w-0 flex-1">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10">
+              <LogIn size={23} />
+            </div>
+
+            <p className="mt-4 max-w-md text-lg font-bold leading-7 text-foreground">
+              Ready to start your day?
+            </p>
+
+            <div className="mt-2 flex max-w-md items-start gap-2 text-sm leading-6 text-muted-foreground">
+              <Clock3
+                size={16}
+                className="mt-1 shrink-0 text-primary"
+              />
+
+              <span>
+                Mark yourself present to begin tracking your shift and daily activity.
+              </span>
+            </div>
+          </div>
+
+          {/* Progress */}
+          <AttendanceProgress />
+        </div>
+
+        {/* Action */}
+        <button
+          type="button"
+          disabled={isPending}
+          onClick={onMarkPresent}
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-[var(--employee-blue)] px-4 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isPending ? (
+            "Marking Present..."
+          ) : (
+            <>
+              <LogIn size={17} />
+              Mark Present
+            </>
+          )}
+        </button>
+      </div>
     </section>
   );
 }

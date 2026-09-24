@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 
 import Icon from "../../../ui/Icon/Icon";
@@ -216,6 +216,41 @@ const timeToMinutes = (time) => {
     return hour * 60 + Number(minutes);
 };
 
+const getCurrentIndiaMinutes = () => {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Kolkata",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).formatToParts(new Date());
+
+    const hour = Number(parts.find((part) => part.type === "hour")?.value);
+    const minute = Number(parts.find((part) => part.type === "minute")?.value);
+
+    return Number.isFinite(hour) && Number.isFinite(minute)
+        ? hour * 60 + minute
+        : 0;
+};
+
+const dateKeyInIndia = (value) =>
+    new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(value);
+
+const getDurationToMinute = (start, endMinutes) => {
+    const startMinutes = timeToMinutes(start);
+    if (startMinutes === null || endMinutes === null) return null;
+
+    const adjustedEnd = endMinutes < startMinutes
+        ? endMinutes + 24 * 60
+        : endMinutes;
+
+    return adjustedEnd - startMinutes;
+};
+
 const getDuration = (start, end) => {
     const startMinutes = timeToMinutes(start);
     let endMinutes = timeToMinutes(end);
@@ -395,22 +430,22 @@ const EmployeeAttendanceCalendar = ({
                 shadow-sm
             "
             >
-            <AttendanceHeader />
+                <AttendanceHeader />
 
-            <div className="relative w-full">
-                {/* Fetching indicator */}
-                {isFetching &&
-                    !isLoading && (
-                        <div
-                            className="
+                <div className="relative w-full">
+                    {/* Fetching indicator */}
+                    {isFetching &&
+                        !isLoading && (
+                            <div
+                                className="
                                 absolute
                                 right-3
                                 top-3
                                 z-20
                             "
-                        >
-                            <div
-                                className="
+                            >
+                                <div
+                                    className="
                                     h-4
                                     w-4
                                     animate-spin
@@ -419,14 +454,14 @@ const EmployeeAttendanceCalendar = ({
                                     border-[var(--border)]
                                     border-t-[var(--primary)]
                                 "
-                            />
-                        </div>
-                    )}
+                                />
+                            </div>
+                        )}
 
-                {/* Error */}
-                {isError ? (
-                    <div
-                        className="
+                    {/* Error */}
+                    {isError ? (
+                        <div
+                            className="
                             flex
                             min-h-[300px]
                             items-center
@@ -436,41 +471,41 @@ const EmployeeAttendanceCalendar = ({
                             text-sm
                             text-[var(--muted-foreground)]
                         "
-                    >
-                        Unable to load
-                        attendance data.
-                    </div>
-                ) : (
-                    <div
-                        className="
+                        >
+                            Unable to load
+                            attendance data.
+                        </div>
+                    ) : (
+                        <div
+                            className="
                             w-full
                             overflow-x-auto
                             overflow-y-hidden
                             scrollbar-hide
                         "
-                    >
-                        <div
-                            className="
+                        >
+                            <div
+                                className="
                                 min-w-[700px]
                                 sm:min-w-[760px]
                                 md:min-w-0
                             "
-                        >
-                            {/* Week Header */}
-                            <div
-                                className="
+                            >
+                                {/* Week Header */}
+                                <div
+                                    className="
                                     grid
                                     grid-cols-7
                                     border-b
                                     border-[var(--border)]
                                     bg-[var(--muted)]
                                 "
-                            >
-                                {WEEK_DAYS.map(
-                                    (day) => (
-                                        <div
-                                            key={day}
-                                            className="
+                                >
+                                    {WEEK_DAYS.map(
+                                        (day) => (
+                                            <div
+                                                key={day}
+                                                className="
                                                 min-w-0
                                                 border-r
                                                 border-[var(--border)]
@@ -486,78 +521,78 @@ const EmployeeAttendanceCalendar = ({
                                                 sm:py-2.5
                                                 sm:text-xs
                                             "
-                                        >
-                                            {day}
-                                        </div>
-                                    )
-                                )}
-                            </div>
-
-                            {/* Calendar */}
-                            {isLoading ? (
-                                <CalendarSkeleton />
-                            ) : (
-                                <div className="grid grid-cols-7">
-                                    {calendarDays.map(
-                                        ({
-                                            day,
-                                            date,
-                                            isCurrentMonth,
-                                        }) => {
-                                            const dateKey =
-                                                formatDate(
-                                                    date
-                                                );
-
-                                            const attendance =
-                                                attendanceMap[
-                                                dateKey
-                                                ];
-
-                                            const isToday =
-                                                date.toDateString() ===
-                                                today.toDateString();
-
-                                            return (
-                                                <AttendanceDayCell
-                                                    key={
-                                                        dateKey
-                                                    }
-                                                    day={
-                                                        day
-                                                    }
-                                                    date={
-                                                        date
-                                                    }
-                                                    isCurrentMonth={
-                                                        isCurrentMonth
-                                                    }
-                                                    isToday={
-                                                        isToday
-                                                    }
-                                                    attendance={
-                                                        attendance
-                                                    }
-                                                    onClick={
-                                                        isCurrentMonth
-                                                            ? (
-                                                                selectedDate
-                                                            ) =>
-                                                                selectDate(
-                                                                    selectedDate
-                                                                )
-                                                            : undefined
-                                                    }
-                                                />
-                                            );
-                                        }
+                                            >
+                                                {day}
+                                            </div>
+                                        )
                                     )}
                                 </div>
-                            )}
+
+                                {/* Calendar */}
+                                {isLoading ? (
+                                    <CalendarSkeleton />
+                                ) : (
+                                    <div className="grid grid-cols-7">
+                                        {calendarDays.map(
+                                            ({
+                                                day,
+                                                date,
+                                                isCurrentMonth,
+                                            }) => {
+                                                const dateKey =
+                                                    formatDate(
+                                                        date
+                                                    );
+
+                                                const attendance =
+                                                    attendanceMap[
+                                                    dateKey
+                                                    ];
+
+                                                const isToday =
+                                                    date.toDateString() ===
+                                                    today.toDateString();
+
+                                                return (
+                                                    <AttendanceDayCell
+                                                        key={
+                                                            dateKey
+                                                        }
+                                                        day={
+                                                            day
+                                                        }
+                                                        date={
+                                                            date
+                                                        }
+                                                        isCurrentMonth={
+                                                            isCurrentMonth
+                                                        }
+                                                        isToday={
+                                                            isToday
+                                                        }
+                                                        attendance={
+                                                            attendance
+                                                        }
+                                                        onClick={
+                                                            isCurrentMonth
+                                                                ? (
+                                                                    selectedDate
+                                                                ) =>
+                                                                    selectDate(
+                                                                        selectedDate
+                                                                    )
+                                                                : undefined
+                                                        }
+                                                    />
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
             </div>
 
             <AnimatePresence>
@@ -575,12 +610,32 @@ const EmployeeAttendanceCalendar = ({
 };
 
 const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
+    const [currentMinutes, setCurrentMinutes] = useState(getCurrentIndiaMinutes);
+
+    useEffect(() => {
+        const interval = window.setInterval(
+            () => setCurrentMinutes(getCurrentIndiaMinutes()),
+            30_000
+        );
+
+        return () => window.clearInterval(interval);
+    }, []);
+
+    const isToday = dateKeyInIndia(date) === dateKeyInIndia(new Date());
     const late = isLoginLate(attendance?.login);
-    const totalMinutes = getDuration(attendance?.login, attendance?.logout);
-    const breakMinutes = getDuration(attendance?.lunch_in, attendance?.lunch_out);
+    const totalMinutes = attendance?.logout
+        ? getDuration(attendance?.login, attendance.logout)
+        : isToday
+            ? getDurationToMinute(attendance?.login, currentMinutes)
+            : null;
+    const breakMinutes = attendance?.lunch_out
+        ? getDuration(attendance?.lunch_in, attendance.lunch_out)
+        : isToday && attendance?.lunch_in
+            ? getDurationToMinute(attendance.lunch_in, currentMinutes)
+            : null;
     const effectiveMinutes = totalMinutes === null
         ? null
-        : Math.max(totalMinutes - (breakMinutes || 0), 0);
+        : Math.max(totalMinutes, 0);
     const targetMinutes = 9 * 60;
     const progress = effectiveMinutes === null
         ? 0

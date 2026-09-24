@@ -1,5 +1,6 @@
 import { apiRequest } from "@/services/api";
-import { LeaveHistory } from "../services/utils";
+import { LeaveApplications, LeavesHistory } from "../services/utils";
+import LeaveHistory from "../components/employement/components/leave/LeaveHistory";
 
 export const getDetailLayout = () => ({
     "schemaVersion": "1.0",
@@ -121,6 +122,16 @@ export const getDetailLayout = () => ({
 });
 
 export const getLayout = async (module = 'orders', view_key = "table") => {
-    const data = LeaveHistory
+    if (module == "leave-applications" && view_key == "table") {
+        return LeaveApplications
+    }
+    if (module == "leaves-history" && view_key == "table") {
+        return LeavesHistory
+    }
+
+    const data = await apiRequest({
+        endpoint: `https://flight.hrcrm.ai/index.php?entryPoint=flexibility&api_version=v1`,
+        params: { module_key: module, view_key, _: Date.now() },
+    })
     return data;
 }

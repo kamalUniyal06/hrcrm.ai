@@ -38,6 +38,7 @@ import Home from "./components/Home";
 import { PageContextProvider } from "./context/pageContext";
 import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
 import AttendanceDashboard from "./components/employement/pages/AttendanceDashboard";
+import LeaveApplications from "./components/employement/components/leave/LeavesApplications";
 
 const router = createBrowserRouter([
   {
@@ -200,6 +201,11 @@ const router = createBrowserRouter([
         path: "leaves",
         element: <LeaveManagementPage />,
       },
+      {
+        path: "/leave-applications",
+        element: <LeaveApplications />,
+      },
+
 
       {
         path: "settings",
