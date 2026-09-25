@@ -16,7 +16,7 @@ export const getDailyActivity = () =>
     });
 export const markActivity = (action) =>
     apiRequest({
-        endpoint: 'https://kartikey.hrcrm.ai/index.php?entryPoint=hrc&type=daily_activity',
+        endpoint: 'https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=daily_activity',
         headers: { 'X-Api-Key': import.meta.env.VITE_FETCHGPC_X_API_KEY },
         method: "POST",
         body: {

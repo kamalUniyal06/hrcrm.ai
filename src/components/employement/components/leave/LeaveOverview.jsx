@@ -1,4 +1,5 @@
 import { ArrowRight, Palmtree } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useLeave } from "../../context/LeaveContext";
 import LeaveBalances from "./LeaveBalances";
 import UpcomingHolidays from "./UpcomingHolidays";
@@ -7,12 +8,20 @@ export default function LeaveOverview() {
     const { setView } = useLeave();
     return (
         <>
-            <header className="leave-top">
+            <header className="leave-top flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <span className="eyebrow">TIME OFF</span>
                     <h1>Leave</h1>
                     <p>Plan your time away and track every request.</p>
                 </div>
+
+                <Link
+                    to="/leave-applications"
+                    className="inline-flex w-fit shrink-0 items-center gap-2 rounded-xl border border-primary/20 bg-primary/10 px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary hover:text-primary-foreground"
+                >
+                    See your leave applications
+                    <ArrowRight size={16} />
+                </Link>
             </header>
             <div className="leave-layout">
                 <main>

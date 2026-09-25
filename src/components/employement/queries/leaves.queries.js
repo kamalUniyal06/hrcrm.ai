@@ -6,7 +6,9 @@ import {
 import { store } from "@/store/store";
 import {
     applyForLeave,
+    getLeaveApplications,
     getLeavesHistory,
+    getPublicHolidays,
 } from "../api/leaves.api";
 import toast from "react-hot-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -14,13 +16,23 @@ import { queryClient } from "@/lib/queryClient";
 export const leavesKey = {
     all: ["leaves"],
 
-    lists: (
+    leavesHistory: (
         filters = {}
-    ) => [
-            "leaves",
+    ) => ["leaves",
+            "leaves-history",
             "list",
             filters,
         ],
+    leaveApplications: (
+        filters = {}
+    ) => ["leaves",
+            "leave-applications",
+            "list",
+            filters,
+        ],
+    publicHolidays: () => ["leaves",
+        "public-holidays",
+    ],
 
 };
 
@@ -36,13 +48,51 @@ export const useApplyForLeave = () =>
             toast.error("Failed to apply for leave");
         }
     });
+export const useLeaveApplications = (
+    { preferences = {} }
+) => {
+
+    return useInfiniteQuery({
+        queryKey:
+            leavesKey.leaveApplications(
+                preferences,
+            ),
+
+        queryFn: ({
+            pageParam = 1,
+        }) =>
+            getLeaveApplications({
+                preferences,
+                page: pageParam,
+            }),
+
+        initialPageParam: 1,
+        getNextPageParam: (
+            lastPage
+        ) => {
+            if (
+                lastPage.page <
+                lastPage.total_pages
+            ) {
+                return (
+                    lastPage.page + 1
+                );
+            }
+
+            return undefined;
+        },
+
+        staleTime:
+            5 * 60 * 1000,
+    });
+};
 export const useLeavesHistory = (
     { preferences = {} }
 ) => {
 
     return useInfiniteQuery({
         queryKey:
-            leavesKey.lists(
+            leavesKey.leavesHistory(
                 preferences,
             ),
 
@@ -69,6 +119,22 @@ export const useLeavesHistory = (
 
             return undefined;
         },
+
+        staleTime:
+            5 * 60 * 1000,
+    });
+};
+export const usePublicHolidays = (
+    { }
+) => {
+
+    return useQuery({
+        queryKey:
+            leavesKey.publicHolidays(),
+
+        queryFn: () =>
+            getPublicHolidays(),
+
 
         staleTime:
             5 * 60 * 1000,

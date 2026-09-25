@@ -25,7 +25,7 @@ export const applyForLeave = async (data) => {
 
     const response = await fetchGpc({
         endpoint:
-            "https://kartikey.hrcrm.ai/index.php?entryPoint=hrc",
+            "https://flight.hrcrm.ai/index.php?entryPoint=hrc",
         method: "POST",
         params: {
             type: "create_leave",
@@ -47,12 +47,37 @@ export const getLeavesHistory = ({ preferences, page }) =>
         method: "POST",
         body: {
             action: "fetch",
+            module: "hrc_leave_transaction",
+            filters: {},
+            page,
+            ...buildTableRequestBody(
+                preferences, { employee_id: store.getState().user.userInfo.id }
+            ),
+        }
+
+    });
+export const getLeaveApplications = ({ preferences, page }) =>
+    http({
+        method: "POST",
+        body: {
+            action: "fetch",
             module: "hrc_leaves",
             filters: {},
             page,
             ...buildTableRequestBody(
                 preferences, { employee_id: store.getState().user.userInfo.id }
             ),
+        }
+
+    });
+export const getPublicHolidays = () =>
+    http({
+        method: "POST",
+        body: {
+            action: "fetch",
+            module: "hrc_holidays",
+            page: 1,
+            per_page: 100,
         }
 
     });

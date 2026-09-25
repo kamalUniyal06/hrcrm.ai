@@ -20,14 +20,14 @@ export const getStages = async () => {
   const data = await fetchGpc({ params: { type: 'machine_learning', stages: 1 } });
   return data ?? {}
 }
-export const getCRM = "https://kartikey.hrcrm.ai/index.php";
+export const getCRM = "https://flight.hrcrm.ai/index.php";
 
-export const LeaveHistory = {
+export const LeaveApplications = {
   "schemaVersion": "1.0",
-  "configVersion": "leave-history-v1",
+  "configVersion": "leave-applications-v1",
   "module": "hrc_leaves",
-  "moduleKey": "leave-history",
-  "label": "Leave History",
+  "moduleKey": "leave-applications",
+  "label": "Leave Applications",
 
   "config": {
     "view": {
@@ -247,3 +247,261 @@ export const LeaveHistory = {
     "selectedRows": []
   }
 }
+export const LeavesHistory = {
+  schemaVersion: "1.0",
+  configVersion: "leaves-history-v2",
+  module: "hrc_leave_transaction",
+  moduleKey: "leaves-history",
+  label: "Leaves History",
+
+  config: {
+    view: {
+      available: ["table"],
+    },
+
+    statusConfig: [],
+
+    filterColumns: [
+      {
+        label: "Leave Status",
+        accessor: "leave_status",
+        type: "select",
+        multiple: true,
+        values: [
+          {
+            label: "Planned Leave",
+            value: "planned_leave",
+          },
+          {
+            label: "Unplanned Leave",
+            value: "unplanned_leave",
+          },
+          {
+            label: "Sick Leave",
+            value: "sick_leave",
+          },
+          {
+            label: "Early Departure",
+            value: "early_departure",
+          },
+          {
+            label: "Emergency Leave",
+            value: "emergency_leave",
+          },
+        ],
+      },
+
+      {
+        label: "Leave Type",
+        accessor: "leave_type",
+        type: "select",
+        multiple: true,
+        values: [
+          {
+            label: "Full Day",
+            value: "full_day",
+          },
+          {
+            label: "Half Day",
+            value: "half_day",
+          },
+        ],
+      },
+
+      {
+        label: "Action",
+        accessor: "leave_action",
+        type: "select",
+        multiple: true,
+        values: [
+          {
+            label: "Debit",
+            value: "debit",
+          },
+          {
+            label: "Credit",
+            value: "credit",
+          },
+        ],
+      },
+
+      {
+        label: "Paid",
+        accessor: "pay",
+        type: "select",
+        multiple: true,
+        values: [
+          {
+            label: "Paid",
+            value: "1",
+          },
+          {
+            label: "Unpaid",
+            value: "0",
+          },
+        ],
+      },
+    ],
+
+    search: {
+      enabled: true,
+      fields: [
+        "leave_status",
+        "leave_type",
+        "leave_action",
+      ],
+      operators: [
+        "contains",
+        "starts_with",
+        "equals",
+      ],
+      placeholder: "Search leave history...",
+    },
+
+    sorting: {
+      allowedFields: [
+        "date_entered",
+        "leave_type",
+        "leave_status",
+        "leave_action",
+        "pay",
+      ],
+      directions: ["asc", "desc"],
+      enabled: true,
+    },
+
+    pagination: {
+      enabled: true,
+      perPageOptions: [10, 25, 50, 100],
+    },
+
+    selection: {
+      enabled: true,
+      multiple: true,
+    },
+
+    columns: [
+      {
+        weight: 1.2,
+        classes: "truncate",
+        editable: false,
+        maxWidth: 220,
+        minWidth: 160,
+        resizable: true,
+        searchable: false,
+        sortable: true,
+        width: 180,
+        accessor: "date_entered_time_ago",
+        label: "Date",
+        type: "text",
+        display: {
+          type: "text",
+          value: "date_entered_time_ago",
+        },
+      },
+
+      {
+        weight: 1.2,
+        classes: "truncate",
+        editable: false,
+        maxWidth: 180,
+        minWidth: 130,
+        resizable: true,
+        searchable: true,
+        sortable: true,
+        width: 150,
+        accessor: "leave_type",
+        label: "Leave Type",
+        type: "text",
+        display: {
+          type: "text",
+          value: "leave_type",
+        },
+      },
+
+      {
+        weight: 1.5,
+        classes: "truncate",
+        editable: false,
+        maxWidth: 220,
+        minWidth: 160,
+        resizable: true,
+        searchable: true,
+        sortable: true,
+        width: 190,
+        accessor: "leave_status",
+        label: "Leave Status",
+        type: "text",
+        display: {
+          type: "text",
+          value: "leave_status",
+        },
+      },
+
+      {
+        weight: 1,
+        classes: "truncate",
+        editable: false,
+        maxWidth: 150,
+        minWidth: 110,
+        resizable: true,
+        searchable: true,
+        sortable: true,
+        width: 130,
+        accessor: "leave_action",
+        label: "Action",
+        type: "text",
+        display: {
+          type: "text",
+          value: "leave_action",
+        },
+      },
+
+      {
+        weight: 0.8,
+        classes: "truncate",
+        editable: false,
+        maxWidth: 130,
+        minWidth: 100,
+        resizable: true,
+        searchable: false,
+        sortable: true,
+        width: 110,
+        accessor: "pay",
+        label: "Pay",
+        type: "text",
+        display: {
+          type: "text",
+          value: "pay",
+        },
+      },
+    ],
+
+    bulkActions: [],
+  },
+
+  current: {
+    view: "table",
+
+    filters: {},
+
+    search: {
+      value: "",
+      fields: [],
+    },
+
+    sorting: {
+      order_by: "date_entered",
+      order_dir: "desc",
+    },
+
+    pagination: {
+      page: 1,
+      per_page: 25,
+    },
+
+    hiddenColumns: [],
+
+    selectedRows: [],
+  },
+};

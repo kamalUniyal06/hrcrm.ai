@@ -3,7 +3,7 @@ import { apiRequest, http } from "../services/api";
 import { fetchSidebar } from "./sidebar.api";
 import { store } from "../store/store";
 
-const METADATA_ENDPOINT = "https://kartikey.hrcrm.ai/index.php";
+const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
 
 export const fetchLayout = async () => fetchSidebar(store.getState().user.user?.email);
 

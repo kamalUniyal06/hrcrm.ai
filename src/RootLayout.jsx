@@ -86,7 +86,7 @@ const RootLayout = () => {
             </div>
           </div>
         </main>
-        <Footer />
+        {/* <Footer /> */}
       </div>
     </div>
   );

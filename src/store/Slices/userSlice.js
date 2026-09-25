@@ -272,8 +272,8 @@ export const logout = () => {
       dispatch(
         userSlice.actions.logoutFailed(
           error?.response?.data?.message ||
-            error?.response?.data?.error ||
-            "Logout Failed",
+          error?.response?.data?.error ||
+          "Logout Failed",
         ),
       );
     }
@@ -319,3 +319,7 @@ export const selectUserPhase = (state) => state.user.userInfo?.phase;
 export const selectUserStatus = (state) => state.user.userInfo?.status;
 
 export default userSlice.reducer;
+
+
+
+

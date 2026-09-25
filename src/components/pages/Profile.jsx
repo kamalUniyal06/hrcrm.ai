@@ -201,7 +201,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       body.append("pan_card_number", panNumber.trim().toUpperCase());
       if (jobId) body.append("job_record_id", jobId);
       const response = await crmFetch(
-        "https://kartikey.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing",
+        "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing",
         {
           method: "POST",
           headers: { "x-api-key": FETCH_GPC_X_API_KEY },

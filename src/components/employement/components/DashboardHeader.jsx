@@ -1,9 +1,9 @@
-import { store } from "@/store/store";
-import { Clock3 } from "lucide-react";
+import { useSelector } from "react-redux";
 
 export default function DashboardHeader() {
-  const now = new Date();
-  const currentHour = now.getHours();
+  const user = useSelector((state) => state.user.user?.name);
+
+  const currentHour = new Date().getHours();
 
   const getGreeting = () => {
     if (currentHour >= 5 && currentHour < 12) {
@@ -21,25 +21,17 @@ export default function DashboardHeader() {
     return "Good night";
   };
 
-  const formattedDate = now.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-  });
-
-  const formattedTime = now.toLocaleTimeString("en-IN", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-
   return (
-    <header className="employee-dashboard__top">
-      <div>
-        <h1>
-          {getGreeting()}, {store.getState().user.user?.name}
+    <header className="flex w-full items-center justify-between gap-5">
+      <div className="min-w-0">
+        <h1 className="text-xl font-bold leading-tight tracking-tight text-foreground sm:text-2xl">
+          {getGreeting()}, {user || "User"}
         </h1>
-      </div>
 
+        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+          Here&apos;s your attendance overview for today.
+        </p>
+      </div>
     </header>
   );
 }
