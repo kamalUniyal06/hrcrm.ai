@@ -70,4 +70,15 @@ export const getLeaveApplications = ({ preferences, page }) =>
         }
 
     });
+export const getPublicHolidays = () =>
+    http({
+        method: "POST",
+        body: {
+            action: "fetch",
+            module: "hrc_holidays",
+            page: 1,
+            per_page: 100,
+        }
+
+    });
 

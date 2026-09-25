@@ -8,6 +8,7 @@ import {
     applyForLeave,
     getLeaveApplications,
     getLeavesHistory,
+    getPublicHolidays,
 } from "../api/leaves.api";
 import toast from "react-hot-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -29,6 +30,9 @@ export const leavesKey = {
             "list",
             filters,
         ],
+    publicHolidays: () => ["leaves",
+        "public-holidays",
+    ],
 
 };
 
@@ -115,6 +119,22 @@ export const useLeavesHistory = (
 
             return undefined;
         },
+
+        staleTime:
+            5 * 60 * 1000,
+    });
+};
+export const usePublicHolidays = (
+    { }
+) => {
+
+    return useQuery({
+        queryKey:
+            leavesKey.publicHolidays(),
+
+        queryFn: () =>
+            getPublicHolidays(),
+
 
         staleTime:
             5 * 60 * 1000,

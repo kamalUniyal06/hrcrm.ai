@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
     AlertCircle,
@@ -11,6 +11,9 @@ import {
     Users,
     X,
 } from "lucide-react";
+import morningScene from "../../../assets/attendance/workday-morning.png";
+import afternoonScene from "../../../assets/attendance/workday-afternoon.png";
+import eveningScene from "../../../assets/attendance/workday-evening.png";
 
 const SHIFT_DURATION_SECONDS = 9 * 60 * 60;
 const BREAK_DURATION_SECONDS = 40 * 60;
@@ -404,16 +407,35 @@ export default function TodayPresentCard({
         ? workedSeconds
         : shiftElapsedSeconds;
 
-    const shiftProgress = Math.min(
-        (displayedShiftSeconds / SHIFT_DURATION_SECONDS) * 100,
-        100
-    );
-
     const statusClasses = breakOvertimeSeconds > 0 || isLunchOutLate
         ? "border-destructive/20 bg-destructive/10 text-destructive"
         : isOnBreak
             ? "border-[var(--employee-orange)]/25 bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]"
             : "border-[var(--employee-green)]/25 bg-[var(--employee-green-soft)] text-[var(--employee-green)]";
+
+    const currentHour = Number(
+        new Intl.DateTimeFormat("en-GB", {
+            timeZone: "Asia/Kolkata",
+            hour: "2-digit",
+            hourCycle: "h23",
+        }).format(new Date())
+    );
+    const dayPeriod = currentHour < 12
+        ? "morning"
+        : currentHour < 17
+            ? "afternoon"
+            : "evening";
+    const sceneImage = dayPeriod === "morning"
+        ? morningScene
+        : dayPeriod === "afternoon"
+            ? afternoonScene
+            : eveningScene;
+    const greeting = isCheckedOut
+        ? "Great work today!"
+        : `Good ${dayPeriod}!`;
+    const lunchTimer = breakOvertimeSeconds > 0
+        ? `+${formatDuration(breakOvertimeSeconds)}`
+        : formatDuration(lunchSecondsLeft);
 
     /**
      * ------------------------------------------------------------
@@ -432,8 +454,9 @@ export default function TodayPresentCard({
                             <Fingerprint size={20} />
                         </div>
                         <div className="min-w-0">
-                            <h2 className="truncate text-base font-bold text-[var(--employee-heading)]">Today&apos;s attendance</h2>
-                            <p className="truncate text-xs text-muted-foreground">Your workday at a glance</p>
+                            <h2 className="truncate font-semibold ">
+                                {isCheckedOut ? "Your workday is complete—time to recharge." : `Here's how your workday is going.`}
+                            </h2>
                         </div>
                     </div>
 
@@ -452,9 +475,55 @@ export default function TodayPresentCard({
 
                 <div className="my-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
+                {/* <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                            {isCheckedOut ? "Total shift time" : "Shift time"}
+                        </p>
+                        <p className="mt-1 text-4xl font-black tracking-tight tabular-nums text-foreground sm:text-5xl">
+                            {formatDuration(displayedShiftSeconds)}
+                        </p>
+                    </div>
+
+                    {isOnBreak && (
+                        <div className={`rounded-2xl border px-4 py-2.5 text-right ${breakOvertimeSeconds > 0 ? "border-destructive/25 bg-destructive/10 text-destructive" : "border-[var(--employee-orange)]/25 bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]"}`}>
+                            <p className="text-[10px] font-bold uppercase tracking-wider">
+                                {breakOvertimeSeconds > 0 ? "Lunch overtime" : "Lunch remaining"}
+                            </p>
+                            <p className="mt-0.5 text-xl font-bold tabular-nums">{lunchTimer}</p>
+                        </div>
+                    )}
+                </div> */}
+
+                <div className="relative mb-4 h-32 overflow-hidden rounded-2xl border border-border/70 shadow-sm sm:h-40">
+                    <img
+                        src={sceneImage}
+                        alt={`${dayPeriod} city illustration`}
+                        className="h-full w-full object-cover"
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/15 to-transparent" />
+                </div>
+
+                <div className="mb-4 grid grid-cols-2 overflow-hidden rounded-2xl border border-border/70 bg-card sm:grid-cols-4">
+                    {[
+                        { label: "Login", value: formatTime(record?.login), icon: Fingerprint, tone: "text-[var(--employee-green)] bg-[var(--employee-green-soft)]" },
+                        { label: "Lunch start", value: formatTime(record?.lunch_in) || "--", icon: Coffee, tone: "text-[var(--employee-orange)] bg-[var(--employee-break-soft)]" },
+                        { label: "Lunch end", value: formatTime(record?.lunch_out) || "--", icon: Coffee, tone: "text-[var(--employee-orange)] bg-[var(--employee-break-soft)]" },
+                        { label: isCheckedOut ? "Logout" : "Shift time", value: isCheckedOut ? formatTime(record?.logout) : formatDuration(displayedShiftSeconds), icon: isCheckedOut ? LogOut : TimerReset, tone: "text-primary bg-primary/10" },
+                    ].map(({ label, value, icon: MetricIcon, tone }) => (
+                        <div key={label} className="flex min-w-0 flex-col items-center border-b border-r border-border/60 px-2 py-3 text-center last:border-r-0 sm:border-b-0">
+                            <span className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full ${tone}`}>
+                                {createElement(MetricIcon, { size: 15 })}
+                            </span>
+                            <strong className="truncate text-xs font-bold tabular-nums text-foreground sm:text-sm">{value || "--"}</strong>
+                            <span className="mt-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">{label}</span>
+                        </div>
+                    ))}
+                </div>
+
                 {/* BODY */}
 
-                <div className={`grid w-full min-w-0 flex-1 gap-4 ${isCheckedOut ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_minmax(210px,0.55fr)]"}`}>
+                <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4">
                     {/* LEFT CONTENT */}
 
                     <div className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-muted/45 via-card to-card p-4 sm:p-5">
@@ -609,36 +678,6 @@ export default function TodayPresentCard({
                             </>
                         )}
                     </div>
-
-                    {/* SIMPLE FORWARD SHIFT TIMER */}
-                    {!isCheckedOut && <div className="min-w-0">
-                        <div className="flex h-full min-h-[150px] flex-col justify-between overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 shadow-sm">
-                            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                <TimerReset size={16} className="text-primary" />
-                                Shift worked
-                            </div>
-
-                            <strong className="block text-3xl font-bold tracking-tight tabular-nums text-foreground">
-                                {formatDuration(displayedShiftSeconds)}
-                            </strong>
-
-                            {hasCompletedShift && (
-                                <span className="mt-2 block text-sm font-semibold tabular-nums text-[var(--employee-green)]">
-                                    Overtime +{formatDuration(shiftOvertimeSeconds)}
-                                </span>
-                            )}
-
-                            <div className="mt-5">
-                                <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                    <span>Progress</span>
-                                    <span>{Math.round(shiftProgress)}%</span>
-                                </div>
-                                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                                    <div className="h-full rounded-full bg-gradient-to-r from-primary to-[var(--employee-blue)] transition-[width] duration-500" style={{ width: `${shiftProgress}%` }} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>}
 
                 </div>
 

@@ -16,6 +16,9 @@ import {
 } from "../queries/dailyActivity.queries";
 
 import TodayPresentCard from "./TodayPresentCard";
+import morningScene from "../../../assets/attendance/workday-morning.png";
+import afternoonScene from "../../../assets/attendance/workday-afternoon.png";
+import eveningScene from "../../../assets/attendance/workday-evening.png";
 
 const apiDateKey = (value) => {
   const match = String(value || "")
@@ -33,49 +36,74 @@ const todayInIndia = () =>
     day: "2-digit",
   }).format(new Date());
 
+const getDayScene = () => {
+  const hour = Number(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date())
+  );
+
+  if (hour < 12) {
+    return { period: "morning", image: morningScene };
+  }
+
+  if (hour < 17) {
+    return { period: "afternoon", image: afternoonScene };
+  }
+
+  return { period: "evening", image: eveningScene };
+};
+
 function TodayAttendanceSkeleton() {
   return (
-    <section className="flex min-h-[280px] flex-col rounded-2xl border border-border bg-card p-5 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Skeleton width={70} height={22} />
-        <Skeleton
-          width={65}
-          height={24}
-          borderRadius={999}
-        />
-      </div>
+    <section className="relative flex h-full min-h-[540px] flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-[0_16px_45px_-28px_rgba(15,23,42,0.45)]">
+      <div className="h-1 w-full shrink-0 bg-gradient-to-r from-primary/35 via-[var(--employee-blue)]/35 to-[var(--employee-green)]/35" />
 
-      {/* Divider */}
-      <div className="my-4 h-px w-full bg-border" />
-
-      {/* Body */}
-      <div className="flex flex-1 items-center justify-between gap-6">
-        <div className="min-w-0 flex-1">
-          <Skeleton circle width={27} height={27} />
-
-          <div className="mt-3">
-            <Skeleton count={2} width="85%" />
+      <div className="flex flex-1 flex-col p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <Skeleton width={40} height={40} borderRadius={16} />
+            <div>
+              <Skeleton width={150} height={18} />
+              <Skeleton width={118} height={11} />
+            </div>
           </div>
+          <Skeleton width={72} height={27} borderRadius={999} />
+        </div>
 
-          <div className="mt-2">
-            <Skeleton width={130} />
+        <div className="my-5 h-px bg-border" />
+
+        <div className="mb-4">
+          <Skeleton width={72} height={11} />
+          <div className="mt-1">
+            <Skeleton width={190} height={45} />
           </div>
         </div>
 
-        <Skeleton
-          circle
-          width={105}
-          height={105}
-        />
-      </div>
+        <Skeleton height={160} borderRadius={16} />
 
-      {/* Button */}
-      <div className="mt-5">
-        <Skeleton
-          height={42}
-          borderRadius={10}
-        />
+        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-2xl border border-border/70 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="flex flex-col items-center px-3 py-3">
+              <Skeleton circle width={32} height={32} />
+              <div className="mt-2"><Skeleton width={58} height={12} /></div>
+              <Skeleton width={45} height={9} />
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-border/70 p-5">
+          <Skeleton width="45%" height={18} />
+          <div className="mt-2"><Skeleton width="72%" height={12} /></div>
+          <div className="mt-1"><Skeleton width="58%" height={12} /></div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-1 gap-3 border-t border-border/70 pt-5 sm:grid-cols-2">
+          <Skeleton height={48} borderRadius={12} />
+          <Skeleton height={48} borderRadius={12} />
+        </div>
       </div>
     </section>
   );
@@ -152,6 +180,8 @@ function ErrorState({ onRetry }) {
 }
 
 function AbsentState({ isPending, onMarkPresent }) {
+  const dayScene = getDayScene();
+
   return (
     <section className="relative flex h-full min-h-[300px] flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-[0_16px_45px_-28px_rgba(15,23,42,0.45)]">
       <div className="h-1 w-full shrink-0 bg-primary" />
@@ -177,6 +207,18 @@ function AbsentState({ isPending, onMarkPresent }) {
         </div>
 
         <div className="my-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+
+        <div className="relative mb-5 h-32 overflow-hidden rounded-2xl border border-border/70 shadow-sm sm:h-40">
+          <img
+            src={dayScene.image}
+            alt={`${dayScene.period} city illustration`}
+            className="h-full w-full object-cover"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/15 to-transparent" />
+          <span className="absolute bottom-3 left-3 rounded-full border border-white/30 bg-slate-950/35 px-3 py-1 text-[10px] font-semibold capitalize tracking-wide text-white backdrop-blur-sm">
+            Good {dayScene.period}
+          </span>
+        </div>
 
         {/* Main content */}
         <div className="grid flex-1 items-center gap-5 rounded-2xl border border-border/70 bg-gradient-to-br from-muted/45 via-card to-card p-5 sm:grid-cols-[minmax(0,1fr)_auto]">

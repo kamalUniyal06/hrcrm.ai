@@ -4,9 +4,9 @@ import { useSelector } from "react-redux";
 import DashboardHeader from "../components/DashboardHeader";
 import TodayAttendanceCard from "../components/TodayAttendanceCard";
 import MetricCard from "../components/MetricCard";
-import AttendanceSummary from "../components/AttendanceSummary";
 import TeamTable from "../components/TeamTable";
 import WorkingHistory from "../components/WorkingHistory";
+import AttendanceSummary from "../components/AttendanceSummary";
 
 export default function EmployeHomePage() {
     const isAdmin = useSelector(
@@ -20,43 +20,41 @@ export default function EmployeHomePage() {
                 <DashboardHeader />
 
                 {/* Overview */}
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
                     {/* Today's Attendance */}
-                    <div className="min-w-0 sm:col-span-2 xl:row-span-2">
+                    <div className="min-w-0">
                         <TodayAttendanceCard />
                     </div>
 
-                    {/* Average Hours */}
-                    <MetricCard
-                        icon={Clock3}
-                        label="Average hours"
-                        value="7h 17mins"
-                    />
+                    {/* Compact metrics */}
+                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:self-start">
+                        <MetricCard
+                            icon={Clock3}
+                            label="Average hours"
+                            value="7h 17mins"
+                        />
 
-                    {/* Average Check-in */}
-                    <MetricCard
-                        icon={LogIn}
-                        label="Average check-in"
-                        value="10:33 AM"
-                    />
+                        <MetricCard
+                            icon={LogIn}
+                            label="Average check-in"
+                            value="10:33 AM"
+                        />
 
-                    {/* On-time Arrival */}
-                    <MetricCard
-                        icon={AlarmClock}
-                        label="On-time arrival"
-                        value="98.56 %"
-                        tone="green"
-                    />
+                        <MetricCard
+                            icon={AlarmClock}
+                            label="On-time arrival"
+                            value="98.56 %"
+                            tone="green"
+                        />
 
-                    {/* Average Check-out */}
-                    <MetricCard
-                        icon={LogOut}
-                        label="Average check-out"
-                        value="19:12 PM"
-                        tone="orange"
-                    />
-
-
+                        <MetricCard
+                            icon={LogOut}
+                            label="Average check-out"
+                            value="19:12 PM"
+                            tone="orange"
+                        />
+                        <AttendanceSummary />
+                    </div>
                 </div>
 
                 {/* Tables */}
