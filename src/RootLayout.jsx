@@ -7,15 +7,24 @@ import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
 import Profile from "./components/pages/Profile";
-import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
+import {
+  needsOnboarding,
+  rememberOnboardingComplete,
+  rememberOnboardingStarted,
+} from "./components/pages/profile/onboardingState";
 
 const RootLayout = () => {
-
-  const { setActivePage, displayIntro, setDisplayIntro } = useContext(PageContext)
+  const { setActivePage, displayIntro, setDisplayIntro } =
+    useContext(PageContext);
   const location = useLocation().pathname.split("/")[2];
   const pathname = useLocation().pathname;
   const mainRef = useRef(null);
-  const { data: candidate, isPending, isError, refetch } = useCandidateProfile();
+  const {
+    data: candidate,
+    isPending,
+    isError,
+    refetch,
+  } = useCandidateProfile();
   const [onboarding, setOnboarding] = useState(null);
   const navigate = useNavigate();
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
@@ -38,23 +47,52 @@ const RootLayout = () => {
     }
   }, [pathname]);
 
-
   useEffect(() => {
     setActivePage(location);
   }, [location, setActivePage]);
 
   if (onboarding === null) {
-    return <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6"><div role={isError ? "alert" : "status"} className="text-center text-sm text-slate-500">{isError ? <><p>We couldn’t load your profile.</p><button onClick={() => refetch()} className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white">Try again</button></> : "Preparing your space…"}</div></div>;
+    return (
+      <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6">
+        <div
+          role={isError ? "alert" : "status"}
+          className="text-center text-sm text-slate-500"
+        >
+          {isError ? (
+            <>
+              <p>We couldn’t load your profile.</p>
+              <button
+                onClick={() => refetch()}
+                className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white"
+              >
+                Try again
+              </button>
+            </>
+          ) : (
+            "Preparing your space…"
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (onboarding) {
-    return <Profile standalone onComplete={saved => {
-      rememberOnboardingComplete(saved);
-      setDisplayIntro(false);
-      try { localStorage.setItem("displayIntro", "false"); } catch { /* Storage may be unavailable. */ }
-      setOnboarding(false);
-      navigate("/profile", { replace: true });
-    }} />;
+    return (
+      <Profile
+        standalone
+        onComplete={(saved) => {
+          rememberOnboardingComplete(saved);
+          setDisplayIntro(false);
+          try {
+            localStorage.setItem("displayIntro", "false");
+          } catch {
+            /* Storage may be unavailable. */
+          }
+          setOnboarding(false);
+          navigate("/profile", { replace: true });
+        }}
+      />
+    );
   }
 
   if (displayIntro) {
@@ -63,10 +101,8 @@ const RootLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-sidebar-primary">
-
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
-
 
       {/* RIGHT */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-primary">
