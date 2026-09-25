@@ -7,6 +7,7 @@ import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
 import Profile from "./components/pages/Profile";
+import LoadingPage from "./components/pages/LoadingPage";
 import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
 
 const RootLayout = () => {
@@ -44,7 +45,10 @@ const RootLayout = () => {
   }, [location, setActivePage]);
 
   if (onboarding === null) {
-    return <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6"><div role={isError ? "alert" : "status"} className="text-center text-sm text-slate-500">{isError ? <><p>We couldn’t load your profile.</p><button onClick={() => refetch()} className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white">Try again</button></> : "Preparing your space…"}</div></div>;
+    if (isError) {
+      return <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6"><div role="alert" className="text-center text-sm text-slate-500"><p>We couldn’t load your profile.</p><button onClick={() => refetch()} className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white">Try again</button></div></div>;
+    }
+    return <LoadingPage />;
   }
 
   if (onboarding) {
