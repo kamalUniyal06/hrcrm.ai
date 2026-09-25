@@ -66,6 +66,13 @@ export default function Profile({ standalone = false, onComplete }) {
 
 function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const queryClient = useQueryClient();
+  const authUserInfo = useSelector((state) => state.user.userInfo);
+  const isOnboardingRequired = (candidate) =>
+    needsOnboarding({
+      ...candidate,
+      stage: authUserInfo?.stage,
+      status: authUserInfo?.status,
+    });
   const cachedCandidate = queryClient.getQueryData(candidateKey(email));
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
@@ -75,7 +82,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   );
   const [phase, setPhase] = useState(
     cachedCandidate
-      ? needsOnboarding(cachedCandidate)
+      ? isOnboardingRequired(cachedCandidate)
         ? "welcome"
         : jobId
           ? "upload"
@@ -141,7 +148,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (cached !== undefined) {
       setRecord(cached);
       setDraft(cached ? normalizeCandidate(cached, email) : null);
-      setPhase(needsOnboarding(cached) ? "welcome" : jobId ? "upload" : "view");
+      setPhase(isOnboardingRequired(cached) ? "welcome" : jobId ? "upload" : "view");
       setError("");
       return () => {
         active = false;
@@ -156,7 +163,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         if (!active) return;
         setRecord(candidate);
         setDraft(candidate ? normalizeCandidate(candidate, email) : null);
-        const isNew = needsOnboarding(candidate);
+        const isNew = isOnboardingRequired(candidate);
         setPhase(isNew ? "welcome" : jobId ? "upload" : "view");
       })
       .catch((err) => {
@@ -170,7 +177,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       alive.current = false;
       requestRef.current?.abort();
     };
-  }, [email, jobId, retry, queryClient]);
+  }, [email, jobId, retry, queryClient, authUserInfo?.stage, authUserInfo?.status]);
 
   useEffect(() => {
     if (!candidateRelatedModules[section] || !record?.id) return;

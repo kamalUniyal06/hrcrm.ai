@@ -1,14 +1,13 @@
 import { TopNav } from "./components/TopNav";
 import { Sidebar } from "./components/Sidebar";
 import { useContext, useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
-import { useCandidateProfile } from "./queries/candidate.queries";
 import Profile from "./components/pages/Profile";
-import LoadingPage from "./components/pages/LoadingPage";
-import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
+import { needsOnboarding, rememberOnboardingComplete } from "./components/pages/profile/onboardingState";
 
 const RootLayout = () => {
 
@@ -16,18 +15,10 @@ const RootLayout = () => {
   const location = useLocation().pathname.split("/")[2];
   const pathname = useLocation().pathname;
   const mainRef = useRef(null);
-  const { data: candidate, isPending, isError, refetch } = useCandidateProfile();
-  const [onboarding, setOnboarding] = useState(null);
+  const userInfo = useSelector((state) => state.user.userInfo);
+  const [onboarding, setOnboarding] = useState(() => needsOnboarding(userInfo));
   const navigate = useNavigate();
-  // Latch the decision: parsing or saving an intermediate step must not open the shell.
-  useEffect(() => {
-    if (!isPending && !isError && onboarding === null) {
-      const required = needsOnboarding(candidate);
-      if (required) rememberOnboardingStarted(candidate);
-      setOnboarding(required);
-    }
-  }, [candidate, isPending, isError, onboarding]);
-  const hasCandidate = Boolean(candidate?.id);
+  const hasCandidate = Boolean(userInfo?.id);
   useEffect(() => {
     if (mainRef.current) {
       mainRef.current.scrollTo({
@@ -44,16 +35,10 @@ const RootLayout = () => {
     setActivePage(location);
   }, [location, setActivePage]);
 
-  if (onboarding === null) {
-    if (isError) {
-      return <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6"><div role="alert" className="text-center text-sm text-slate-500"><p>We couldn’t load your profile.</p><button onClick={() => refetch()} className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white">Try again</button></div></div>;
-    }
-    return <LoadingPage />;
-  }
-
   if (onboarding) {
     return <Profile standalone onComplete={saved => {
       rememberOnboardingComplete(saved);
+      rememberOnboardingComplete({ ...saved, id: userInfo?.id });
       setDisplayIntro(false);
       try { localStorage.setItem("displayIntro", "false"); } catch { /* Storage may be unavailable. */ }
       setOnboarding(false);
