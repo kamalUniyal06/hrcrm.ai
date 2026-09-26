@@ -104,6 +104,32 @@ export const getAllLeaves = async () => {
     return { ...metadata, records, total: Number(metadata.total) || records.length, total_pages: totalPages };
 };
 
+export const getLeaveDocuments = async (id) => {
+    if (!id) return [];
+    const records = [];
+    let page = 1;
+    let totalPages = 1;
+    do {
+        const response = await http({
+            method: "POST",
+            body: {
+                action: "fetch_related",
+                module: "hrc_leaves",
+                id,
+                related_module: "Notes",
+                page,
+                per_page: 100,
+            },
+        });
+        if (response?.success !== true || !Array.isArray(response.records))
+            throw new Error(response?.message || response?.error || "Could not load leave documents.");
+        records.push(...response.records.filter((record) => String(record.deleted) !== "1"));
+        totalPages = Number(response.total_pages) || 1;
+        page += 1;
+    } while (page <= totalPages);
+    return records.filter((record) => record.image_url || record.file_url || record.filename || record.name);
+};
+
 export const updateLeaveStatus = async (id, status) => {
     if (!id) throw new Error("A leave request ID is required.");
     if (!["Accepted", "Rejected"].includes(status)) throw new Error("Choose Accepted or Rejected.");
