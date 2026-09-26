@@ -11,12 +11,17 @@ import LoadingPage from "./components/pages/LoadingPage";
 import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
 
 const RootLayout = () => {
-
-  const { setActivePage, displayIntro, setDisplayIntro } = useContext(PageContext)
+  const { setActivePage, displayIntro, setDisplayIntro } =
+    useContext(PageContext);
   const location = useLocation().pathname.split("/")[2];
   const pathname = useLocation().pathname;
   const mainRef = useRef(null);
-  const { data: candidate, isPending, isError, refetch } = useCandidateProfile();
+  const {
+    data: candidate,
+    isPending,
+    isError,
+    refetch,
+  } = useCandidateProfile();
   const [onboarding, setOnboarding] = useState(null);
   const navigate = useNavigate();
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
@@ -39,7 +44,6 @@ const RootLayout = () => {
     }
   }, [pathname]);
 
-
   useEffect(() => {
     setActivePage(location);
   }, [location, setActivePage]);
@@ -52,13 +56,22 @@ const RootLayout = () => {
   }
 
   if (onboarding) {
-    return <Profile standalone onComplete={saved => {
-      rememberOnboardingComplete(saved);
-      setDisplayIntro(false);
-      try { localStorage.setItem("displayIntro", "false"); } catch { /* Storage may be unavailable. */ }
-      setOnboarding(false);
-      navigate("/profile", { replace: true });
-    }} />;
+    return (
+      <Profile
+        standalone
+        onComplete={(saved) => {
+          rememberOnboardingComplete(saved);
+          setDisplayIntro(false);
+          try {
+            localStorage.setItem("displayIntro", "false");
+          } catch {
+            /* Storage may be unavailable. */
+          }
+          setOnboarding(false);
+          navigate("/profile", { replace: true });
+        }}
+      />
+    );
   }
 
   if (displayIntro) {
@@ -67,10 +80,8 @@ const RootLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-sidebar-primary">
-
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
-
 
       {/* RIGHT */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-primary">

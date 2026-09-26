@@ -1,9 +1,12 @@
 import { Menu, X } from "lucide-react";
 import { useContext } from "react";
 import { PageContext } from "../context/pageContext";
+import EmployeeOptions from "./employement/components/employee-actions/EmployeeOptions";
+import { useSelector } from "react-redux";
 
 export function TopNav({ sidebarAvailable = true }) {
   const { mobileSidebarOpen, setMobileSidebarOpen } = useContext(PageContext);
+  const userInfo = useSelector((s) => s.user.userInfo)
 
   return (
     <header
@@ -26,6 +29,7 @@ export function TopNav({ sidebarAvailable = true }) {
           )}
         </button>
       )}
+      {userInfo?.phase == 'Employment' && <EmployeeOptions />}
     </header>
   );
 }
