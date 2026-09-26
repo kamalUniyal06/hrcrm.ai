@@ -103,6 +103,12 @@ export default function AdminAttendanceDashboard() {
   const fetching = employees.isFetching || activity.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
+  const selectedSummary = daySummary(selectedRecords, selected?.date, today);
+  const effectiveMinutes = selectedSummary.worked;
+  const breakMinutes = selectedSummary.sessions.every((session) => session.breakMinutes !== null)
+    ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
+    : null;
+  const targetProgress = effectiveMinutes === null ? 0 : Math.min(Math.round((effectiveMinutes / 540) * 100), 100);
 
   function moveWeek(direction) {
     setAnchor(
@@ -399,9 +405,9 @@ export default function AdminAttendanceDashboard() {
                                 {summary.first.time}
                               </span>
                             )}
-                            {summary.worked !== null ? (
+                            {summary.inOffice !== null ? (
                               <span className="mt-1 text-[10px] opacity-60">
-                                {formatMinutes(summary.worked)} worked
+                                {formatMinutes(summary.inOffice)} in office
                               </span>
                             ) : (
                               summary.first && (
@@ -492,7 +498,22 @@ export default function AdminAttendanceDashboard() {
             </div>
             <div className="mt-6 space-y-4">
               {selectedRecords.length ? (
-                selectedRecords.map((record, index) => {
+                <>
+                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Day report · {selectedRow?.email || selectedRow?.name}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Time in office</p><p className="mt-1 font-semibold">{formatMinutes(selectedSummary.inOffice)}</p></div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Effective time</p><p className="mt-1 font-semibold">{formatMinutes(effectiveMinutes)}</p></div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Break time</p><p className="mt-1 font-semibold">{formatMinutes(breakMinutes)}</p></div>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex justify-between text-xs"><span>Daily target</span><span className="font-semibold text-indigo-600">{targetProgress}%</span></div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${targetProgress}%` }} /></div>
+                    <p className="mt-2 text-xs text-slate-500">{formatMinutes(effectiveMinutes)} of 9h 00m</p>
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
+                </section>
+                {selectedRecords.map((record, index) => {
                   const summary = daySummary([record], selected.date, today);
                   const session = summary.sessions[0];
                   return (
@@ -512,8 +533,8 @@ export default function AdminAttendanceDashboard() {
                         {[
                           ["Login", session.login],
                           ["Logout", session.logout],
-                          ["Lunch started", session.lunchIn],
-                          ["Lunch ended", session.lunchOut],
+                          ["Lunch in", session.lunchIn],
+                          ["Lunch out", session.lunchOut],
                         ].map(([label, time]) => (
                           <div key={label}>
                             <dt className="text-xs text-slate-400">{label}</dt>
@@ -529,7 +550,7 @@ export default function AdminAttendanceDashboard() {
                         ))}
                         <div>
                           <dt className="text-xs text-slate-400">
-                            Lunch duration
+                            Break duration
                           </dt>
                           <dd className="mt-1 text-slate-700">
                             {formatMinutes(session.breakMinutes)}
@@ -537,7 +558,7 @@ export default function AdminAttendanceDashboard() {
                         </div>
                         <div>
                           <dt className="text-xs text-slate-400">
-                            Worked time
+                            Effective time (excluding lunch)
                           </dt>
                           <dd className="mt-1 font-semibold text-indigo-600">
                             {formatMinutes(session.worked)}
@@ -551,7 +572,8 @@ export default function AdminAttendanceDashboard() {
                       )}
                     </section>
                   );
-                })
+                })}
+                </>
               ) : (
                 <p className="text-sm text-slate-500">
                   This activity is no longer available. Refresh the directory.

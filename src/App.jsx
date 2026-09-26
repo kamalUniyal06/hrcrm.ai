@@ -39,6 +39,7 @@ import { PageContextProvider } from "./context/pageContext";
 import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
 import AttendanceDashboard from "./components/employement/pages/AttendanceDashboard";
 import LeaveApplications from "./components/employement/components/leave/LeavesApplications";
+import LimitManagementPage from "./components/pages/LimitManagementPage";
 
 const router = createBrowserRouter([
   {
@@ -167,6 +168,16 @@ const router = createBrowserRouter([
         path: "salaries",
         element: <PageAccessGuard><SalariesPage /></PageAccessGuard>,
         handle: { breadcrumb: "Salary management" },
+      },
+      {
+        path: "limit-management",
+        element: <LimitManagementPage />,
+        handle: { breadcrumb: "Limit management" },
+      },
+      {
+        path: "limit-management/:recordId/edit",
+        element: <LimitManagementPage />,
+        handle: { breadcrumb: "Edit limit record" },
       },
       {
         path: "attendance",
