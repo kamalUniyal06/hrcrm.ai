@@ -15,7 +15,6 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import {
-  DUMMY_RESIGNATION_TOKENS,
   ensureResignationRecord,
   updateResignationRecord,
 } from "../../api/resignation.api";
@@ -25,22 +24,22 @@ const APPROVALS = [
     key: "tl",
     title: "Team lead",
     question: "Have you notified your team lead?",
-    tokenField: "lbl_tl_token",
-    notifyField: "lbl_notify_tl",
+    tokenField: "tl_token",
+    notifyField: "notify_tl",
   },
   {
     key: "manager",
     title: "Manager",
     question: "Have you notified your manager?",
-    tokenField: "lbl_manager_token",
-    notifyField: "lbl_notify_manager",
+    tokenField: "manager_token",
+    notifyField: "notify_manager",
   },
   {
     key: "hr",
     title: "HR",
     question: "Have you notified HR?",
-    tokenField: "lbl_hr_token",
-    notifyField: "lbl_notify_hr",
+    tokenField: "hr_token",
+    notifyField: "notify_hr",
   },
 ];
 
@@ -342,12 +341,6 @@ export default function ResignationFlow({
                         placeholder="Enter token"
                         className="mt-5 w-full rounded-2xl border border-border bg-input-background px-4 py-3.5 text-center text-lg font-bold tracking-[0.22em] text-foreground outline-none transition placeholder:text-sm placeholder:font-normal placeholder:tracking-normal focus:border-primary focus:ring-4 focus:ring-primary/10"
                       />
-                      <p className="mt-2 text-center text-xs text-muted-foreground">
-                        Demo token:{" "}
-                        <strong className="font-mono text-foreground">
-                          {DUMMY_RESIGNATION_TOKENS[approval.key]}
-                        </strong>
-                      </p>
                       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                         <button
                           type="button"

@@ -1,7 +1,7 @@
 import { Menu, X } from "lucide-react";
 import { useContext } from "react";
 import { PageContext } from "../context/pageContext";
-import EmployeeOptions from "./employee-actions/EmployeeOptions";
+import EmployeeOptions from "./employement/components/employee-actions/EmployeeOptions";
 import { useSelector } from "react-redux";
 
 export function TopNav({ sidebarAvailable = true }) {
