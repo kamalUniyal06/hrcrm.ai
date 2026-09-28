@@ -51,7 +51,14 @@ export default function AdminLeaveNews() {
   const [filter, setFilter] = useState("All statuses");
   const [search, setSearch] = useState("");
   const [selectedMonth, setSelectedMonth] = useState(() => monthKey(new Date()));
-  const leaves = useQuery({ queryKey: key, queryFn: getAllLeaves, enabled: isAdmin });
+  const [leaveYear, leaveMonth] = selectedMonth.split("-").map(Number);
+  const requestMonthStart = `${selectedMonth}-01`;
+  const requestMonthEnd = `${selectedMonth}-${String(new Date(leaveYear, leaveMonth, 0).getDate()).padStart(2, "0")}`;
+  const leaves = useQuery({
+    queryKey: [...key, selectedMonth],
+    queryFn: () => getAllLeaves({ from: requestMonthStart, to: requestMonthEnd }),
+    enabled: isAdmin,
+  });
   const employees = useQuery({ queryKey: ["employees", "list"], queryFn: () => fetchAllRecords("hrc_employees"), enabled: isAdmin });
   const mutation = useMutation({
     mutationFn: ({ id, status }) => updateLeaveStatus(id, status),

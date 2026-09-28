@@ -11,14 +11,25 @@ export const workflowFields = {
   status: "status",
 };
 
-export async function fetchAllRecords(module) {
+export async function fetchAllRecords(module, dateFilter = null) {
   const records = [];
   let page = 1;
   let pages = 1;
   do {
     const response = await http({
       method: "POST",
-      body: { action: "fetch", module, page, per_page: 100 },
+      body: {
+        action: "fetch",
+        module,
+        ...(dateFilter ? {
+          date_range: "custom",
+          date_field: dateFilter.field || "date_entered",
+          date_from: dateFilter.from,
+          date_to: dateFilter.to,
+        } : {}),
+        page,
+        per_page: 100,
+      },
     });
     if (response?.success !== true || !Array.isArray(response.records))
       throw new Error(
