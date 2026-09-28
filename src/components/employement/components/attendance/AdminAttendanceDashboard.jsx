@@ -58,6 +58,7 @@ export default function AdminAttendanceDashboard() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [selectedPersonKey, setSelectedPersonKey] = useState(null);
+  const [overviewFilter, setOverviewFilter] = useState("all");
   const employees = useQuery({
     queryKey: ["employees", "list"],
     queryFn: () => fetchAllRecords("hrc_employees"),
@@ -79,7 +80,7 @@ export default function AdminAttendanceDashboard() {
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
-  const visible = rows.filter(
+  const matchingRows = rows.filter(
     (row) =>
       (!selectedPersonKey || row.key === selectedPersonKey) &&
       (selectedPersonKey || row.matched ||
@@ -87,6 +88,27 @@ export default function AdminAttendanceDashboard() {
       [row.name, row.email, row.designation].some((value) =>
         value.toLowerCase().includes(search.trim().toLowerCase()),
       ),
+  );
+  const visible = matchingRows.filter((row) => {
+    if (overviewFilter === "all") return true;
+    const records = row.days[dateKey(anchor)] || [];
+    if (overviewFilter === "missing") {
+      return row.matched && !records.some((record) => Boolean(String(record.login ?? "").trim()));
+    }
+    const status = daySummary(records, dateKey(anchor), today).status;
+    if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
+    if (overviewFilter === "late") return status === "late";
+    return true;
+  });
+  const attendanceDate = dateKey(anchor);
+  const notCheckedIn = rows.filter((row) =>
+    row.matched &&
+    !(row.days[attendanceDate] || []).some((record) =>
+      Boolean(String(record.login ?? "").trim()),
+    ) &&
+    [row.name, row.email, row.designation].some((value) =>
+      value.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
   );
   const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0 };
   visible.forEach((row) =>
@@ -152,7 +174,7 @@ export default function AdminAttendanceDashboard() {
 
       <section
         aria-label="Weekly attendance overview"
-        className="grid gap-3 sm:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-4"
       >
         {[
           [
@@ -160,20 +182,34 @@ export default function AdminAttendanceDashboard() {
             visible.length,
             Users,
             "text-indigo-600 bg-indigo-50",
+            "all",
           ],
           [
             "Days with check-in",
             totals.onTime + totals.late,
             CalendarDays,
             "text-rose-600 bg-rose-50",
+            "checkedIn",
           ],
-          ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50"],
+          ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
+          ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
         ].map((item) => {
-          const [label, count, Icon, color] = item;
+          const [label, count, Icon, color, filter] = item;
           return (
-            <div
+            <button
               key={label}
-              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4"
+              type="button"
+              onClick={() => {
+                if (filter === "missing") {
+                  setOverviewFilter("missing");
+                  setPage(1);
+                } else {
+                  setOverviewFilter(filter);
+                  setPage(1);
+                }
+              }}
+              aria-pressed={overviewFilter === filter}
+              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"}`}
             >
               <span className={`rounded-xl p-3 ${color}`}>
                 <Icon size={21} />
@@ -184,7 +220,7 @@ export default function AdminAttendanceDashboard() {
                 </p>
                 <p className="text-xs text-slate-500">{label}</p>
               </div>
-            </div>
+            </button>
           );
         })}
       </section>
