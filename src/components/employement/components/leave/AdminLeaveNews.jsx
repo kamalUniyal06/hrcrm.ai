@@ -1,13 +1,42 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Loader2, RefreshCw, Search, Users, X } from "lucide-react";
-import { getAllLeaves, updateLeaveStatus } from "../../api/leaves.api";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, FileText, Loader2, RefreshCw, Search, Users, X } from "lucide-react";
+import { getAllLeaves, getLeaveDocuments, updateLeaveStatus } from "../../api/leaves.api";
 import { fetchAllRecords } from "../../../pages/candidates/candidatesApi";
 import { employeeName } from "../../../pages/employees/employeesApi";
 
 const key = ["leaves", "admin-feed"];
 const clean = (value) => String(value || "").trim();
+
+function LeaveDocuments({ leaveId }) {
+  const documents = useQuery({
+    queryKey: ["leaves", "documents", leaveId],
+    queryFn: () => getLeaveDocuments(leaveId),
+    enabled: Boolean(leaveId),
+  });
+
+  if (documents.isPending) return <p className="mt-3 text-xs text-slate-400">Loading attached documents…</p>;
+  if (documents.isError) return <p className="mt-3 text-xs text-rose-600">Could not load attached documents.</p>;
+  if (!documents.data?.length) return null;
+
+  return <div className="mt-3 space-y-3">
+    <p className="text-xs font-semibold text-slate-600">Attached documents</p>
+    {documents.data.map((document) => {
+      const url = clean(document.image_url || document.file_url);
+      const name = clean(document.filename || document.name) || "Leave document";
+      const mime = clean(document.file_mime_type).toLowerCase();
+      return <div key={document.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <div className="flex items-center justify-between gap-3 p-3">
+          <span className="flex min-w-0 items-center gap-2 text-sm font-medium text-slate-700"><FileText size={17} className="shrink-0 text-indigo-500" /><span className="truncate">{name}</span></span>
+          {url && <a href={url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800">Open <ExternalLink size={13} /></a>}
+        </div>
+        {url && mime.startsWith("image/") && <a href={url} target="_blank" rel="noreferrer" aria-label={"Open " + name}><img src={url} alt={name} loading="lazy" className="max-h-72 w-full object-contain bg-slate-50" /></a>}
+        {url && mime === "application/pdf" && <iframe title={name} src={url} loading="lazy" className="h-80 w-full border-t border-slate-100" />}
+      </div>;
+    })}
+  </div>;
+}
 
 export default function AdminLeaveNews() {
   const isAdmin = useSelector((state) => state.user.userInfo?.status === "admin");
@@ -51,7 +80,7 @@ export default function AdminLeaveNews() {
         const name = employee ? employeeName(employee) : [record.hrc_employees_hrc_leaves_1_name, record.hrc_candidates_hrc_leaves_1_name, record.assigned_user_name, record.name].map(clean).find(Boolean) || "Employee";
         return <article key={record.id} className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-7">
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-slate-900">{name}</h3><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${record.status === "Accepted" ? "bg-emerald-50 text-emerald-700" : record.status === "Rejected" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{record.status || "Applied"}</span></div><p className="mt-1 break-all text-xs text-slate-500">{employee?.email1 || record.name || "Email not provided"}</p>
-          <p className="mt-2 text-sm text-slate-600">{record.type_of_leave || "Leave"} / {record.leave_days || "N/A"} day{record.leave_days === "1" ? "" : "s"}</p><p className="mt-1 text-xs text-slate-500">{record.leave_from || "Date not set"}{record.leave_to ? ` - ${record.leave_to}` : ""}{record.date_entered_time_ago ? ` / ${record.date_entered_time_ago}` : ""}</p>{record.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{record.description}</p>}</div>
+          <p className="mt-2 text-sm text-slate-600">{record.type_of_leave || "Leave"} / {record.leave_days || "N/A"} day{record.leave_days === "1" ? "" : "s"}</p><p className="mt-1 text-xs text-slate-500">{record.leave_from || "Date not set"}{record.leave_to ? ` - ${record.leave_to}` : ""}{record.date_entered_time_ago ? ` / ${record.date_entered_time_ago}` : ""}</p>{record.description && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{record.description}</p>}<LeaveDocuments leaveId={record.id} /></div>
           {record.status === "Applied" && <div className="flex shrink-0 gap-2"><button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate({ id: record.id, status: "Accepted" })} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50">{pending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}Accept</button><button type="button" disabled={mutation.isPending} onClick={() => mutation.mutate({ id: record.id, status: "Rejected" })} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"><X size={15} />Reject</button></div>}
         </article>;
       })}</div>}

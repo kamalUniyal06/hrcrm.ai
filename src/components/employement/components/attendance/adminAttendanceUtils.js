@@ -45,7 +45,15 @@ export function sessionSummary(record) {
   const noLunch = !clean(record.lunch_in) && !clean(record.lunch_out);
   const validLunch = lunchIn && lunchOut && lunchOut.stamp >= lunchIn.stamp && login && logout && lunchIn.stamp >= login.stamp && lunchOut.stamp <= logout.stamp;
   const breakMinutes = validLunch ? (lunchOut.stamp - lunchIn.stamp) / 60000 : noLunch ? 0 : null;
-  return { login, logout, lunchIn, lunchOut, breakMinutes, worked: gross !== null && breakMinutes !== null ? gross - breakMinutes : null };
+  return {
+    login,
+    logout,
+    lunchIn,
+    lunchOut,
+    breakMinutes,
+    inOffice: gross,
+    worked: gross !== null && breakMinutes !== null ? gross - breakMinutes : null,
+  };
 }
 
 export function buildAttendanceRows(employees, activity) {
@@ -99,5 +107,12 @@ export function daySummary(records = [], day, today) {
   const first = logins[0];
   const status = first ? first.minutes > 600 ? "late" : "onTime" : records.length ? "incomplete" : day > today ? "upcoming" : "missing";
   const complete = sessions.length > 0 && sessions.every(session => session.worked !== null);
-  return { status, first, sessions, worked: complete ? sessions.reduce((sum, session) => sum + session.worked, 0) : null };
+  const allSessionsHaveOfficeTime = sessions.length > 0 && sessions.every(session => session.inOffice !== null);
+  return {
+    status,
+    first,
+    sessions,
+    worked: complete ? sessions.reduce((sum, session) => sum + session.worked, 0) : null,
+    inOffice: allSessionsHaveOfficeTime ? sessions.reduce((sum, session) => sum + session.inOffice, 0) : null,
+  };
 }

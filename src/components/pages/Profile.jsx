@@ -38,6 +38,7 @@ import {
 } from "./profile/candidateApi";
 
 import ProfileSectionContent from "./profile/ProfileSectionContent";
+import LoadingPage from "./LoadingPage";
 import ResumeLoading from "./profile/ResumeLoading";
 import ResumeUpload from "./profile/ResumeUpload";
 import { useQueryClient } from "@tanstack/react-query";
@@ -66,12 +67,23 @@ export default function Profile({ standalone = false, onComplete }) {
 
 function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const queryClient = useQueryClient();
+  const cachedCandidate = queryClient.getQueryData(candidateKey(email));
   const userPhase = useSelector((state) => state.user.userInfo?.phase);
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
-  const [record, setRecord] = useState(null);
-  const [draft, setDraft] = useState(null);
-  const [phase, setPhase] = useState("loading");
+  const [record, setRecord] = useState(cachedCandidate ?? null);
+  const [draft, setDraft] = useState(
+    cachedCandidate ? normalizeCandidate(cachedCandidate, email) : null,
+  );
+  const [phase, setPhase] = useState(
+    cachedCandidate
+      ? needsOnboarding(cachedCandidate)
+        ? "welcome"
+        : jobId
+          ? "upload"
+          : "view"
+      : "loading",
+  );
   const [busy, setBusy] = useState(false);
   const [parsingPhase, setParsingPhase] = useState("processing");
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -127,6 +139,18 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   useEffect(() => {
     let active = true;
     alive.current = true;
+    const cached = queryClient.getQueryData(candidateKey(email));
+    if (cached !== undefined) {
+      setRecord(cached);
+      setDraft(cached ? normalizeCandidate(cached, email) : null);
+      setPhase(needsOnboarding(cached) ? "welcome" : jobId ? "upload" : "view");
+      setError("");
+      return () => {
+        active = false;
+        alive.current = false;
+        requestRef.current?.abort();
+      };
+    }
     setPhase("loading");
     setError("");
     findCandidate(email)
@@ -148,7 +172,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       alive.current = false;
       requestRef.current?.abort();
     };
-  }, [email, jobId, retry]);
+  }, [email, jobId, retry, queryClient]);
 
   useEffect(() => {
     if (!candidateRelatedModules[section] || !record?.id) return;
@@ -215,7 +239,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       if (!response.ok || json?.success !== true)
         throw new Error(
           json?.message ||
-            "Unable to parse this resume. Please try another file.",
+          "Unable to parse this resume. Please try another file.",
         );
       if (!cancelled.current && alive.current) setParsingPhase("fetching");
       const candidate = await findCandidate(email);
@@ -318,15 +342,15 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     "Your career, beautifully told.";
   const completed = draft
     ? [
-        "first_name",
-        "last_name",
-        "email1",
-        "phone_mobile",
-        "current_designation",
-        "primary_address_city",
-        "description",
-        "profile_image",
-      ].filter((key) => draft[key]).length
+      "first_name",
+      "last_name",
+      "email1",
+      "phone_mobile",
+      "current_designation",
+      "primary_address_city",
+      "description",
+      "profile_image",
+    ].filter((key) => draft[key]).length
     : 0;
   const tabs = [
     {
@@ -360,14 +384,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     },
     ...(record?.id
       ? [
-          {
-            id: "photo",
-            label: "Profile photo",
-            icon: Camera,
-            subtitle: "Put a face to your story",
-            description: "Personalize your saved profile with a photo.",
-          },
-        ]
+        {
+          id: "photo",
+          label: "Profile photo",
+          icon: Camera,
+          subtitle: "Put a face to your story",
+          description: "Personalize your saved profile with a photo.",
+        },
+      ]
       : []),
   ];
   const activeTab = tabs.find((tab) => tab.id === section) || tabs[0];
@@ -462,30 +486,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           </div>
         )}
         {phase === "loading" && (
-          <section
-            role="status"
-            aria-label="Loading your profile"
-            className="overflow-hidden rounded-3xl border border-slate-200 bg-white"
-          >
-            <div className="h-32 animate-pulse bg-indigo-50 motion-reduce:animate-none" />
-            <div className="space-y-6 p-8">
-              <div className="flex items-center gap-3 text-sm text-slate-500">
-                <Loader2
-                  size={18}
-                  className="animate-spin motion-reduce:animate-none"
-                />
-                Finding your candidate profile...
-              </div>
-              <div className="grid gap-6 sm:grid-cols-2">
-                {[0, 1, 2, 3].map((item) => (
-                  <div
-                    key={item}
-                    className="h-16 animate-pulse rounded-xl bg-slate-50 motion-reduce:animate-none"
-                  />
-                ))}
-              </div>
-            </div>
-          </section>
+          <LoadingPage />
         )}
         {phase === "welcome" && (
           <CandidateWelcome

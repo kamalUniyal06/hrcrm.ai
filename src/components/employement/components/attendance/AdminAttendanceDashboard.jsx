@@ -20,7 +20,6 @@ import {
   dateKey,
   daySummary,
   formatMinutes,
-  weekDays,
 } from "./adminAttendanceUtils";
 
 const statuses = {
@@ -52,15 +51,13 @@ const statuses = {
 };
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40";
-const shortDate = (date) =>
-  date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-
 export default function AdminAttendanceDashboard() {
   const isAdmin = useSelector(selectIsAdmin);
   const [anchor, setAnchor] = useState(() => new Date());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  const [selectedPersonKey, setSelectedPersonKey] = useState(null);
   const employees = useQuery({
     queryKey: ["employees", "list"],
     queryFn: () => fetchAllRecords("hrc_employees"),
@@ -72,17 +69,20 @@ export default function AdminAttendanceDashboard() {
     enabled: isAdmin,
     refetchInterval: 60000,
   });
-  const days = weekDays(anchor);
+  const days = selectedPersonKey
+    ? Array.from({ length: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate() }, (_, index) => new Date(anchor.getFullYear(), anchor.getMonth(), index + 1))
+    : [anchor];
   const today = dateKey(new Date());
   const start = dateKey(days[0]);
-  const end = dateKey(days[6]);
+  const end = dateKey(days[days.length - 1]);
   const rows = useMemo(
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
   const visible = rows.filter(
     (row) =>
-      (row.matched ||
+      (!selectedPersonKey || row.key === selectedPersonKey) &&
+      (selectedPersonKey || row.matched ||
         Object.keys(row.days).some((day) => day >= start && day <= end)) &&
       [row.name, row.email, row.designation].some((value) =>
         value.toLowerCase().includes(search.trim().toLowerCase()),
@@ -103,15 +103,17 @@ export default function AdminAttendanceDashboard() {
   const fetching = employees.isFetching || activity.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
+  const selectedSummary = daySummary(selectedRecords, selected?.date, today);
+  const effectiveMinutes = selectedSummary.worked;
+  const breakMinutes = selectedSummary.sessions.every((session) => session.breakMinutes !== null)
+    ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
+    : null;
+  const targetProgress = effectiveMinutes === null ? 0 : Math.min(Math.round((effectiveMinutes / 540) * 100), 100);
 
   function moveWeek(direction) {
-    setAnchor(
-      new Date(
-        days[0].getFullYear(),
-        days[0].getMonth(),
-        days[0].getDate() + direction * 7,
-      ),
-    );
+    setAnchor(selectedPersonKey
+      ? new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1)
+      : new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + direction));
     setPage(1);
   }
   function refresh() {
@@ -137,8 +139,9 @@ export default function AdminAttendanceDashboard() {
             Employee attendance
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            A weekly view of every employee. Select a recorded day for login,
-            logout and lunch details.
+            {selectedPersonKey
+              ? "Monthly attendance for the selected employee. Select a day to view its report."
+              : "Today's attendance for every employee. Select a person to review their month."}
           </p>
         </div>
         <button onClick={refresh} disabled={fetching} className={buttonClass}>
@@ -194,18 +197,19 @@ export default function AdminAttendanceDashboard() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-xs font-medium text-white">
               <CalendarDays size={14} />
-              {shortDate(days[0])} – {shortDate(days[6])}{" "}
-              {days[6].getFullYear()}
+              {selectedPersonKey
+                ? anchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+                : "Attendance for " + anchor.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </span>
             <button
-              aria-label="Previous week"
+              aria-label={selectedPersonKey ? "Previous month" : "Previous day"}
               onClick={() => moveWeek(-1)}
               className={buttonClass}
             >
               <ChevronLeft size={16} />
             </button>
             <button
-              aria-label="Next week"
+              aria-label={selectedPersonKey ? "Next month" : "Next day"}
               onClick={() => moveWeek(1)}
               className={buttonClass}
             >
@@ -218,11 +222,11 @@ export default function AdminAttendanceDashboard() {
               }}
               className={buttonClass}
             >
-              This week
+              Today
             </button>
             <input
               type="date"
-              aria-label="Choose a date to view its week"
+              aria-label={selectedPersonKey ? "Choose a month for this employee" : "Choose an attendance date"}
               value={dateKey(anchor)}
               onChange={(event) => {
                 if (!event.target.value) return;
@@ -234,6 +238,7 @@ export default function AdminAttendanceDashboard() {
               }}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600"
             />
+            {selectedPersonKey && <button onClick={() => { setSelectedPersonKey(null); setAnchor(new Date()); setPage(1); }} className={buttonClass}>Back to today's attendance</button>}
           </div>
           <div className="flex flex-wrap gap-3" aria-label="Attendance legend">
             {["onTime", "late", "incomplete", "missing"].map((status) => (
@@ -265,7 +270,7 @@ export default function AdminAttendanceDashboard() {
             />
           </label>
           <p className="text-xs text-slate-400">
-            Late after 10:00 AM · Times shown as recorded in CRM
+            {selectedPersonKey ? "Select a day to open its attendance report" : "Click an employee to view their monthly attendance"}
           </p>
         </div>
 
@@ -354,13 +359,15 @@ export default function AdminAttendanceDashboard() {
                             .join("")
                             .toUpperCase()}
                         </span>
-                        <div className="min-w-0">
-                          <p
+                        <div className="min-w-0" onClick={() => { setSelectedPersonKey(row.key); setPage(1); }}>
+                          <button
+                            type="button"
+                            
                             className="max-w-44 truncate font-medium text-slate-800"
                             title={row.name}
                           >
                             {row.name}
-                          </p>
+                          </button>
                           <p
                             className="mt-1 max-w-44 truncate text-[11px] text-slate-400"
                             title={row.email || row.designation}
@@ -399,9 +406,9 @@ export default function AdminAttendanceDashboard() {
                                 {summary.first.time}
                               </span>
                             )}
-                            {summary.worked !== null ? (
+                            {summary.inOffice !== null ? (
                               <span className="mt-1 text-[10px] opacity-60">
-                                {formatMinutes(summary.worked)} worked
+                                {formatMinutes(summary.inOffice)} in office
                               </span>
                             ) : (
                               summary.first && (
@@ -461,8 +468,8 @@ export default function AdminAttendanceDashboard() {
       </section>
       <p className="px-1 text-xs leading-5 text-slate-400">
         No record means no activity was returned for that day. Holidays, leave
-        and absence are not inferred. Worked time excludes recorded lunch
-        breaks; incomplete sessions have no total.
+        and absence are not inferred. Daily summaries show total time in office;
+        the report separates effective work time from recorded lunch breaks.
       </p>
 
       <Dialog.Root
@@ -492,7 +499,22 @@ export default function AdminAttendanceDashboard() {
             </div>
             <div className="mt-6 space-y-4">
               {selectedRecords.length ? (
-                selectedRecords.map((record, index) => {
+                <>
+                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-900">Day report · {selectedRow?.email || selectedRow?.name}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Time in office</p><p className="mt-1 font-semibold">{formatMinutes(selectedSummary.inOffice)}</p></div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Effective time</p><p className="mt-1 font-semibold">{formatMinutes(effectiveMinutes)}</p></div>
+                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Break time</p><p className="mt-1 font-semibold">{formatMinutes(breakMinutes)}</p></div>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex justify-between text-xs"><span>Daily target</span><span className="font-semibold text-indigo-600">{targetProgress}%</span></div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${targetProgress}%` }} /></div>
+                    <p className="mt-2 text-xs text-slate-500">{formatMinutes(effectiveMinutes)} of 9h 00m</p>
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
+                </section>
+                {selectedRecords.map((record, index) => {
                   const summary = daySummary([record], selected.date, today);
                   const session = summary.sessions[0];
                   return (
@@ -512,8 +534,8 @@ export default function AdminAttendanceDashboard() {
                         {[
                           ["Login", session.login],
                           ["Logout", session.logout],
-                          ["Lunch started", session.lunchIn],
-                          ["Lunch ended", session.lunchOut],
+                          ["Lunch in", session.lunchIn],
+                          ["Lunch out", session.lunchOut],
                         ].map(([label, time]) => (
                           <div key={label}>
                             <dt className="text-xs text-slate-400">{label}</dt>
@@ -529,7 +551,7 @@ export default function AdminAttendanceDashboard() {
                         ))}
                         <div>
                           <dt className="text-xs text-slate-400">
-                            Lunch duration
+                            Break duration
                           </dt>
                           <dd className="mt-1 text-slate-700">
                             {formatMinutes(session.breakMinutes)}
@@ -537,7 +559,7 @@ export default function AdminAttendanceDashboard() {
                         </div>
                         <div>
                           <dt className="text-xs text-slate-400">
-                            Worked time
+                            Effective time (excluding lunch)
                           </dt>
                           <dd className="mt-1 font-semibold text-indigo-600">
                             {formatMinutes(session.worked)}
@@ -551,7 +573,8 @@ export default function AdminAttendanceDashboard() {
                       )}
                     </section>
                   );
-                })
+                })}
+                </>
               ) : (
                 <p className="text-sm text-slate-500">
                   This activity is no longer available. Refresh the directory.
