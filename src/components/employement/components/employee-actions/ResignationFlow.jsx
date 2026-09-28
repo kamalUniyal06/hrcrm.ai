@@ -128,7 +128,6 @@ export default function ResignationFlow({
       const isFinalApproval = approvalIndex === APPROVALS.length - 1;
       const update = {
         [approval.notifyField]: "1",
-        ...(isFinalApproval ? { status: "Resignation initiated" } : {}),
       };
 
       await updateResignationRecord(record.id, update);

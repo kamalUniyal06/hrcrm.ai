@@ -42,6 +42,7 @@ import ResumeLoading from "./profile/ResumeLoading";
 import ResumeUpload from "./profile/ResumeUpload";
 import { useQueryClient } from "@tanstack/react-query";
 import { candidateKey } from "../../queries/candidate.queries";
+import EmployeeOptions from "../employement/components/employee-actions/EmployeeOptions";
 
 const primaryButton =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-50";
@@ -65,6 +66,7 @@ export default function Profile({ standalone = false, onComplete }) {
 
 function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const queryClient = useQueryClient();
+  const userPhase = useSelector((state) => state.user.userInfo?.phase);
   const [section, setSection] = useState("personal");
   const cancelled = useRef(false);
   const [record, setRecord] = useState(null);
@@ -681,6 +683,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                     reflect you.
                   </p>
                 </div>
+                {userPhase === "Employment" && <EmployeeOptions />}
               </aside>
               <section
                 id="profile-section"
