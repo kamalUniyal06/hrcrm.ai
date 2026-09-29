@@ -6,8 +6,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  CircleAlert,
-  RotateCw,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -114,29 +112,7 @@ export default function SystemAlertCarousel({ employeeId }) {
     );
   }
 
-  if (query.isError) {
-    return (
-      <section className="mt-5 flex flex-col gap-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3">
-          <CircleAlert className="mt-0.5 size-5 shrink-0 text-destructive" />
-          <div>
-            <h2 className="font-semibold text-foreground">Alerts are unavailable</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              We could not load your pending alerts. Your previous responses are safe.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => query.refetch()}
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition hover:bg-muted active:scale-[0.98]"
-        >
-          <RotateCw className="size-4" />
-          Try again
-        </button>
-      </section>
-    );
-  }
+  if (query.isError) return null;
 
   if (!activeAlert) return null;
 
