@@ -25,7 +25,7 @@ const LeaveHistory = () => {
     // Hooks — ALWAYS run in the same order
     // ------------------------------------------------------------
 
-    const preferences = useTablePreference("leaves");
+    const preferences = useTablePreference("leaves-history");
 
 
     const {

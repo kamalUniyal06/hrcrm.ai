@@ -3,7 +3,6 @@ import {
     useMutation,
     useQuery,
 } from "@tanstack/react-query";
-import { store } from "@/store/store";
 import {
     applyForLeave,
     getLeaveApplications,
@@ -70,13 +69,15 @@ export const useLeaveApplications = (
         getNextPageParam: (
             lastPage
         ) => {
+            const currentPage = Number(lastPage.page);
+            const totalPages = Number(lastPage.total_pages);
+
             if (
-                lastPage.page <
-                lastPage.total_pages
+                Number.isFinite(currentPage) &&
+                Number.isFinite(totalPages) &&
+                currentPage < totalPages
             ) {
-                return (
-                    lastPage.page + 1
-                );
+                return currentPage + 1;
             }
 
             return undefined;
@@ -108,13 +109,15 @@ export const useLeavesHistory = (
         getNextPageParam: (
             lastPage
         ) => {
+            const currentPage = Number(lastPage.page);
+            const totalPages = Number(lastPage.total_pages);
+
             if (
-                lastPage.page <
-                lastPage.total_pages
+                Number.isFinite(currentPage) &&
+                Number.isFinite(totalPages) &&
+                currentPage < totalPages
             ) {
-                return (
-                    lastPage.page + 1
-                );
+                return currentPage + 1;
             }
 
             return undefined;
@@ -124,9 +127,7 @@ export const useLeavesHistory = (
             5 * 60 * 1000,
     });
 };
-export const usePublicHolidays = (
-    { }
-) => {
+export const usePublicHolidays = () => {
 
     return useQuery({
         queryKey:
