@@ -391,6 +391,7 @@ export default function AdminAttendanceDashboard() {
                     <th scope="col" className="border-y border-r border-slate-100 bg-indigo-50 px-4 py-3 text-left text-xs font-semibold text-slate-700">Status</th>
                     <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-in</th>
                     <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-out</th>
+                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Login from</th>
                     <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Work time</th>
                   </>}
                 </tr>
@@ -496,6 +497,7 @@ export default function AdminAttendanceDashboard() {
                         </td>
                         <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.first?.time || "—"}</td>
                         <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{logouts.at(-1)?.time || (summary.first ? "Not checked out" : "—")}</td>
+                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{records[0]?.ip_address === "122.176.54.204" ? "Office" : "Remote"}</td>
                         <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.worked === null ? "—" : formatMinutes(summary.worked)}</td>
                       </Fragment>;
                     })()}
