@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -51,6 +51,7 @@ const statuses = {
 };
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40";
+const PAGE_SIZE = 50;
 export default function AdminAttendanceDashboard() {
   const isAdmin = useSelector(selectIsAdmin);
   const [anchor, setAnchor] = useState(() => new Date());
@@ -58,14 +59,25 @@ export default function AdminAttendanceDashboard() {
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [selectedPersonKey, setSelectedPersonKey] = useState(null);
+  const [overviewFilter, setOverviewFilter] = useState("all");
+  const activityFrom = selectedPersonKey
+    ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
+    : dateKey(anchor);
+  const activityTo = selectedPersonKey
+    ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0))
+    : dateKey(anchor);
   const employees = useQuery({
     queryKey: ["employees", "list"],
     queryFn: () => fetchAllRecords("hrc_employees"),
     enabled: isAdmin,
   });
   const activity = useQuery({
-    queryKey: ["dailyActivity", "admin", "all"],
-    queryFn: () => fetchAllRecords("hrc_daily_activity"),
+    queryKey: ["dailyActivity", "admin", activityFrom, activityTo],
+    queryFn: () => fetchAllRecords("hrc_daily_activity", {
+      field: "date_entered",
+      from: `${activityFrom} 00:00:00`,
+      to: `${activityTo} 23:59:59`,
+    }),
     enabled: isAdmin,
     refetchInterval: 60000,
   });
@@ -79,7 +91,7 @@ export default function AdminAttendanceDashboard() {
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
-  const visible = rows.filter(
+  const matchingRows = rows.filter(
     (row) =>
       (!selectedPersonKey || row.key === selectedPersonKey) &&
       (selectedPersonKey || row.matched ||
@@ -88,16 +100,37 @@ export default function AdminAttendanceDashboard() {
         value.toLowerCase().includes(search.trim().toLowerCase()),
       ),
   );
+  const visible = matchingRows.filter((row) => {
+    if (overviewFilter === "all") return true;
+    const records = row.days[dateKey(anchor)] || [];
+    if (overviewFilter === "missing") {
+      return row.matched && !records.some((record) => Boolean(String(record.login ?? "").trim()));
+    }
+    const status = daySummary(records, dateKey(anchor), today).status;
+    if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
+    if (overviewFilter === "late") return status === "late";
+    return true;
+  });
+  const attendanceDate = dateKey(anchor);
+  const notCheckedIn = rows.filter((row) =>
+    row.matched &&
+    !(row.days[attendanceDate] || []).some((record) =>
+      Boolean(String(record.login ?? "").trim()),
+    ) &&
+    [row.name, row.email, row.designation].some((value) =>
+      value.toLowerCase().includes(search.trim().toLowerCase()),
+    ),
+  );
   const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0 };
-  visible.forEach((row) =>
+  matchingRows.forEach((row) =>
     days.forEach((day) => {
       const key = dateKey(day);
       totals[daySummary(row.days[key], key, today).status] += 1;
     }),
   );
-  const totalPages = Math.max(1, Math.ceil(visible.length / 20));
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
-  const pageRows = visible.slice((currentPage - 1) * 20, currentPage * 20);
+  const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const loading = employees.isPending || activity.isPending;
   const failed = employees.isError || activity.isError;
   const fetching = employees.isFetching || activity.isFetching;
@@ -152,28 +185,42 @@ export default function AdminAttendanceDashboard() {
 
       <section
         aria-label="Weekly attendance overview"
-        className="grid gap-3 sm:grid-cols-3"
+        className="grid gap-3 sm:grid-cols-4"
       >
         {[
           [
             "Employees shown",
-            visible.length,
+            matchingRows.length,
             Users,
             "text-indigo-600 bg-indigo-50",
+            "all",
           ],
           [
             "Days with check-in",
             totals.onTime + totals.late,
             CalendarDays,
             "text-rose-600 bg-rose-50",
+            "checkedIn",
           ],
-          ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50"],
+          ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
+          ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
         ].map((item) => {
-          const [label, count, Icon, color] = item;
+          const [label, count, Icon, color, filter] = item;
           return (
-            <div
+            <button
               key={label}
-              className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4"
+              type="button"
+              onClick={() => {
+                if (filter === "missing") {
+                  setOverviewFilter("missing");
+                  setPage(1);
+                } else {
+                  setOverviewFilter(filter);
+                  setPage(1);
+                }
+              }}
+              aria-pressed={overviewFilter === filter}
+              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"}`}
             >
               <span className={`rounded-xl p-3 ${color}`}>
                 <Icon size={21} />
@@ -184,7 +231,7 @@ export default function AdminAttendanceDashboard() {
                 </p>
                 <p className="text-xs text-slate-500">{label}</p>
               </div>
-            </div>
+            </button>
           );
         })}
       </section>
@@ -311,8 +358,8 @@ export default function AdminAttendanceDashboard() {
             </p>
           </div>
         ) : (
-          <div className="max-h-[65vh] overflow-auto">
-            <table className="w-full min-w-[1120px] border-separate border-spacing-0 text-left text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[680px] border-separate border-spacing-0 text-left text-sm">
               <caption className="sr-only">
                 Employee attendance from {start} to {end}
               </caption>
@@ -320,16 +367,16 @@ export default function AdminAttendanceDashboard() {
                 <tr>
                   <th
                     scope="col"
-                    className="sticky left-0 z-30 w-64 min-w-64 border-y border-r border-slate-100 bg-white px-5 py-4 text-xs font-semibold text-slate-700"
+                    className="sticky left-0 z-30 w-56 min-w-56 border-y border-r border-slate-100 bg-white px-4 py-3 text-xs font-semibold text-slate-700"
                   >
                     Employee profile
                   </th>
-                  {days.map((day) => (
+                  {selectedPersonKey ? days.map((day) => (
                     <th
                       key={dateKey(day)}
                       scope="col"
                       aria-current={dateKey(day) === today ? "date" : undefined}
-                      className={`min-w-32 border-y border-r border-slate-100 px-3 py-3 text-center ${dateKey(day) === today ? "bg-indigo-50" : "bg-white"}`}
+                      className={`min-w-28 border-y border-r border-slate-100 px-2 py-2 text-center ${dateKey(day) === today ? "bg-indigo-50" : "bg-white"}`}
                     >
                       <span
                         className={`text-sm font-semibold ${dateKey(day) === today ? "text-indigo-600" : "text-slate-800"}`}
@@ -340,7 +387,13 @@ export default function AdminAttendanceDashboard() {
                         {day.toLocaleDateString("en-GB", { weekday: "long" })}
                       </span>
                     </th>
-                  ))}
+                  )) : <>
+                    <th scope="col" className="border-y border-r border-slate-100 bg-indigo-50 px-4 py-3 text-left text-xs font-semibold text-slate-700">Status</th>
+                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-in</th>
+                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-out</th>
+                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Login from</th>
+                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Work time</th>
+                  </>}
                 </tr>
               </thead>
               <tbody>
@@ -348,7 +401,7 @@ export default function AdminAttendanceDashboard() {
                   <tr key={row.key}>
                     <th
                       scope="row"
-                      className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-5 py-4 font-normal"
+                      className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-4 py-2 font-normal"
                     >
                       <div className="flex items-center gap-3">
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-semibold text-indigo-600">
@@ -382,7 +435,7 @@ export default function AdminAttendanceDashboard() {
                         </div>
                       </div>
                     </th>
-                    {days.map((day) => {
+                    {selectedPersonKey ? days.map((day) => {
                       const key = dateKey(day);
                       const records = row.days[key] || [];
                       const summary = daySummary(records, key, today);
@@ -398,7 +451,7 @@ export default function AdminAttendanceDashboard() {
                               setSelected({ key: row.key, date: key })
                             }
                             aria-label={`${row.name}, ${key}: ${style.label}${records.length ? ", view attendance details" : ""}`}
-                            className={`flex min-h-24 w-full flex-col items-center justify-center border-l-[3px] px-2 py-3 text-center text-xs transition enabled:hover:brightness-95 focus-visible:outline-indigo-500 ${style.color}`}
+                            className={`flex min-h-16 w-full flex-col items-center justify-center border-l-[3px] px-1.5 py-2 text-center text-xs transition enabled:hover:brightness-95 focus-visible:outline-indigo-500 ${style.color}`}
                           >
                             <span className="font-medium">{style.label}</span>
                             {summary.first && (
@@ -430,7 +483,24 @@ export default function AdminAttendanceDashboard() {
                           </button>
                         </td>
                       );
-                    })}
+                    }) : (() => {
+                      const key = dateKey(anchor);
+                      const records = row.days[key] || [];
+                      const summary = daySummary(records, key, today);
+                      const style = statuses[summary.status];
+                      const logouts = summary.sessions.map((session) => session.logout).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
+                      return <Fragment key={row.key}>
+                        <td className="border-b border-r border-slate-100 px-3 py-2">
+                          <button type="button" disabled={!records.length} onClick={() => setSelected({ key: row.key, date: key })} className={`inline-flex min-w-24 items-center justify-center gap-2 rounded-lg border-l-[3px] px-3 py-2 text-xs font-medium disabled:cursor-default ${style.color}`}>
+                            <span className={`h-2 w-2 rounded-full ${style.dot}`} />{style.label}
+                          </button>
+                        </td>
+                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.first?.time || "—"}</td>
+                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{logouts.at(-1)?.time || (summary.first ? "Not checked out" : "—")}</td>
+                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{records[0]?.ip_address === "122.176.54.204" ? "Office" : "Remote"}</td>
+                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.worked === null ? "—" : formatMinutes(summary.worked)}</td>
+                      </Fragment>;
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -441,7 +511,7 @@ export default function AdminAttendanceDashboard() {
           <p>
             {loading || failed
               ? "Attendance directory"
-              : `${visible.length ? (currentPage - 1) * 20 + 1 : 0}–${Math.min(currentPage * 20, visible.length)} of ${visible.length} employees`}
+              : `${visible.length ? (currentPage - 1) * PAGE_SIZE + 1 : 0}–${Math.min(currentPage * PAGE_SIZE, visible.length)} of ${visible.length} employees`}
           </p>
           <div className="flex items-center gap-3">
             <button

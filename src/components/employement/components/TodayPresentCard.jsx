@@ -459,6 +459,18 @@ export default function TodayPresentCard({
                             </h2>
                         </div>
                     </div>
+                    <div className="ml-auto flex items-center gap-2 text-sm font-medium">
+  {record?.ip_address === "122.176.54.204" ? (
+    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700">
+      Login from office
+    </span>
+  ) : (
+    <span className="flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 font-semibold text-red-700 animate-pulse">
+      <span className="h-2 w-2 rounded-full bg-red-500" />
+      Login outside office
+    </span>
+  )}
+</div>
 
                     <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide ${statusClasses}`}>
                         {isOnBreak

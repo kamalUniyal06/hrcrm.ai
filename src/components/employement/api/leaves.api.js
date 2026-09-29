@@ -84,7 +84,7 @@ export const getPublicHolidays = () =>
 
 // Admin dashboard feed: intentionally omit employee filters so all leave
 // records are returned. The component gates access to administrators.
-export const getAllLeaves = async () => {
+export const getAllLeaves = async ({ from, to } = {}) => {
     const records = [];
     let page = 1;
     let totalPages = 1;
@@ -92,7 +92,19 @@ export const getAllLeaves = async () => {
     do {
         const response = await http({
             method: "POST",
-            body: { action: "fetch", module: "hrc_leaves", filters: {}, page, per_page: 100 },
+            body: {
+                action: "fetch",
+                module: "hrc_leaves",
+                filters: {},
+                ...(from && to ? {
+                    date_range: "custom",
+                    date_field: "leave_from",
+                    date_from: `${from} 00:00:00`,
+                    date_to: `${to} 23:59:59`,
+                } : {}),
+                page,
+                per_page: 100,
+            },
         });
         if (response?.success !== true || !Array.isArray(response.records))
             throw new Error(response?.message || response?.error || "Could not load employee leave requests.");
