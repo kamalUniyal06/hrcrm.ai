@@ -19,11 +19,9 @@ function FilterRow() {
     } = useTableContext();
 
     const removeFilter = (key) => {
-        setFilters((prev) => {
-            const updated = { ...prev };
-            delete updated[key];
-            return updated;
-        });
+        const updated = { ...(filters ?? {}) };
+        delete updated[key];
+        setFilters(updated);
     };
 
     const clearFilters = () => {

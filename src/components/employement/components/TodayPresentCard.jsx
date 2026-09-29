@@ -475,26 +475,6 @@ export default function TodayPresentCard({
 
                 <div className="my-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
 
-                {/* <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                            {isCheckedOut ? "Total shift time" : "Shift time"}
-                        </p>
-                        <p className="mt-1 text-4xl font-black tracking-tight tabular-nums text-foreground sm:text-5xl">
-                            {formatDuration(displayedShiftSeconds)}
-                        </p>
-                    </div>
-
-                    {isOnBreak && (
-                        <div className={`rounded-2xl border px-4 py-2.5 text-right ${breakOvertimeSeconds > 0 ? "border-destructive/25 bg-destructive/10 text-destructive" : "border-[var(--employee-orange)]/25 bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]"}`}>
-                            <p className="text-[10px] font-bold uppercase tracking-wider">
-                                {breakOvertimeSeconds > 0 ? "Lunch overtime" : "Lunch remaining"}
-                            </p>
-                            <p className="mt-0.5 text-xl font-bold tabular-nums">{lunchTimer}</p>
-                        </div>
-                    )}
-                </div> */}
-
                 <div className="relative mb-4 h-32 overflow-hidden rounded-2xl border border-border/70 shadow-sm sm:h-40">
                     <img
                         src={sceneImage}
@@ -601,34 +581,7 @@ export default function TodayPresentCard({
                                     </strong>. Take time to recharge you&apos;ve earned it.
                                 </p>
 
-                                <div className="mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                                    <span>
-                                        Login:{" "}
-                                        <strong className="text-foreground">
-                                            {formatTime(
-                                                record?.login
-                                            )}
-                                        </strong>
-                                    </span>
 
-                                    <span>
-                                        Logout:{" "}
-                                        <strong className="text-foreground">
-                                            {formatTime(
-                                                record?.logout
-                                            )}
-                                        </strong>
-                                    </span>
-
-                                    {hasTakenBreak && (
-                                        <span>
-                                            Lunch: <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
-                                                {formatTime(record?.lunch_in)} - {formatTime(record?.lunch_out)}
-                                                {` (${formatDuration(completedBreakSeconds)})`}
-                                            </strong>
-                                        </span>
-                                    )}
-                                </div>
                             </>
                         ) : (
                             <>
@@ -640,29 +593,8 @@ export default function TodayPresentCard({
                                         : "You're marked present today. Have a productive day!"}
                                 </p>
 
-                                {hasCompletedShift && (
-                                    <div className="mt-3 w-fit rounded-xl border border-[var(--employee-green)]/30 bg-[var(--employee-green-soft)] px-3 py-2 text-sm font-semibold text-[var(--employee-green)]">
-                                        Shift complete · Overtime +{formatDuration(shiftOvertimeSeconds)}
-                                    </div>
-                                )}
 
                                 <div className="mt-3 flex flex-col flex-wrap gap-4 text-sm text-muted-foreground">
-                                    <span>
-                                        Login:{" "}
-                                        <strong className="text-foreground">
-                                            {formatTime(
-                                                record?.login
-                                            )}
-                                        </strong>
-                                    </span>
-
-                                    {hasTakenBreak && (
-                                        <span>
-                                            Lunch: <strong className="text-foreground">{formatTime(record?.lunch_in)}</strong> -  <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
-                                                {formatTime(record?.lunch_out)}
-                                            </strong>
-                                        </span>
-                                    )}
 
 
 

@@ -25,7 +25,7 @@ const LeaveApplications = () => {
     // Hooks — ALWAYS run in the same order
     // ------------------------------------------------------------
 
-    const preferences = useTablePreference("leaves-applications");
+    const preferences = useTablePreference("leave-applications");
 
 
     const {

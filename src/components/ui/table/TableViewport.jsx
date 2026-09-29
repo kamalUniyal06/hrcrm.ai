@@ -26,29 +26,30 @@ export default function TableViewport() {
         getItemKey: (index) => data[index]?.id,
     });
 
+    // Reading the virtual items during render subscribes this component to
+    // range changes. Depending on the stable virtualizer instance alone does
+    // not rerun the effect when the user scrolls.
+    const virtualItems = rowVirtualizer.getVirtualItems();
+    const lastVisibleIndex =
+        virtualItems[virtualItems.length - 1]?.index;
+
     /**
      * Infinite loading
      */
     useEffect(() => {
-        const items =
-            rowVirtualizer.getVirtualItems();
-
-        if (!items.length) {
+        if (lastVisibleIndex === undefined) {
             return;
         }
 
-        const lastItem =
-            items[items.length - 1];
-
         if (
-            lastItem.index >= data.length - 5 &&
+            lastVisibleIndex >= data.length - 5 &&
             hasNextPage &&
             !isFetchingNextPage
         ) {
             fetchNextPage();
         }
     }, [
-        rowVirtualizer,
+        lastVisibleIndex,
         data.length,
         hasNextPage,
         isFetchingNextPage,

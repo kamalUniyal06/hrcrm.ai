@@ -86,6 +86,17 @@ const preferenceSlice = createSlice({
 
             if (!state.tables[table]) {
                 state.tables[table] = getDefaultTablePreference();
+                return;
+            }
+
+            // Recover state created by older callers that passed a React-style
+            // updater function to the Redux-backed preference setter.
+            if (
+                typeof state.tables[table].filters !== "object" ||
+                state.tables[table].filters === null ||
+                Array.isArray(state.tables[table].filters)
+            ) {
+                state.tables[table].filters = {};
             }
         },
         setSidebarCollapsed: (state, action) => {
