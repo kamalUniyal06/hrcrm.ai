@@ -160,8 +160,8 @@ export default function SystemAlertCarousel({ employeeId, email }) {
       }}
     >
       <div className="absolute inset-y-0 left-0 w-1 bg-primary" />
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_270px]">
-        <div className="relative overflow-hidden p-4 sm:px-5">
+      <div className="flex justify-between gap-4 p-4 sm:p-5">
+        
           <div className="mb-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -171,7 +171,15 @@ export default function SystemAlertCarousel({ employeeId, email }) {
                 <h2 id="system-alert-title" className="text-sm font-semibold text-foreground">
                   Action required
                 </h2>
-                <p className="mt-1 text-xs text-muted-foreground">Respond to all {alerts.length} pending alerts before logging out.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Respond {alerts.length} pending alerts before logging out.</p>
+                <p className="max-w-4xl text-sm font-medium leading-relaxed text-foreground sm:text-base">
+                {alertMessage(activeAlert)}
+              </p>
+               {activeAlert.date_entered_uni_format && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Posted {activeAlert.date_entered_uni_format}
+                </p>
+              )}
               </div>
             </div>
 
@@ -202,7 +210,7 @@ export default function SystemAlertCarousel({ employeeId, email }) {
             )}
           </div>
 
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
+        <div className=""><AnimatePresence mode="wait" initial={false} custom={direction}>
             <Motion.div
               key={activeAlert.id}
               custom={direction}
@@ -211,24 +219,15 @@ export default function SystemAlertCarousel({ employeeId, email }) {
               exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: direction * -28 }}
               transition={{ duration: reduceMotion ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
             >
-              <p className="max-w-4xl text-sm font-medium leading-relaxed text-foreground sm:text-base">
-                {alertMessage(activeAlert)}
-              </p>
               <button
                 type="button"
                 onClick={() => setDetailAlert(activeAlert)}
-                className="mt-3 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                className="mt-5 rounded-lg bg-amber-500 px-5 py-3  text-sm font-semibold text-slate-950 hover:bg-amber-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
               >
                 View more
               </button>
-              {activeAlert.date_entered_uni_format && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Posted {activeAlert.date_entered_uni_format}
-                </p>
-              )}
             </Motion.div>
           </AnimatePresence>
-
           {alerts.length > 1 && (
             <div className="mt-3 flex flex-wrap items-center gap-1.5" aria-label="Choose an alert">
               {alerts.map((alert, index) => (
@@ -246,32 +245,7 @@ export default function SystemAlertCarousel({ employeeId, email }) {
                 />
               ))}
             </div>
-          )}
-        </div>
-
-        <div className="flex flex-col justify-center border-t border-border bg-muted/35 p-4 lg:border-l lg:border-t-0">
-          <p className="mb-3 text-xs font-medium text-muted-foreground">Your response</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={responseMutation.isPending}
-              onClick={() => responseMutation.mutate({ alert: activeAlert, answer: "yes" })}
-              className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-primary px-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-            >
-              <Check className="size-4" />
-              Yes
-            </button>
-            <button
-              type="button"
-              disabled={responseMutation.isPending}
-              onClick={() => responseMutation.mutate({ alert: activeAlert, answer: "no" })}
-              className="inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground transition hover:border-primary/35 hover:bg-primary/5 active:scale-[0.98] disabled:cursor-wait disabled:opacity-60"
-            >
-              <X className="size-4" />
-              No
-            </button>
-          </div>
-        </div>
+          )}</div>
       </div>
     </section>
     <Dialog.Root open={Boolean(detailAlert)} onOpenChange={(open) => { if (!open) setDetailAlert(null); }}>

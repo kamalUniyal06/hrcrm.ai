@@ -480,7 +480,7 @@ export default function TodayPresentCard({
                     </div>
                     <div className="ml-auto flex items-center gap-2 text-sm font-medium">
   {record?.ip_address === "122.176.54.204" ? (
-    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700">
+    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700 text-sm font-semibold">
       Login from office
     </span>
   ) : (
