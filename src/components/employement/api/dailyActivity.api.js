@@ -1,5 +1,6 @@
 import { apiRequest, http } from "@/services/api";
 import { store } from "@/store/store";
+import { ensureSystemAlertsAnswered } from "./systemAlerts.api";
 
 export const getDailyActivity = () =>
     http({
@@ -14,8 +15,11 @@ export const getDailyActivity = () =>
             page: 1,
         },
     });
-export const markActivity = (action) =>
-    apiRequest({
+export const markActivity = async (action) => {
+    if (action === "logout") {
+        await ensureSystemAlertsAnswered(store.getState().user.userInfo?.id);
+    }
+    return apiRequest({
         endpoint: 'https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=daily_activity',
         headers: { 'X-Api-Key': import.meta.env.VITE_FETCHGPC_X_API_KEY },
         method: "POST",
@@ -24,4 +28,5 @@ export const markActivity = (action) =>
             action: action
         }
     });
+};
 

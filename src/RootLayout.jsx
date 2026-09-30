@@ -24,6 +24,13 @@ const RootLayout = () => {
   } = useCandidateProfile();
   const [onboarding, setOnboarding] = useState(null);
   const navigate = useNavigate();
+  useEffect(() => {
+    const showRequiredAlerts = (event) => {
+      navigate("/", { state: { requiredAlerts: event.detail, requestedAt: Date.now() } });
+    };
+    window.addEventListener("system-alerts-required", showRequiredAlerts);
+    return () => window.removeEventListener("system-alerts-required", showRequiredAlerts);
+  }, [navigate]);
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
     if (!isPending && !isError && onboarding === null) {

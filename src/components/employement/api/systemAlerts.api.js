@@ -76,6 +76,22 @@ export const fetchPendingSystemAlerts = async (employeeId) => {
   return alerts.filter((alert) => !answeredAlertIds.has(String(alert.id)));
 };
 
+export const ensureSystemAlertsAnswered = async (employeeId) => {
+  if (!employeeId) return;
+  let pending;
+  try {
+    pending = await fetchPendingSystemAlerts(employeeId);
+  } catch {
+    throw new Error("Could not check required alerts. Please try logging out again.");
+  }
+  if (pending.length) {
+    window.dispatchEvent(new CustomEvent("system-alerts-required", { detail: { employeeId, alerts: pending } }));
+    const error = new Error("Please give your response here before logging out.");
+    error.code = "SYSTEM_ALERTS_REQUIRED";
+    throw error;
+  }
+};
+
 export const createSystemAlertResponse = async ({
   email,
   employeeId,
