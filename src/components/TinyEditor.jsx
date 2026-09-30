@@ -10,7 +10,9 @@ const TinyEditor = ({
   editorContent,
   setEditorContent,
   editorRef,
-  setEditorReady
+  setEditorReady,
+  height = "100%",
+  minHeight,
 }) => {
   const TINY_EDITOR_API_KEY = queryClient.getQueryData(['tiny-key'])
 
@@ -40,7 +42,8 @@ const TinyEditor = ({
           }}
           init={{
             license_key: 'gpl',
-            height: "100%",
+            height,
+            min_height: minHeight,
             branding: false,
             statusbar: isDesktop,
 
@@ -263,6 +266,7 @@ export const SmallTinyEditor = ({
       padding-bottom: 80px;
 
       overflow-y: auto;
+
     }
   `,
           }}

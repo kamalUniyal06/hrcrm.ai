@@ -50,6 +50,20 @@ const responseAlertId = (record) =>
   String(record.alert_id || "").trim() ||
   String(record.hrc_system_alert_hrc_employee_response_1hrc_system_alert_ida || "").trim();
 
+export const createSystemAlert = async ({ name, description }) => {
+  name = String(name || "").trim();
+  description = String(description || "").trim();
+  if (!name || !description) throw new Error("An alert title and description are required.");
+  const response = await http({
+    method: "POST",
+    body: { action: "create", module: ALERT_MODULE, data: { name, description } },
+  });
+  if (response?.success !== true) {
+    throw new Error(response?.message || response?.error || "Could not create the alert.");
+  }
+  return response;
+};
+
 export const deleteSystemAlert = async (id) => {
   id = String(id || "").trim();
   if (!id) throw new Error("An alert is required.");
