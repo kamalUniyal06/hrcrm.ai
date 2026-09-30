@@ -41,6 +41,7 @@ import AttendanceDashboard from "./components/employement/pages/AttendanceDashbo
 import LeaveApplications from "./components/employement/components/leave/LeavesApplications";
 import LimitManagementPage from "./components/pages/LimitManagementPage";
 import OffboardingPage from "./components/employement/pages/OffboardingPage";
+import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
 
 const router = createBrowserRouter([
   {
@@ -189,6 +190,11 @@ const router = createBrowserRouter([
         path: "offboarding",
         element: <PageAccessGuard><OffboardingPage /></PageAccessGuard>,
         handle: { breadcrumb: "Employee offboarding" },
+      },
+      {
+        path: "system-alerts",
+        element: <PageAccessGuard><SystemAlertsPage /></PageAccessGuard>,
+        handle: { breadcrumb: "System alerts" },
       },
       {
         path: "shortlisted",

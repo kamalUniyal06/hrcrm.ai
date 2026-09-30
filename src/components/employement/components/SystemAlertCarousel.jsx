@@ -83,8 +83,8 @@ export default function SystemAlertCarousel({ employeeId, email }) {
       );
       setDirection(1);
       toast.success(remaining.length === 0 && logoutGuidance
-        ? "All responses saved. You can now log out."
-        : `Response saved: ${answer === "yes" ? "Yes" : "No"}`);
+        ? "All responses saved. You can now log out. Management will officially communicate the final decision."
+        : `Your ${answer === "yes" ? "Yes" : "No"} response has been saved. Management will officially communicate the final decision.`, { duration: 7000 });
     },
     onError: (error) => {
       toast.error(error?.message || "Could not save your response. Please retry.");

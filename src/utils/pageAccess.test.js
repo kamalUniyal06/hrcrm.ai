@@ -29,3 +29,16 @@ test("hides admin destinations and empty groups without changing source layout",
   assert.equal(filterAdminNavigation(groups, true), groups);
   assert.equal(groups[0].data.length, 3);
 });
+
+test("system alerts route and module navigation are admin only", () => {
+  assert.equal(isAdminPage("/system-alerts"), true);
+  assert.equal(isAdminPage("/system-alerts?response=yes"), true);
+  const groups = [{ data: [
+    { name: "System alerts" },
+    { module_name: "hrc_employee_response" },
+    { module_name: "hrc_system_alert" },
+    { navigation: "/system-alerts" },
+  ] }];
+  assert.deepEqual(filterAdminNavigation(groups, false), []);
+  assert.equal(filterAdminNavigation(groups, true), groups);
+});

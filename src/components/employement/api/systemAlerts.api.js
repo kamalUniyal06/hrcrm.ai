@@ -47,11 +47,52 @@ const responseEmployeeId = (record) =>
   ).trim();
 
 const responseAlertId = (record) =>
-  String(
-    record.alert_id ||
-    record.hrc_system_alert_hrc_employee_response_1hrc_system_alert_ida ||
-    "",
-  ).trim();
+  String(record.alert_id || "").trim() ||
+  String(record.hrc_system_alert_hrc_employee_response_1hrc_system_alert_ida || "").trim();
+
+export const deleteSystemAlert = async (id) => {
+  id = String(id || "").trim();
+  if (!id) throw new Error("An alert is required.");
+  // Finish pagination before deleting so shrinking pages cannot skip responses.
+  const responses = (await fetchAll(RESPONSE_MODULE)).filter(
+    (record) => responseAlertId(record) === id,
+  );
+  for (const record of responses) {
+    try {
+      if (!String(record.id || "").trim()) throw new Error("A response ID is missing.");
+      const result = await http({
+        method: "POST",
+        body: { action: "delete", module: RESPONSE_MODULE, id: record.id },
+      });
+      if (result?.success !== true) {
+        throw new Error(result?.message || result?.error || "Could not delete a response.");
+      }
+    } catch (error) {
+      throw new Error(`Response cleanup stopped. The alert has not been deleted; some responses may already be removed. Retry to finish. ${error.message}`);
+    }
+  }
+  const response = await http({ method: "POST", body: { action: "delete", module: ALERT_MODULE, id } });
+  if (response?.success !== true) {
+    throw new Error(response?.message || response?.error || "Could not delete the alert.");
+  }
+  return response;
+};
+
+export const fetchSystemAlertResponses = async () => {
+  const [alerts, responses] = await Promise.all([
+    fetchAll(ALERT_MODULE),
+    fetchAll(RESPONSE_MODULE),
+  ]);
+  const groups = new Map(alerts.map((alert) => [String(alert.id).trim(), { alert, responses: [] }]));
+  for (const response of responses) {
+    const id = responseAlertId(response);
+    if (!groups.has(id)) {
+      groups.set(id, { alert: { id, unavailable: true, name: id ? "Responses to a removed or unavailable alert" : "Responses without an alert" }, responses: [] });
+    }
+    groups.get(id).responses.push(response);
+  }
+  return [...groups.values()];
+};
 
 export const fetchPendingSystemAlerts = async (employeeId) => {
   const normalizedEmployeeId = String(employeeId || "").trim();
