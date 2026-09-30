@@ -79,7 +79,7 @@ const RootLayout = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-sidebar-primary">
+    <div className="flex h-dvh overflow-hidden bg-sidebar-primary">
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
 
@@ -93,10 +93,10 @@ const RootLayout = () => {
         {/* One inset surface keeps every routed page visually attached to the shell. */}
         <main
           ref={mainRef}
-          className="hide-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"
+          className={`hide-scrollbar min-h-0 flex-1 overflow-x-hidden rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"}`}
         >
-          <div className="flex min-h-full w-full flex-col px-3 pb-16 pt-3 sm:px-4 sm:pt-4">
-            <div className="flex min-h-0 flex-1 flex-col">
+          <div className={`flex w-full flex-col px-3 pt-3 sm:px-4 sm:pt-4 min-h-full pb-16"}`}>
+            <div className={`flex min-h-0 flex-1 flex-col `}>
               <Outlet />
             </div>
           </div>

@@ -10,6 +10,25 @@ const assertSuccess = (response, fallbackMessage) => {
   return response;
 };
 
+export const getAllResignations = async () => {
+  const records = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const response = assertSuccess(
+      await http({
+        method: "POST",
+        body: { action: "fetch", module: RESIGNATION_MODULE, filters: {}, page, per_page: 100 },
+      }),
+      "Could not load employee offboarding records.",
+    );
+    records.push(...(Array.isArray(response.records) ? response.records : []));
+    totalPages = Math.max(1, Number(response.total_pages) || 1);
+    page += 1;
+  } while (page <= totalPages);
+  return records;
+};
+
 export const getResignationByEmail = async (email) => {
   const normalizedEmail = String(email || "").trim();
   if (!normalizedEmail) throw new Error("An employee email is required.");
