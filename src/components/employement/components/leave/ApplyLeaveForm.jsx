@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { gsap } from "gsap";
+import he from "he";
 import {
     ArrowLeft,
     ArrowRight,
@@ -13,11 +14,12 @@ import {
     X,
 } from "lucide-react";
 
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import leaveIllustration from "@/assets/employement/leave-application-illustration.png";
 import { useLeave } from "../../context/LeaveContext";
+import { usePublicHolidays } from "../../queries/leaves.queries";
 import { store } from "../../../../store/store";
 
 const leaveTypes = [
@@ -30,14 +32,34 @@ const leaveTypes = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const toApiDate = (date) => date ? format(date, "yyyy-MM-dd") : "";
+const dateKey = (date) => format(date, "yyyy-MM-dd");
 
-const calculateLeaveDays = (from, to) => {
+const parseHolidayDate = (value) => {
+    const match = String(value || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+
+    const [, monthValue, dayValue, yearValue] = match;
+    const date = new Date(Number(yearValue), Number(monthValue) - 1, Number(dayValue));
+    return date.getFullYear() === Number(yearValue)
+        && date.getMonth() === Number(monthValue) - 1
+        && date.getDate() === Number(dayValue)
+        ? date
+        : null;
+};
+
+const calculateLeaveDays = (from, to, holidayKeys) => {
     if (!from || !to) return 0;
     const start = new Date(from);
     const end = new Date(to);
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
-    return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1;
+
+    let days = 0;
+    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        if (!isWeekend && !holidayKeys.has(dateKey(date))) days += 1;
+    }
+    return days;
 };
 
 export default function ApplyLeaveForm() {
@@ -48,15 +70,32 @@ export default function ApplyLeaveForm() {
     const [form, setForm] = useState({ type_of_leave: "", other_reason: "", note: "", proof: null });
     const [range, setRange] = useState({ from: undefined, to: undefined });
     const [error, setError] = useState("");
+    const holidays = usePublicHolidays();
+
+    const holidayEntries = useMemo(() => {
+        const records = Array.isArray(holidays.data?.records) ? holidays.data.records : [];
+        return records
+            .map((record) => ({
+                date: parseHolidayDate(record?.holiday_date),
+                name: he.decode(String(record?.name || "Public holiday")),
+            }))
+            .filter((holiday) => holiday.date);
+    }, [holidays.data]);
+    const holidayDates = useMemo(() => holidayEntries.map((holiday) => holiday.date), [holidayEntries]);
+    const holidayKeys = useMemo(() => new Set(holidayDates.map(dateKey)), [holidayDates]);
+    const holidayNames = useMemo(
+        () => new Map(holidayEntries.map((holiday) => [dateKey(holiday.date), holiday.name])),
+        [holidayEntries],
+    );
 
     const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-    const leaveDays = calculateLeaveDays(range.from, range.to);
+    const leaveDays = calculateLeaveDays(range.from, range.to, holidayKeys);
+    const proofRequired = leaveDays > 3;
 
     useEffect(() => {
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
         const context = gsap.context(() => {
-            gsap.from("[data-form-reveal]", { y: 24, opacity: 0, duration: 0.7, stagger: 0.08, ease: "power3.out" });
-            gsap.to("[data-form-float]", { y: -12, rotation: 4, duration: 3.2, repeat: -1, yoyo: true, ease: "sine.inOut" });
+            gsap.from("[data-form-reveal]", { y: 10, opacity: 0, duration: 0.35, stagger: 0.04, ease: "power2.out" });
         }, pageRef);
         return () => context.revert();
     }, []);
@@ -82,6 +121,9 @@ export default function ApplyLeaveForm() {
         if (!form.type_of_leave) return setError("Please select a leave type.");
         if (form.type_of_leave === "Other Reason" && !form.other_reason.trim()) return setError("Please enter the reason for other leave.");
         if (!range.from || !range.to) return setError("Please select a complete date range.");
+        if (holidays.isPending) return setError("Please wait while public holidays are loaded.");
+        if (holidays.isError) return setError("Public holidays could not be checked. Please try again.");
+        if (proofRequired && !form.proof) return setError("A supporting document is required for leave longer than 3 working days.");
         if (form.proof && form.proof.size > MAX_FILE_SIZE) return setError("PDF must be 10 MB or smaller.");
 
         setError("");
@@ -100,7 +142,7 @@ export default function ApplyLeaveForm() {
     const completedSteps = [Boolean(form.type_of_leave), Boolean(range.from && range.to), Boolean(form.note.trim() || form.other_reason.trim())];
     const completion = Math.round((completedSteps.filter(Boolean).length / completedSteps.length) * 100);
     const dateLabel = range.from
-        ? range.to ? `${format(range.from, "dd MMM yyyy")} – ${format(range.to, "dd MMM yyyy")}` : format(range.from, "dd MMM yyyy")
+        ? range.to ? `${format(range.from, "dd MMM yyyy")} - ${format(range.to, "dd MMM yyyy")}` : format(range.from, "dd MMM yyyy")
         : "Choose start and end date";
     const fieldClass = "mt-2 w-full rounded-2xl border border-border bg-[var(--leave-page)] px-4 py-3 text-sm text-[var(--leave-text)] outline-none transition placeholder:text-[var(--leave-muted)] focus:border-primary focus:ring-4 focus:ring-primary/10";
 
@@ -158,14 +200,54 @@ export default function ApplyLeaveForm() {
                                         </button>
                                     </PopoverTrigger>
                                     <PopoverContent align="start" className="w-auto max-w-[calc(100vw-2rem)] overflow-auto rounded-2xl border-border p-2">
-                                        <Calendar mode="range" selected={range} onSelect={(value) => setRange(value || { from: undefined, to: undefined })} numberOfMonths={1} disabled={{ before: new Date() }} initialFocus />
+                                        <Calendar
+                                            mode="range"
+                                            selected={range}
+                                            onSelect={(value) => setRange(value || { from: undefined, to: undefined })}
+                                            numberOfMonths={1}
+                                            disabled={[
+                                                { before: new Date() },
+                                                { dayOfWeek: [0, 6] },
+                                                ...holidayDates,
+                                            ]}
+                                            modifiers={{ weekend: { dayOfWeek: [0, 6] }, publicHoliday: holidayDates }}
+                                            modifiersClassNames={{
+                                                weekend: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
+                                                publicHoliday: "!bg-emerald-100 !text-emerald-900 !opacity-100 font-bold ring-1 ring-inset ring-emerald-400 dark:!bg-emerald-900 dark:!text-emerald-100",
+                                            }}
+                                            components={{
+                                                DayButton: (props) => {
+                                                    const holidayName = holidayNames.get(dateKey(props.day.date));
+                                                    if (!holidayName) return <CalendarDayButton {...props} />;
+
+                                                    return (
+                                                        <div className="group/holiday relative flex h-full w-full items-center justify-center">
+                                                            <CalendarDayButton
+                                                                {...props}
+                                                                aria-label={`${props.day.date.toLocaleDateString()}: ${holidayName}`}
+                                                                className="!text-emerald-900 !opacity-100 dark:!text-emerald-100"
+                                                            />
+                                                            <span role="tooltip" className="pointer-events-none absolute bottom-[calc(100%+0.45rem)] left-1/2 z-50 w-max max-w-52 -translate-x-1/2 rounded-lg bg-[var(--leave-text)] px-2.5 py-1.5 text-center text-xs font-medium leading-4 text-[var(--leave-surface)] opacity-0 shadow-lg transition-opacity group-hover/holiday:opacity-100">
+                                                                {holidayName}
+                                                                <span className="absolute left-1/2 top-full h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[var(--leave-text)]" />
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                },
+                                            }}
+                                            initialFocus
+                                        />
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border px-2 pt-2 text-[11px] text-[var(--leave-muted)]">
+                                            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-200" />Saturday / Sunday</span>
+                                            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-200 ring-1 ring-emerald-300" />Public holiday</span>
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
                             </div>
 
                             <div data-form-reveal>
-                                <label className="text-sm font-semibold">Supporting document <span className="font-normal text-[var(--leave-muted)]">(optional)</span></label>
-                                <p className="mt-1 text-xs text-[var(--leave-muted)]">PDF format, up to 10 MB.</p>
+                                <label className="text-sm font-semibold">Supporting document <span className={`font-normal ${proofRequired ? "text-destructive" : "text-[var(--leave-muted)]"}`}>{proofRequired ? "(required)" : "(optional)"}</span></label>
+                                <p className="mt-1 text-xs text-[var(--leave-muted)]">{proofRequired ? "Required for more than 3 working days. " : ""}PDF format, up to 10 MB.</p>
                                 <input ref={fileInput} className="sr-only" type="file" accept="application/pdf,.pdf" onChange={(event) => chooseProof(event.target.files?.[0])} />
                                 {form.proof ? (
                                     <div className="mt-2 flex min-h-12 items-center gap-3 rounded-2xl border border-[var(--leave-green)]/35 bg-[var(--leave-green-soft)] px-4 py-3">
@@ -197,29 +279,29 @@ export default function ApplyLeaveForm() {
 
                         <div data-form-reveal className="mt-7 flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:justify-end">
                             <button type="button" disabled={isPending} onClick={() => setView("overview")} className="rounded-2xl border border-border px-5 py-3 text-sm font-semibold transition hover:bg-[var(--leave-page)] disabled:opacity-50">Cancel</button>
-                            <button type="submit" disabled={isPending} className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50">
-                                {isPending ? "Submitting request..." : "Submit leave request"}<ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
+                            <button type="submit" disabled={isPending || holidays.isPending} className="group inline-flex items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:-translate-y-0.5 hover:shadow-xl disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50">
+                                {isPending ? "Submitting request..." : holidays.isPending ? "Checking holidays..." : "Submit leave request"}<ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
                             </button>
                         </div>
                     </form>
 
                     <aside
-                        className="relative hidden min-h-full overflow-hidden bg-cover bg-center p-8 text-primary-foreground xl:flex xl:flex-col xl:justify-between lg:p-10"
+                        className="relative hidden min-h-full overflow-hidden bg-cover bg-center p-8 text-white xl:flex xl:flex-col xl:justify-between lg:p-10"
                         style={{ backgroundImage: `url(${leaveIllustration})` }}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-b from-[var(--sidebar-primary)]/85 via-[var(--sidebar-primary)]/65 to-[var(--sidebar-secondary)]/90" />
-                        <div className="absolute inset-0 backdrop-saturate-125" />
+                        <div className="absolute inset-0 bg-[var(--sidebar-primary)]/55" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-black/15 to-black/45" />
                         <div className="relative">
                             <span className="inline-flex items-center gap-2 rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em]"><CalendarDays size={14} /> Request preview</span>
                             <h2 className="mt-6 max-w-sm text-4xl font-semibold leading-tight tracking-[-0.04em]">Your next reset starts here.</h2>
-                            <p className="mt-4 max-w-sm text-sm leading-6 text-primary-foreground/70">Take the time you need. A clear request makes approval simple for everyone.</p>
+                            <p className="mt-4 max-w-sm text-sm leading-6 text-white/85">Take the time you need. A clear request makes approval simple for everyone.</p>
                         </div>
 
-                        <div data-form-float className="relative my-10 rounded-[2rem] border border-primary-foreground/25 bg-[var(--sidebar-primary)]/45 p-6 shadow-2xl backdrop-blur-md">
-                            <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-[0.14em] text-primary-foreground/60">Time away</span><span className="grid h-10 w-10 place-items-center rounded-2xl bg-[var(--leave-green)]"><CalendarDays size={19} /></span></div>
-                            <p className="mt-8 text-3xl font-semibold">{leaveDays || "—"} <span className="text-base font-normal text-primary-foreground/60">{leaveDays === 1 ? "day" : "days"}</span></p>
-                            <p className="mt-2 text-sm text-primary-foreground/70">{range.from ? dateLabel : "Your selected dates will appear here"}</p>
-                            <div className="mt-6 border-t border-primary-foreground/15 pt-5"><p className="text-xs text-primary-foreground/55">Leave type</p><p className="mt-1 font-semibold">{form.type_of_leave || "Not selected yet"}</p></div>
+                        <div className="relative my-10 rounded-2xl border border-white/20 bg-black/45 p-6 shadow-xl backdrop-blur-sm">
+                            <div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-[0.14em] text-white/70">Time away</span><span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--leave-green)] text-white"><CalendarDays size={19} /></span></div>
+                            <p className="mt-8 text-3xl font-semibold">{leaveDays || "-"} <span className="text-base font-normal text-white/70">{leaveDays === 1 ? "day" : "days"}</span></p>
+                            <p className="mt-2 text-sm text-white/80">{range.from ? dateLabel : "Your selected dates will appear here"}</p>
+                            <div className="mt-6 border-t border-white/20 pt-5"><p className="text-xs text-white/65">Leave type</p><p className="mt-1 font-semibold">{form.type_of_leave || "Not selected yet"}</p></div>
                         </div>
 
                         <div className="relative space-y-3">
