@@ -24,6 +24,7 @@ import { apiRequest, http } from "../services/api";
  * Same host the sidebar metadata is read and written through. `http()`
  * appends `?entryPoint=smart_gateway` itself.
  */
+
 export const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
 
 /** Contract version the reader asks for. */
@@ -35,15 +36,15 @@ export const FLEXIBILITY_API_VERSION = "v1";
 
 /** A metadata write did not happen. */
 export class UiMetadataError extends Error {
-    constructor(message, { cause, response, code, kind } = {}) {
-        super(message);
+  constructor(message, { cause, response, code, kind } = {}) {
+    super(message);
 
-        this.name = "UiMetadataError";
-        this.cause = cause;
-        this.response = response;
-        this.code = code;
-        this.kind = kind;
-    }
+    this.name = "UiMetadataError";
+    this.cause = cause;
+    this.response = response;
+    this.code = code;
+    this.kind = kind;
+  }
 }
 
 /**
@@ -54,86 +55,86 @@ export class UiMetadataError extends Error {
  * was never going to work".
  */
 const ERROR_KINDS = [
-    {
-        kind: "token",
-        patterns: [
-            "missing token",
-            "invalid signature",
-            "token expired",
-            "unauthor",
-            "forbidden",
-            "scope",
-        ],
-    },
-    {
-        kind: "stale_value",
-        patterns: [
-            "previously rendered value",
-            "expected_value",
-            "expected value",
-            "optimistic",
-        ],
-    },
-    {
-        kind: "stale_config",
-        patterns: [
-            "configuration changed",
-            "expected_config_version",
-            "config version",
-        ],
-    },
-    {
-        kind: "duplicate",
-        patterns: ["duplicate", "already exists", "stale write"],
-    },
-    {
-        kind: "immutable",
-        patterns: ["immutable", "published revision"],
-    },
-    {
-        kind: "repair",
-        patterns: ["requiresrepair", "quick repair", "schema is incomplete"],
-    },
+  {
+    kind: "token",
+    patterns: [
+      "missing token",
+      "invalid signature",
+      "token expired",
+      "unauthor",
+      "forbidden",
+      "scope",
+    ],
+  },
+  {
+    kind: "stale_value",
+    patterns: [
+      "previously rendered value",
+      "expected_value",
+      "expected value",
+      "optimistic",
+    ],
+  },
+  {
+    kind: "stale_config",
+    patterns: [
+      "configuration changed",
+      "expected_config_version",
+      "config version",
+    ],
+  },
+  {
+    kind: "duplicate",
+    patterns: ["duplicate", "already exists", "stale write"],
+  },
+  {
+    kind: "immutable",
+    patterns: ["immutable", "published revision"],
+  },
+  {
+    kind: "repair",
+    patterns: ["requiresrepair", "quick repair", "schema is incomplete"],
+  },
 ];
 
 export function classifyMetadataError(error) {
-    if (error?.kind) {
-        return error.kind;
-    }
+  if (error?.kind) {
+    return error.kind;
+  }
 
-    const status = error?.response?.status ?? error?.status;
+  const status = error?.response?.status ?? error?.status;
 
-    if (status === 401 || status === 403) {
-        return "token";
-    }
+  if (status === 401 || status === 403) {
+    return "token";
+  }
 
-    if (status === 409 || status === 412) {
-        return "stale_value";
-    }
+  if (status === 409 || status === 412) {
+    return "stale_value";
+  }
 
-    const haystack = [
-        error?.message,
-        error?.code,
-        error?.response?.data?.error,
-        error?.response?.data?.message,
-        error?.response?.data?.code,
-    ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+  const haystack = [
+    error?.message,
+    error?.code,
+    error?.response?.data?.error,
+    error?.response?.data?.message,
+    error?.response?.data?.code,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 
-    const match = ERROR_KINDS.find((entry) =>
-        entry.patterns.some((pattern) => haystack.includes(pattern)),
-    );
+  const match = ERROR_KINDS.find((entry) =>
+    entry.patterns.some((pattern) => haystack.includes(pattern)),
+  );
 
-    return match?.kind ?? "unknown";
+  return match?.kind ?? "unknown";
 }
 
 /** True when the client's read is out of date and must be taken again. */
 export function isStaleReadError(error) {
-    const kind = classifyMetadataError(error);
+  const kind = classifyMetadataError(error);
 
-    return kind === "stale_value" || kind === "stale_config" || kind === "duplicate";
+  return kind === "stale_value" || kind === "stale_config" || kind === "duplicate";
 }
 
 /**
@@ -145,28 +146,28 @@ export function isStaleReadError(error) {
  * against "this will not work until something else changes".
  */
 export function describeMetadataWriteError(error) {
-    switch (classifyMetadataError(error)) {
-        case "token":
-            return "The SmartGateway token was rejected. Reload the page to get a fresh one, then try again.";
+  switch (classifyMetadataError(error)) {
+    case "token":
+      return "The SmartGateway token was rejected. Reload the page to get a fresh one, then try again.";
 
-        case "stale_value":
-            return "Someone changed this first. The layout has been reloaded, please make the change again.";
+    case "stale_value":
+      return "Someone changed this first. The layout has been reloaded, please make the change again.";
 
-        case "stale_config":
-            return "The layout changed after it was read. It has been reloaded, please try again.";
+    case "stale_config":
+      return "The layout changed after it was read. It has been reloaded, please try again.";
 
-        case "duplicate":
-            return "That override already exists. The layout has been reloaded, please try again.";
+    case "duplicate":
+      return "That override already exists. The layout has been reloaded, please try again.";
 
-        case "immutable":
-            return "Published revisions cannot be edited directly.";
+    case "immutable":
+      return "Published revisions cannot be edited directly.";
 
-        case "repair":
-            return "The CRM needs a Quick Repair and Rebuild before this can be saved.";
+    case "repair":
+      return "The CRM needs a Quick Repair and Rebuild before this can be saved.";
 
-        default:
-            return error?.message || "The change could not be saved.";
-    }
+    default:
+      return error?.message || "The change could not be saved.";
+  }
 }
 
 /* =========================================================================
@@ -193,29 +194,129 @@ export function describeMetadataWriteError(error) {
  * write, and a 304 would leave it without one.
  */
 export const fetchViewContract = async ({ moduleKey, viewKey = "table" }) => {
-    if (!moduleKey) {
-        throw new UiMetadataError("a contract read needs a module_key");
-    }
+  if (!moduleKey) {
+    throw new UiMetadataError("a contract read needs a module_key");
+  }
 
-    const data = await apiRequest({
-        endpoint: METADATA_ENDPOINT,
-        params: {
-            entryPoint: "flexibility",
-            api_version: FLEXIBILITY_API_VERSION,
-            module_key: moduleKey,
-            view_key: viewKey,
-            _: Date.now(),
-        },
+  const data = await apiRequest({
+    endpoint: METADATA_ENDPOINT,
+    params: {
+      entryPoint: "flexibility",
+      api_version: FLEXIBILITY_API_VERSION,
+      module_key: moduleKey,
+      view_key: viewKey,
+      _: Date.now(),
+    },
+  });
+
+  if (!data || typeof data !== "object") {
+    throw new UiMetadataError(
+      `no contract returned for ${moduleKey}/${viewKey}`,
+      { kind: "empty" },
+    );
+  }
+
+  return data;
+};
+
+/**
+ * The vardef field catalog of one CRM module.
+ *
+ * SmartGateway reads SuiteCRM's `field_defs` for this, so the field library
+ * only ever offers source fields that really exist in the connected CRM. That
+ * matters because `outr_ui_fields` validates `source_field` against the same
+ * vardefs at publish time: anything not in this list is a create the backend
+ * is going to reject.
+ *
+ * This is metadata about the bean, not about any view, so it is deliberately
+ * NOT read through `flexibility`. It carries no mutations and no config
+ * version, and nothing here is used to build a write - the editor still gets
+ * `source_module` and `expected_config_version` from the contract on screen.
+ *
+ * `label` comes back already translated. It can still be an untranslated
+ * `LBL_*` key when the module ships no label for the field, which is why the
+ * consumer falls back to a humanized field name rather than showing the key.
+ */
+export const fetchModuleFields = async (module) => {
+  const sourceModule = String(module ?? "").trim();
+
+  if (!sourceModule) {
+    throw new UiMetadataError("a field catalog read needs a module");
+  }
+
+  let response;
+
+  try {
+    response = await http({
+      endpoint: METADATA_ENDPOINT,
+      method: "POST",
+      body: {
+        action: "get_module_fields",
+        module: sourceModule,
+        order_by: "",
+      },
     });
+  } catch (error) {
+    const payload = error?.response?.data;
 
-    if (!data || typeof data !== "object") {
-        throw new UiMetadataError(
-            `no contract returned for ${moduleKey}/${viewKey}`,
-            { kind: "empty" },
-        );
-    }
+    const reason =
+      payload?.error || payload?.message || error?.message || "network error";
 
-    return data;
+    throw new UiMetadataError(
+      `the field list for ${sourceModule} could not be loaded: ${reason}`,
+      {
+        cause: error,
+        response: error?.response,
+        code: payload?.code,
+        kind: classifyMetadataError(error),
+      },
+    );
+  }
+
+  /*
+   * Same rule as every other smart_gateway call: 200 means the request was
+   * routed, not that it answered. An unknown module comes back
+   * `{ success: false, message: "Invalid module." }` with a 200.
+   */
+  if (!response || response.success !== true || !Array.isArray(response.fields)) {
+    const reason =
+      response?.error ||
+      response?.message ||
+      (response
+        ? "unexpected response from smart_gateway"
+        : "no response body, the get_module_fields handler did not complete");
+
+    throw new UiMetadataError(
+      `the field list for ${sourceModule} could not be loaded: ${reason}`,
+      { response, code: response?.code },
+    );
+  }
+
+  const seen = new Set();
+
+  return response.fields
+    .map((entry) => {
+      const name = String(entry?.name ?? "").trim();
+
+      return {
+        name,
+        label: String(entry?.label ?? "").trim(),
+        type: String(entry?.type ?? "").trim().toLowerCase(),
+
+        /* Only present for enum-like fields, and only used to preview values. */
+        options: Array.isArray(entry?.options) ? entry.options : null,
+      };
+    })
+    .filter((field) => {
+      /* A duplicate name would collide as a React key and as an accessor. */
+      if (!field.name || seen.has(field.name)) {
+        return false;
+      }
+
+      seen.add(field.name);
+
+      return true;
+    });
 };
 
 /* =========================================================================
@@ -234,71 +335,71 @@ export const fetchViewContract = async ({ moduleKey, viewKey = "table" }) => {
  * body, which would otherwise sail through as a silent no-op.
  */
 export const sendUiMutation = async (mutation) => {
-    if (!mutation?.action || !mutation?.module) {
-        throw new UiMetadataError(
-            "a metadata mutation needs an action and a module",
-            { kind: "invalid" },
-        );
-    }
+  if (!mutation?.action || !mutation?.module) {
+    throw new UiMetadataError(
+      "a metadata mutation needs an action and a module",
+      { kind: "invalid" },
+    );
+  }
 
-    if (mutation.action === "update" && !mutation.id) {
-        throw new UiMetadataError(
-            `an update to ${mutation.module} needs the record id from the returned mutation`,
-            { kind: "invalid" },
-        );
-    }
+  if (mutation.action === "update" && !mutation.id) {
+    throw new UiMetadataError(
+      `an update to ${mutation.module} needs the record id from the returned mutation`,
+      { kind: "invalid" },
+    );
+  }
 
-    let response;
+  let response;
 
-    try {
-        response = await http({
-            endpoint: METADATA_ENDPOINT,
-            method: "POST",
-            body: {
-                order_by: "",
-                ...mutation,
-            },
-        });
-    } catch (error) {
-        const payload = error?.response?.data;
+  try {
+    response = await http({
+      endpoint: METADATA_ENDPOINT,
+      method: "POST",
+      body: {
+        order_by: "",
+        ...mutation,
+      },
+    });
+  } catch (error) {
+    const payload = error?.response?.data;
 
-        const reason =
-            payload?.error || payload?.message || error?.message || "network error";
+    const reason =
+      payload?.error || payload?.message || error?.message || "network error";
 
-        throw new UiMetadataError(
-            `${mutation.action} on ${mutation.module} failed: ${reason}`,
-            {
-                cause: error,
-                response: error?.response,
-                code: payload?.code,
-                kind: classifyMetadataError(error),
-            },
-        );
-    }
+    throw new UiMetadataError(
+      `${mutation.action} on ${mutation.module} failed: ${reason}`,
+      {
+        cause: error,
+        response: error?.response,
+        code: payload?.code,
+        kind: classifyMetadataError(error),
+      },
+    );
+  }
 
-    if (!response || response.success !== true) {
-        const reason =
-            response?.error ||
-            response?.message ||
-            (response
-                ? "unexpected response from smart_gateway"
-                : `no response body, the ${mutation.module} handler did not complete`);
+  if (!response || response.success !== true) {
+    const reason =
+      response?.error ||
+      response?.message ||
+      (response
+        ? "unexpected response from smart_gateway"
+        : `no response body, the ${mutation.module} handler did not complete`);
 
-        const error = new UiMetadataError(
-            `${mutation.action} on ${mutation.module} failed: ${reason}`,
-            { response, code: response?.code },
-        );
+    const error = new UiMetadataError(
+      `${mutation.action} on ${mutation.module} failed: ${reason}`,
+      { response, code: response?.code },
+    );
 
-        error.kind = classifyMetadataError({
-            message: reason,
-            code: response?.code,
-            response: { data: response },
-        });
+    error.kind = classifyMetadataError({
+      message: reason,
+      code: response?.code,
+      response: { data: response },
+    });
 
-        throw error;
-    }
+    throw error;
+  }
 
-    return response;
+  return response;
 };
 
 /**
@@ -321,14 +422,14 @@ export const createTableField = async (payload) => sendUiMutation(payload);
  * the returned presentation mutation.
  */
 export const setModuleActive = async ({ id, active }) => {
-    if (!id) {
-        throw new UiMetadataError("a module activation needs the ui module id");
-    }
+  if (!id) {
+    throw new UiMetadataError("a module activation needs the ui module id");
+  }
 
-    return sendUiMutation({
-        action: "update",
-        module: "outr_ui_modules",
-        id,
-        data: { is_active: active ? 1 : 0 },
-    });
+  return sendUiMutation({
+    action: "update",
+    module: "outr_ui_modules",
+    id,
+    data: { is_active: active ? 1 : 0 },
+  });
 };

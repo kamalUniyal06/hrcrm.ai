@@ -8,7 +8,11 @@ import { PageContext } from "./context/pageContext";
 import { useCandidateProfile } from "./queries/candidate.queries";
 import Profile from "./components/pages/Profile";
 import LoadingPage from "./components/pages/LoadingPage";
-import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
+import {
+  needsOnboarding,
+  rememberOnboardingComplete,
+  rememberOnboardingStarted,
+} from "./components/pages/profile/onboardingState";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -26,10 +30,13 @@ const RootLayout = () => {
   const navigate = useNavigate();
   useEffect(() => {
     const showRequiredAlerts = (event) => {
-      navigate("/", { state: { requiredAlerts: event.detail, requestedAt: Date.now() } });
+      navigate("/", {
+        state: { requiredAlerts: event.detail, requestedAt: Date.now() },
+      });
     };
     window.addEventListener("system-alerts-required", showRequiredAlerts);
-    return () => window.removeEventListener("system-alerts-required", showRequiredAlerts);
+    return () =>
+      window.removeEventListener("system-alerts-required", showRequiredAlerts);
   }, [navigate]);
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
@@ -57,7 +64,19 @@ const RootLayout = () => {
 
   if (onboarding === null) {
     if (isError) {
-      return <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6"><div role="alert" className="text-center text-sm text-slate-500"><p>We couldn’t load your profile.</p><button onClick={() => refetch()} className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white">Try again</button></div></div>;
+      return (
+        <div className="grid min-h-screen place-items-center bg-[#faf9f6] p-6">
+          <div role="alert" className="text-center text-sm text-slate-500">
+            <p>We couldn’t load your profile.</p>
+            <button
+              onClick={() => refetch()}
+              className="mt-4 rounded-full bg-slate-900 px-6 py-3 text-white"
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
     }
     return <LoadingPage />;
   }
@@ -102,13 +121,15 @@ const RootLayout = () => {
           ref={mainRef}
           className={`hide-scrollbar min-h-0 flex-1 overflow-x-hidden rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"}`}
         >
-          <div className={`flex w-full flex-col px-3 pt-3 sm:px-4 sm:pt-4 min-h-full pb-16"}`}>
+          <div
+            className={`flex w-full flex-col px-3 pt-3 sm:px-4 sm:pt-4 min-h-full pb-16"}`}
+          >
             <div className={`flex min-h-0 flex-1 flex-col `}>
               <Outlet />
             </div>
           </div>
         </main>
-        {/* <Footer /> */}
+        <Footer />
       </div>
     </div>
   );

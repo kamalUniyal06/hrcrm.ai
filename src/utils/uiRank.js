@@ -53,7 +53,7 @@
  * backend and would order `aZ` and `am` backwards.
  */
 
-import { compareRankValues, isRankValue } from "./rank";
+import { compareRankValues, isRankValue } from "./rank.js";
 
 /**
  * Digit alphabet, in byte order. '0' < '9' < 'A' < 'Z' < 'a' < 'z' in ASCII,

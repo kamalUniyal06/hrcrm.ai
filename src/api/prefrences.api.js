@@ -1,4 +1,4 @@
-import { apiRequest, http } from "../services/api";
+import { http } from "../services/api";
 
 import { fetchSidebar } from "./sidebar.api";
 import { store } from "../store/store";
@@ -89,8 +89,7 @@ export const updateLayout = async ({
      *     { success: true, action, module, id }
      *
      * A rejected one returns { success: false, error, code }.
-     * And if the handler dies part way through - which is what
-     * outr_ui_modules currently does - the body is empty, which
+     * And if a handler dies part way through, the body is empty, which
      * would otherwise sail through as a silent no-op.
      */
     if (!response || response.success !== true) {

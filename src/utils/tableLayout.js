@@ -58,10 +58,129 @@ export const WIDTH_MAX = 2000;
  * at.
  */
 export const PRESENTATION_KINDS = {
+  /*
+   * The four this editor has always written.
+   */
   visible: { valueField: "value_boolean", valueType: "boolean" },
   width: { valueField: "value_integer", valueType: "integer" },
   rank: { valueField: "value_text", valueType: "string" },
   icon: { valueField: "value_text", valueType: "string" },
+
+  /*
+   * Everything else a column or status carries.
+   *
+   * These used to be read as "structural flags, owned by the revision and
+   * read-only here", and they were - but only because this map is the gate.
+   * `toPresentation` builds entries for the keys listed HERE and discards the
+   * rest, so a `presentation.sortable` block arriving with a mutation attached
+   * was being thrown away before anything could ask whether it was writable.
+   *
+   * Listing them does not make them writable. `writable` is still
+   * `Boolean(spec && mutation)`, so a property the compiler sends no mutation
+   * for stays read-only and the inspector says so. What listing them does is
+   * let the editor USE the mutation when there is one, instead of deciding in
+   * advance that there never is.
+   *
+   * The typed column per property comes from the value's own type, which is
+   * the same rule the documented four follow: a flag is `value_boolean`, a
+   * pixel count is `value_integer`, text and JSON are `value_text`.
+   */
+  label: { valueField: "value_text", valueType: "string" },
+  sortable: { valueField: "value_boolean", valueType: "boolean" },
+  searchable: { valueField: "value_boolean", valueType: "boolean" },
+  editable: { valueField: "value_boolean", valueType: "boolean" },
+  resizable: { valueField: "value_boolean", valueType: "boolean" },
+  minWidth: { valueField: "value_integer", valueType: "integer" },
+  maxWidth: { valueField: "value_integer", valueType: "integer" },
+  color: { valueField: "value_text", valueType: "string" },
+  showAmount: { valueField: "value_boolean", valueType: "boolean" },
+
+  /*
+   * Carried by detail and create layout nodes rather than table columns.
+   *
+   * `title` is the display name of a section, where a tab or field uses
+   * `label`. Both are listed because which one a node uses is a property of the
+   * node, and the detail inspector resolves that per node rather than assuming.
+   *
+   * `columns` is a section's column count, not a list of columns.
+   */
+  title: { valueField: "value_text", valueType: "string" },
+  columns: { valueField: "value_integer", valueType: "integer" },
+
+  /*
+   * Also carried by detail and create fields, all three with mutations.
+   *
+   * `readonly` is not the inverse of `editable`: the compiled contract sends
+   * both, and a field can be editable in principle while readonly in this
+   * view, so neither is derived from the other here.
+   */
+  readonly: { valueField: "value_boolean", valueType: "boolean" },
+  required: { valueField: "value_boolean", valueType: "boolean" },
+  placeholder: { valueField: "value_text", valueType: "string" },
+};
+
+/**
+ * Properties the inspector offers, per owner, in the order they are shown.
+ *
+ * `rank` is absent on purpose. It is an opaque generated string, it is set by
+ * dragging, and there is nothing useful to type into it.
+ */
+export const COLUMN_PROPERTIES = [
+  "label",
+  "visible",
+  "width",
+  "minWidth",
+  "maxWidth",
+  "resizable",
+  "sortable",
+  "searchable",
+  "editable",
+];
+
+/*
+ * `showAmount` is deliberately not here.
+ *
+ * It stays in PRESENTATION_KINDS because `toStatus` resolves it for the LIVE
+ * table, which needs to know whether to total a currency field beside the
+ * count. It is just not something this editor offers: the flag is only
+ * meaningful when the layout also names an `amountKey`, and that is not
+ * editable here, so a switch for it would let someone turn on a total with
+ * nothing to total.
+ */
+export const STATUS_PROPERTIES = ["label", "visible", "icon", "color"];
+
+/**
+ * Everything a staged mutation may target, per owner.
+ *
+ * Wider than the inspector lists because `rank` is staged by dragging rather
+ * than by a control, and `repair` has to be able to build it.
+ */
+export const WRITABLE_PROPERTIES = {
+  column: [...COLUMN_PROPERTIES, "rank"],
+  status: [...STATUS_PROPERTIES, "rank"],
+  view: ["visible", "rank"],
+};
+
+/** Human wording for one property, for labels and error messages. */
+export const PROPERTY_LABELS = {
+  label: "Name",
+  title: "Name",
+  columns: "Columns per row",
+  readonly: "Read only",
+  required: "Required",
+  placeholder: "Placeholder",
+  visible: "Visible",
+  width: "Width",
+  minWidth: "Minimum width",
+  maxWidth: "Maximum width",
+  resizable: "Resizable",
+  sortable: "Sortable",
+  searchable: "Searchable",
+  editable: "Editable inline",
+  icon: "Icon",
+  color: "Color",
+  showAmount: "Show amount",
+  rank: "Position",
 };
 
 /** Raised when the contract cannot support the edit that was asked for. */
@@ -210,23 +329,50 @@ function toColumn(raw) {
     id: accessor,
     accessor,
 
-    label: raw?.label ?? accessor,
     type: raw?.type ?? "text",
 
-    /* Resolved presentation values. */
+    /*
+     * Resolved presentation values.
+     *
+     * Every one of these reads the presentation entry first and the plain
+     * definition field second, because `currentValue` is what the compiler
+     * actually resolved. That was already true of visible/width/rank; the rest
+     * were reading the definition directly, which meant an override would have
+     * been stored and then not displayed.
+     */
+    label:
+      String(presentationValue(presentation.label, raw?.label) ?? "").trim() ||
+      accessor,
     visible: toBoolean(presentationValue(presentation.visible, raw?.visible), true),
     width: toWholeNumber(presentationValue(presentation.width, raw?.width), 220),
     rank: isRankValue(presentationValue(presentation.rank, raw?.rank))
       ? presentationValue(presentation.rank, raw?.rank)
       : null,
 
-    /* Structural flags, owned by the revision and read-only here. */
-    minWidth: toWholeNumber(raw?.minWidth, WIDTH_MIN),
-    maxWidth: toWholeNumber(raw?.maxWidth, WIDTH_MAX),
-    resizable: toBoolean(raw?.resizable, false),
-    sortable: toBoolean(raw?.sortable, false),
-    searchable: toBoolean(raw?.searchable, false),
-    editable: toBoolean(raw?.editable, false),
+    minWidth: toWholeNumber(
+      presentationValue(presentation.minWidth, raw?.minWidth),
+      WIDTH_MIN,
+    ),
+    maxWidth: toWholeNumber(
+      presentationValue(presentation.maxWidth, raw?.maxWidth),
+      WIDTH_MAX,
+    ),
+    resizable: toBoolean(
+      presentationValue(presentation.resizable, raw?.resizable),
+      false,
+    ),
+    sortable: toBoolean(
+      presentationValue(presentation.sortable, raw?.sortable),
+      false,
+    ),
+    searchable: toBoolean(
+      presentationValue(presentation.searchable, raw?.searchable),
+      false,
+    ),
+    editable: toBoolean(
+      presentationValue(presentation.editable, raw?.editable),
+      false,
+    ),
 
     presentation,
 
@@ -268,11 +414,16 @@ function toStatus(raw) {
     ...raw,
     id: key,
     key,
-    label: raw?.label ?? key,
-    color: raw?.color ?? "",
+    label:
+      String(presentationValue(presentation.label, raw?.label) ?? "").trim() ||
+      key,
+    color: String(presentationValue(presentation.color, raw?.color) ?? ""),
     filters: raw?.filters ?? {},
     amountKey: raw?.amountKey ?? "",
-    showAmount: toBoolean(raw?.showAmount, false),
+    showAmount: toBoolean(
+      presentationValue(presentation.showAmount, raw?.showAmount),
+      false,
+    ),
     visible: toBoolean(presentationValue(presentation.visible, raw?.visible), true),
     rank: isRankValue(presentationValue(presentation.rank, raw?.rank))
       ? presentationValue(presentation.rank, raw?.rank)
@@ -443,8 +594,13 @@ export function withTypedValue(entry, nextValue) {
   }
 
   if (!entry.writable) {
+    /*
+     * Named the way the UI names it. `entry.kind` is the contract's key, and
+     * leaking it here put words like "rank" in front of users in editors that
+     * deliberately never show the ordering key.
+     */
     throw new TableLayoutError(
-      `${entry.kind} is not directly writable on this view; Flexibility returned no mutation for it`,
+      `${PROPERTY_LABELS[entry.kind] ?? entry.kind} is not directly writable on this view; Flexibility returned no mutation for it`,
       { kind: entry.kind },
     );
   }
@@ -508,80 +664,210 @@ export function isNoOpChange(entry, nextValue) {
     );
   }
 
+  /*
+   * The rest compare through the same coercion the renderer used, by declared
+   * value type. A raw `===` would treat the 1 the backend stored and the true
+   * the switch produced as a change and send a pointless write on every save.
+   *
+   * `visible` keeps its own branch above rather than joining the boolean case,
+   * because its documented fallback for an absent value is `true` and the new
+   * flags all default to `false`.
+   */
+  const spec = PRESENTATION_KINDS[entry?.kind];
+
+  if (spec?.valueType === "boolean") {
+    return toBoolean(current, false) === toBoolean(nextValue, false);
+  }
+
+  if (spec?.valueType === "integer") {
+    return toWholeNumber(current, null) === toWholeNumber(nextValue, null);
+  }
+
+  if (spec?.valueType === "string") {
+    return String(current ?? "") === String(nextValue ?? "");
+  }
+
   return current === nextValue;
+}
+
+/* =========================================================================
+   GENERIC PRESENTATION WRITE
+   ========================================================================= */
+
+/**
+ * Put one value into the shape its typed column expects.
+ *
+ * Coercion is per property rather than per value type because two integer
+ * properties can have different valid ranges: `width` is clamped to the
+ * column's own min/max, while the min and max themselves are clamped to the
+ * bounds the backend accepts.
+ */
+function coercePresentationValue(kind, value, target) {
+  const spec = PRESENTATION_KINDS[kind];
+
+  if (!spec) {
+    throw new TableLayoutError(
+      `${kind} is not a presentation property this editor knows how to write`,
+      { kind },
+    );
+  }
+
+  if (kind === "rank") {
+    if (!isRankValue(value)) {
+      throw new TableLayoutError(
+        `a rank must be a non-empty string, received ${JSON.stringify(value)}`,
+        { kind, rank: value },
+      );
+    }
+
+    return value;
+  }
+
+  if (kind === "icon") {
+    /* The contract owns the color; the picker only supplies library and name. */
+    return JSON.stringify(
+      normalizeStatusIcon({ color: target?.icon?.color ?? "", ...value }),
+    );
+  }
+
+  if (kind === "width") {
+    return clampWidth(value, target);
+  }
+
+  if (kind === "minWidth" || kind === "maxWidth") {
+    return clampWidth(value, { minWidth: WIDTH_MIN, maxWidth: WIDTH_MAX });
+  }
+
+  if (kind === "label" || kind === "title") {
+    const trimmed = String(value ?? "").trim();
+
+    /*
+     * A blank header is not a header. The backend would store it and the table
+     * would render a nameless column, so it is refused here where the user can
+     * still see the field they emptied.
+     */
+    if (!trimmed) {
+      throw new TableLayoutError("a name cannot be empty", { kind });
+    }
+
+    return trimmed;
+  }
+
+  if (kind === "columns") {
+    /*
+     * A section lays its fields out in this many columns. Zero would render an
+     * empty section and a large number would render unreadable slivers, so the
+     * range is capped at what a detail pane can actually show.
+     */
+    const count = toWholeNumber(value, 1);
+
+    return Math.max(1, Math.min(count, 4));
+  }
+
+  if (spec.valueType === "boolean") {
+    return Boolean(value);
+  }
+
+  if (spec.valueType === "integer") {
+    return toWholeNumber(value, 0);
+  }
+
+  return String(value ?? "");
+}
+
+/**
+ * Build the mutation for any presentation property of any owner.
+ *
+ * One function instead of the per-property builders below, because the write
+ * rule never varied: clone the mutation Flexibility returned for that property
+ * and set its typed value. The old builders differed only in which coercion
+ * ran first, which is now `coercePresentationValue`.
+ *
+ * This still cannot invent a write. `withTypedValue` throws when the entry
+ * carries no mutation, so an unsupported property fails here rather than being
+ * posted as a guess.
+ */
+export function buildPresentationMutation(target, kind, nextValue) {
+  /*
+   * Normalized, not read raw.
+   *
+   * `withTypedValue` needs `kind` and `writable`, and both are derived - the
+   * contract only sends `{ recordId, currentValue, mutation }`. Passing
+   * `target.presentation[kind]` straight through worked for the table editor,
+   * whose model is normalized up front, and failed for every detail and create
+   * node, which are held raw. It failed in the most confusing way possible
+   * too: `writable` came back `undefined`, so a perfectly writable property
+   * was rejected as unwritable, and `kind` came back `undefined`, so the
+   * message named the property "undefined".
+   */
+  return withTypedValue(
+    readPresentationEntry(target, kind),
+    coercePresentationValue(kind, nextValue, target),
+  );
 }
 
 /* =========================================================================
    HIGH LEVEL EDIT BUILDERS
    ========================================================================= */
 
+/*
+ * Named builders, kept as the vocabulary the editor reads in.
+ *
+ * They all delegate to `buildPresentationMutation` now. The coercion each one
+ * used to do itself - clamping a width, validating a rank, serializing an icon
+ * - moved into `coercePresentationValue`, so there is one place where a value
+ * is turned into what its typed column expects and one place to look when a
+ * write comes back rejected.
+ */
+
 /** Hide or show one column. Changes `value_boolean` only. */
 export function buildColumnVisibilityMutation(column, nextVisible) {
-  return withTypedValue(column?.presentation?.visible, Boolean(nextVisible));
+  return buildPresentationMutation(column, "visible", nextVisible);
 }
 
 /** Resize one column. Changes `value_integer` only, clamped to bounds. */
 export function buildColumnWidthMutation(column, nextWidth) {
-  return withTypedValue(
-    column?.presentation?.width,
-    clampWidth(nextWidth, column),
-  );
+  return buildPresentationMutation(column, "width", nextWidth);
 }
 
 /** Reposition one column. Changes `value_text` only, with a generated rank. */
 export function buildColumnRankMutation(column, nextRank) {
-  if (!isRankValue(nextRank)) {
-    throw new TableLayoutError(
-      `a column rank must be a non-empty string, received ${JSON.stringify(nextRank)}`,
-      { rank: nextRank },
-    );
-  }
+  return buildPresentationMutation(column, "rank", nextRank);
+}
 
-  return withTypedValue(column?.presentation?.rank, nextRank);
+/** Rename one column's header. */
+export function buildColumnLabelMutation(column, nextLabel) {
+  return buildPresentationMutation(column, "label", nextLabel);
 }
 
 /** Hide or show the whole view. */
 export function buildViewVisibilityMutation(view, nextVisible) {
-  return withTypedValue(view?.presentation?.visible, Boolean(nextVisible));
+  return buildPresentationMutation(view, "visible", nextVisible);
 }
 
 /** Reposition the whole view among its siblings. */
 export function buildViewRankMutation(view, nextRank) {
-  if (!isRankValue(nextRank)) {
-    throw new TableLayoutError(
-      `a view rank must be a non-empty string, received ${JSON.stringify(nextRank)}`,
-      { rank: nextRank },
-    );
-  }
-
-  return withTypedValue(view?.presentation?.rank, nextRank);
+  return buildPresentationMutation(view, "rank", nextRank);
 }
 
 /** Hide or show one status stat. */
 export function buildStatusVisibilityMutation(status, nextVisible) {
-  return withTypedValue(status?.presentation?.visible, Boolean(nextVisible));
+  return buildPresentationMutation(status, "visible", nextVisible);
 }
 
 /** Reposition one status stat with a generated opaque rank. */
 export function buildStatusRankMutation(status, nextRank) {
-  if (!isRankValue(nextRank)) {
-    throw new TableLayoutError(
-      `a status rank must be a non-empty string, received ${JSON.stringify(nextRank)}`,
-      { rank: nextRank },
-    );
-  }
-
-  return withTypedValue(status?.presentation?.rank, nextRank);
+  return buildPresentationMutation(status, "rank", nextRank);
 }
 
 /** Replace the icon JSON while preserving the icon color supplied by the contract. */
 export function buildStatusIconMutation(status, nextIcon) {
-  const icon = normalizeStatusIcon({
-    color: status?.icon?.color ?? "",
-    ...nextIcon,
-  });
+  return buildPresentationMutation(status, "icon", nextIcon);
+}
 
-  return withTypedValue(status?.presentation?.icon, JSON.stringify(icon));
+/** Rename one status stat. */
+export function buildStatusLabelMutation(status, nextLabel) {
+  return buildPresentationMutation(status, "label", nextLabel);
 }
 
 /* =========================================================================
@@ -708,4 +994,209 @@ export function buildFieldCreatePayload({
  */
 export function existingAccessors(model) {
   return new Set((model?.columns ?? []).map((column) => column.accessor));
+}
+
+/* =========================================================================
+   FIELD CATALOG -> COLUMN DEFAULTS
+   ========================================================================= */
+
+/**
+ * SuiteCRM vardef type -> the render type the table understands.
+ *
+ * `vardef_type` is sent to the backend as-is, and it is also the column's
+ * render type inside `placement_json`, so an unmapped SuiteCRM type would
+ * reach the renderer and fall through to its default. Mapping here keeps that
+ * decision visible instead of leaving it to whatever the table does with an
+ * unknown type.
+ *
+ * Anything not listed becomes `text`, which every renderer can display. That
+ * is a deliberate downgrade rather than a guess: a wrong specialised renderer
+ * (a date parser fed a varchar, say) shows an error where plain text shows the
+ * value.
+ */
+const VARDEF_TYPE_MAP = {
+  /* Strings */
+  varchar: "text",
+  name: "text",
+  char: "text",
+  string: "text",
+  id: "text",
+  text: "text",
+  longtext: "text",
+  html: "text",
+  password: "text",
+  encrypt: "text",
+  file: "text",
+  image: "text",
+  iframe: "text",
+
+  /* Contactables */
+  email: "email",
+  url: "url",
+  phone: "phone",
+
+  /* Numerics */
+  int: "integer",
+  integer: "integer",
+  tinyint: "integer",
+  smallint: "integer",
+  short: "integer",
+  long: "integer",
+  double: "number",
+  float: "number",
+  decimal: "number",
+  currency: "currency",
+
+  /* Temporal */
+  date: "date",
+  datetime: "datetime",
+  datetimecombo: "datetime",
+  time: "text",
+
+  /* Booleans */
+  bool: "bool",
+  boolean: "bool",
+
+  /* Lists */
+  enum: "enum",
+  dynamicenum: "enum",
+  radioenum: "enum",
+  multienum: "enum",
+
+  /* References */
+  relate: "relate",
+  parent: "relate",
+  assigned_user_name: "relate",
+  fullname: "text",
+};
+
+/** The render type to publish for one vardef type. */
+export function mapVardefType(type) {
+  const key = String(type ?? "").trim().toLowerCase();
+
+  return VARDEF_TYPE_MAP[key] ?? "text";
+}
+
+/**
+ * Starting width per render type, in pixels.
+ *
+ * A checkbox column does not need the same room as an email address, and a
+ * new column that arrives at a sensible width is one the user does not have
+ * to go and fix. Every value is still editable in the inspector afterwards.
+ */
+const DEFAULT_WIDTHS = {
+  bool: 110,
+  integer: 130,
+  number: 130,
+  date: 150,
+  currency: 150,
+  enum: 170,
+  datetime: 190,
+  phone: 170,
+  relate: 200,
+  email: 240,
+  url: 240,
+  text: 220,
+};
+
+export function defaultColumnWidth(renderType) {
+  return clampWidth(DEFAULT_WIDTHS[renderType] ?? 220, {
+    minWidth: WIDTH_MIN,
+    maxWidth: WIDTH_MAX,
+  });
+}
+
+/**
+ * Vardef types that describe a relationship or an internal flag rather than a
+ * value, so they have nothing to render in a cell.
+ *
+ * `link` is the big one: it is a link field standing in for a whole related
+ * collection, and the compiled contract has no way to show it as a column.
+ * Offering it in the library would only produce creates the backend rejects.
+ */
+const NON_COLUMN_TYPES = new Set(["link", "relate_collection", "collection"]);
+
+/** Bookkeeping columns that exist on every bean and are never displayed. */
+const NON_COLUMN_NAMES = new Set(["deleted"]);
+
+/** Whether one catalog entry can become a table column at all. */
+export function isRenderableModuleField(field) {
+  const name = String(field?.name ?? "").trim();
+
+  if (!name) {
+    return false;
+  }
+
+  if (NON_COLUMN_NAMES.has(name)) {
+    return false;
+  }
+
+  return !NON_COLUMN_TYPES.has(String(field?.type ?? "").trim().toLowerCase());
+}
+
+/**
+ * `first_name` -> `First Name`.
+ *
+ * Only a fallback. `get_module_fields` runs the label through SuiteCRM's
+ * translator, but a field whose module ships no label for it comes back as the
+ * raw `LBL_*` key, and showing that key as a column header is worse than
+ * showing a tidied field name.
+ */
+function humanizeFieldName(name) {
+  const words = String(name ?? "")
+    .replace(/_c$/, "")
+    .split("_")
+    .filter(Boolean);
+
+  if (!words.length) {
+    return String(name ?? "");
+  }
+
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+/** The header text to publish for one catalog entry. */
+export function moduleFieldLabel(field) {
+  const label = String(field?.label ?? "").trim();
+
+  if (!label || /^lbl_/i.test(label)) {
+    return humanizeFieldName(field?.name);
+  }
+
+  return label;
+}
+
+/**
+ * Everything `addField` needs, derived from one catalog entry.
+ *
+ * This is what replaces the eight inputs the add-field dialog used to ask for.
+ * The accessor is the vardef name, which is both what the compiled column is
+ * keyed by and what the row data arrives under, so deriving it removes a
+ * decision the user had no basis to make.
+ *
+ * `rankAfter` is the only caller-supplied part: it names the column to insert
+ * behind, and `null` appends. The backend generates the rank either way.
+ */
+export function defaultsForModuleField(field, { rankAfter = null } = {}) {
+  const sourceField = String(field?.name ?? "").trim();
+
+  if (!sourceField) {
+    throw new TableLayoutError("a field from the catalog needs a name");
+  }
+
+  const vardefType = mapVardefType(field?.type);
+
+  return {
+    label: moduleFieldLabel(field),
+    sourceField,
+    accessor: sourceField,
+    vardefType,
+    width: defaultColumnWidth(vardefType),
+    visible: true,
+    rankAfter,
+    rankBefore: null,
+    blockId: null,
+  };
 }

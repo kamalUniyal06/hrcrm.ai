@@ -10,6 +10,7 @@ import {
     TabsList,
     TabsTrigger,
 } from "@/components/ui/tabs";
+import { LayoutDraftProvider } from "./LayoutDraftContext";
 
 const tabs = [
     {
@@ -19,7 +20,7 @@ const tabs = [
     },
     {
         id: "views",
-        label: "Deatil & Edit View",
+        label: "Detail & Edit View",
         path: "views",
     },
     {
@@ -54,7 +55,8 @@ const Layout = () => {
     };
 
     return (
-        <div className="w-full">
+        <LayoutDraftProvider>
+            <div className="layout-editor min-w-0 w-full">
             {/* ============================================================= */}
             {/* HEADER                                                        */}
             {/* ============================================================= */}
@@ -77,19 +79,21 @@ const Layout = () => {
             <ShadcnTabs
                 value={activeTab}
                 onValueChange={handleTabChange}
+                activationMode="manual"
                 className="w-full"
             >
                 <TabsList
                     className="
-            h-auto
-            w-fit
+            h-auto group-data-horizontal/tabs:h-auto
+            grid grid-cols-2 @min-[640px]/settings:flex
+            w-full @min-[640px]/settings:w-fit
             max-w-full
-            overflow-x-auto
-            rounded-full
+            rounded-xl @min-[640px]/settings:rounded-full
             border
             border-border
             bg-background
-            p-1
+            gap-1
+            p-1.5 @min-[640px]/settings:p-2
           "
                 >
                     {tabs.map((tab) => (
@@ -98,9 +102,11 @@ const Layout = () => {
                             value={tab.id}
                             className="
                 rounded-full
-                px-5
-                py-2
-                text-sm
+                min-h-10 @min-[640px]/settings:min-h-0
+                min-w-0 whitespace-normal @min-[640px]/settings:whitespace-nowrap
+                px-3 @min-[640px]/settings:px-6
+                py-2 @min-[640px]/settings:py-0.5
+                text-sm @min-[640px]/settings:text-[13px] @min-[640px]/settings:leading-[18px]
                 font-medium
                 text-muted-foreground
                 transition-all
@@ -127,7 +133,8 @@ const Layout = () => {
                     <Outlet />
                 </div>
             </ShadcnTabs>
-        </div>
+            </div>
+        </LayoutDraftProvider>
     );
 };
 
