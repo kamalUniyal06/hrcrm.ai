@@ -9,6 +9,8 @@ import { useCandidateProfile } from "./queries/candidate.queries";
 import Profile from "./components/pages/Profile";
 import LoadingPage from "./components/pages/LoadingPage";
 import { needsOnboarding, rememberOnboardingComplete, rememberOnboardingStarted } from "./components/pages/profile/onboardingState";
+import IncrementReminder from "./components/employement/components/IncrementReminder";
+import { useSelector } from "react-redux";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -24,6 +26,7 @@ const RootLayout = () => {
   } = useCandidateProfile();
   const [onboarding, setOnboarding] = useState(null);
   const navigate = useNavigate();
+  const userEmail = useSelector((state) => state.user.user?.email)?.trim() || "";
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
     if (!isPending && !isError && onboarding === null) {
@@ -80,6 +83,7 @@ const RootLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-sidebar-primary">
+      <IncrementReminder email={userEmail} />
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
 

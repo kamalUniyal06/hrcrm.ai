@@ -8,7 +8,6 @@ import {
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import ResignationFlow from "./ResignationFlow";
 
 export default function EmployeeOptions() {
@@ -18,7 +17,7 @@ export default function EmployeeOptions() {
 
   const askForIncrement = () => {
     setResignationOpen(false);
-    toast("Increment requests will be available here soon.", { icon: "💬" });
+    navigate("/increment-request");
   };
 
   return (

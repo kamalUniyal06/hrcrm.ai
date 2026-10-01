@@ -40,6 +40,7 @@ import LeaveManagementPage from "./components/employement/pages/LeaveManagementP
 import AttendanceDashboard from "./components/employement/pages/AttendanceDashboard";
 import LeaveApplications from "./components/employement/components/leave/LeavesApplications";
 import LimitManagementPage from "./components/pages/LimitManagementPage";
+import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 
 const router = createBrowserRouter([
   {
@@ -211,6 +212,11 @@ const router = createBrowserRouter([
       {
         path: "leaves",
         element: <LeaveManagementPage />,
+      },
+      {
+        path: "increment-request",
+        element: <IncrementRequestPage />,
+        handle: { breadcrumb: "Increment request" },
       },
       {
         path: "/leave-applications",
