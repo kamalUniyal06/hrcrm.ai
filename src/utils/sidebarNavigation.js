@@ -1,5 +1,7 @@
 export function sidebarDestination(item) {
   const name = String(item.name || "").trim();
+  if (/^system[\s-]+alerts?$/i.test(name) || ["hrc_system_alert", "hrc_employee_response"].includes(String(item.fetch_from || item.module_name || "").trim())) return "/system-alerts";
+  if (/^offboarding(?:\s+management)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_resignation") return "/offboarding";
   if (/^(?:salary|salaries)(?:\s+management)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_salaries") return "/salaries";
   if (/^employees?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_employees") return "/employees";
   if (/^interviews?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_interviews") return "/interviews";

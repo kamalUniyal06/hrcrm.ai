@@ -49,8 +49,9 @@ export const useLogOut = () =>
             toast.success("Logout successfully");
             queryClient.invalidateQueries(dailyActivityKey.all);
         },
-        onError: () => {
-            toast.error("Failed to logout");
+        onError: (error) => {
+            if (error.code === "SYSTEM_ALERTS_REQUIRED") return;
+            toast.error(error?.message || "Failed to logout");
         }
     });
 export const useLunchIn = () =>

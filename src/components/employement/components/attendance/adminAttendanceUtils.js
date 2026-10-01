@@ -60,10 +60,17 @@ export function buildAttendanceRows(employees, activity) {
   const rows = new Map();
   const byId = new Map();
   const byEmail = new Map();
+  const excludedIds = new Set();
+  const excludedEmails = new Set();
   for (const employee of employees) {
     if (String(employee.deleted) === "1") continue;
     const email = clean(employee.email1).toLowerCase();
     const id = clean(employee.id);
+    if (clean(employee.stage_id_name) === "Ex Employee" && clean(employee.hrc_phase_id_name) === "Exit") {
+      if (id) excludedIds.add(id);
+      if (email) excludedEmails.add(email);
+      continue;
+    }
     const key = id ? `employee:${id}` : email ? `email:${email}` : null;
     if (!key) continue;
     const row = {
@@ -86,6 +93,8 @@ export function buildAttendanceRows(employees, activity) {
     if (!date) continue;
     const linkedId = clean(record[employeeLink]);
     const email = clean(record.name).toLowerCase();
+    // Don't recreate excluded employees as unlinked attendance rows.
+    if (linkedId ? excludedIds.has(linkedId) : excludedEmails.has(email)) continue;
     // A populated relationship is authoritative; don't attach an unknown ID to another employee by email.
     let row = linkedId ? byId.get(linkedId) : byEmail.get(email);
     if (!row) {

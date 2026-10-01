@@ -3,6 +3,7 @@ import { AUTH_URL } from "../constants";
 import { showConsole } from "../../assets/assets";
 import { apiRequest } from "../../services/api";
 import { clearCrmToken } from "../../services/crmAuth";
+import { ensureSystemAlertsAnswered } from "../../components/employement/api/systemAlerts.api";
 
 const initialState = {
   loading: false,
@@ -243,10 +244,10 @@ export const getUser = () => {
 // ============================================================
 
 export const logout = () => {
-  return async (dispatch) => {
-    dispatch(userSlice.actions.logoutRequest());
-
+  return async (dispatch, getState) => {
     try {
+      await ensureSystemAlertsAnswered(getState().user.userInfo?.id);
+      dispatch(userSlice.actions.logoutRequest());
       const data = await apiRequest({
         endpoint: `${AUTH_URL}?controller=auth`,
         params: {
@@ -269,11 +270,12 @@ export const logout = () => {
 
       dispatch(userSlice.actions.clearAllErrors());
     } catch (error) {
+      if (error.code === "SYSTEM_ALERTS_REQUIRED") return;
       dispatch(
         userSlice.actions.logoutFailed(
           error?.response?.data?.message ||
           error?.response?.data?.error ||
-          "Logout Failed",
+          error?.message || "Logout Failed",
         ),
       );
     }

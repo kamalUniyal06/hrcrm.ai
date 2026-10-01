@@ -11,6 +11,7 @@ import SystemAlertCarousel from "../components/SystemAlertCarousel";
 
 export default function EmployeHomePage() {
     const employeeId = useSelector((state) => state.user.userInfo?.id);
+    const email = useSelector((state) => state.user.user?.email);
     const isAdmin = useSelector(
         (state) => state.user.userInfo?.status === "admin"
     );
@@ -22,7 +23,7 @@ export default function EmployeHomePage() {
                 {/* Header */}
                 <DashboardHeader />
 
-                <SystemAlertCarousel employeeId={employeeId} />
+                <SystemAlertCarousel employeeId={employeeId} email={email} />
 
                 {/* Overview */}
                 <div className="mt-5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">

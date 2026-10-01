@@ -1,5 +1,8 @@
 import { createElement, useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import { ensureSystemAlertsAnswered } from "../api/systemAlerts.api";
 import {
     AlertCircle,
     Coffee,
@@ -152,6 +155,8 @@ export default function TodayPresentCard({
     const [breakSeconds, setBreakSeconds] = useState(0);
     const [isBreakConfirmOpen, setIsBreakConfirmOpen] = useState(false);
     const [isExitMeetingOpen, setIsExitMeetingOpen] = useState(false);
+    const [isCheckingAlerts, setIsCheckingAlerts] = useState(false);
+    const employeeId = useSelector((state) => state.user.userInfo?.id);
     const [meetingHeld, setMeetingHeld] = useState("");
     const [conductedBy, setConductedBy] = useState("");
     const [remarks, setRemarks] = useState("");
@@ -164,11 +169,25 @@ export default function TodayPresentCard({
         setExitMeetingError("");
     };
 
-    const handleExitMeetingOpenChange = (open) => {
+    const handleExitMeetingOpenChange = async (open) => {
         if (actionLoading === "checkout") return;
-
-        setIsExitMeetingOpen(open);
-        if (!open) resetExitMeetingForm();
+        if (!open) {
+            setIsExitMeetingOpen(false);
+            resetExitMeetingForm();
+            return;
+        }
+        if (isCheckingAlerts) return;
+        setIsCheckingAlerts(true);
+        try {
+            await ensureSystemAlertsAnswered(employeeId);
+            setIsExitMeetingOpen(true);
+        } catch (error) {
+            if (error.code !== "SYSTEM_ALERTS_REQUIRED") {
+                toast.error(error.message || "Could not check required alerts. Please try again.");
+            }
+        } finally {
+            setIsCheckingAlerts(false);
+        }
     };
 
     const selectMeetingStatus = (status) => {
@@ -461,7 +480,7 @@ export default function TodayPresentCard({
                     </div>
                     <div className="ml-auto flex items-center gap-2 text-sm font-medium">
   {record?.ip_address === "122.176.54.204" ? (
-    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700">
+    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700 text-sm font-semibold">
       Login from office
     </span>
   ) : (
@@ -692,10 +711,11 @@ export default function TodayPresentCard({
                             type="button"
                             disabled={
                                 isOnBreak ||
+                                isCheckingAlerts ||
                                 actionLoading === "checkout"
                             }
                             onClick={() =>
-                                setIsExitMeetingOpen(true)
+                                handleExitMeetingOpenChange(true)
                             }
                             className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--employee-red)]/40 bg-[var(--leave-red-soft)] px-4 text-sm font-semibold text-[var(--employee-red)] shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--employee-red)] disabled:cursor-not-allowed disabled:opacity-55"
                         >
@@ -711,7 +731,7 @@ export default function TodayPresentCard({
                                         size={17}
                                         className="shrink-0"
                                     />
-                                    Log Out
+                                    {isCheckingAlerts ? "Checking alerts..." : "Log Out"}
                                 </>
                             )}
                         </button>
