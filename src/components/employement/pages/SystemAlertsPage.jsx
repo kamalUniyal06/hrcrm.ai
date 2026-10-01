@@ -72,7 +72,7 @@ export default function SystemAlertsPage() {
   if (!isAdmin) return null;
 
   return (
-    <div className="mb-6 grid min-h-[75vh] overflow-hidden rounded-2xl border border-border bg-muted/20 lg:grid-cols-[230px_minmax(0,1fr)]">
+    <div className="mb-6 grid h-screen overflow-hidden rounded-2xl border border-border bg-muted/20 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="border-b border-border bg-card lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 border-b border-border p-5"><span className="rounded-xl bg-primary/10 p-2.5 text-primary"><BellRing className="size-5" /></span><div><p className="text-sm font-semibold">System alerts</p><p className="mt-1 text-xs text-muted-foreground">Employee communication</p></div></div>
         <nav aria-label="System alert management" className="flex gap-2 overflow-x-auto p-3 lg:flex-col">
