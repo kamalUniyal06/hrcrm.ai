@@ -56,7 +56,6 @@ export default function EmployeesPage() {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState({ key: "name", direction: 1 });
   const [selection, setSelection] = useState(null);
-  const [removing, setRemoving] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const records = query.data || [];
@@ -88,25 +87,8 @@ export default function EmployeesPage() {
   const pages = Math.max(1, Math.ceil(visible.length / 20));
   const currentPage = Math.min(page, pages);
   const rows = visible.slice((currentPage - 1) * 20, currentPage * 20);
-  async function remove() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await deleteEmployee(removing.id);
-      client.setQueryData(["employees", "list"], (items) =>
-        items?.filter((item) => item.id !== removing.id),
-      );
-      client.removeQueries({ queryKey: ["employees", "detail", removing.id] });
-      void client.invalidateQueries({ queryKey: ["employees", "list"] });
-      setRemoving(null);
-      toast.success("Employee deleted");
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
+
+  
   return (
     <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary p-6 text-white sm:p-8">
@@ -351,19 +333,6 @@ export default function EmployeesPage() {
                         >
                           <Pencil size={15} />
                         </button>
-             
-                        <button
-                          aria-label={`Delete ${employeeName(record)}`}
-                          title="Delete employee"
-                          disabled={!record.id}
-                          onClick={() => {
-                            setError("");
-                            setRemoving(record);
-                          }}
-                          className={`${buttonClass} text-red-600`}
-                        >
-                          <Trash2 size={15} />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -408,50 +377,7 @@ export default function EmployeesPage() {
           onClose={() => setSelection(null)}
         />
       )}
-      <Dialog.Root
-        open={!!removing}
-        onOpenChange={(open) => {
-          if (!open && !busy) setRemoving(null);
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/45" />
-          <Dialog.Content
-            className="fixed left-1/2 top-1/2 z-999 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl"
-            onInteractOutside={(event) => event.preventDefault()}
-          >
-            <Dialog.Title className="text-lg font-semibold">
-              Delete employee?
-            </Dialog.Title>
-            <Dialog.Description className="mt-2 text-sm text-slate-600">
-              {removing ? employeeName(removing) : "This employee"} will be
-              removed from the directory. Confirm to continue.
-            </Dialog.Description>
-            {error && (
-              <p role="alert" className="mt-4 text-sm text-red-700">
-                {error}
-              </p>
-            )}
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                disabled={busy}
-                onClick={() => setRemoving(null)}
-                className={buttonClass}
-              >
-                Cancel
-              </button>
-              <button
-                disabled={busy}
-                onClick={remove}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-50"
-              >
-                {busy && <Loader2 size={15} className="animate-spin" />}Delete
-                employee
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+     
     </main>
   );
 }
