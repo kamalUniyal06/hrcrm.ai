@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import he from "he";
 
 import Icon from "../../../ui/Icon/Icon";
 import AttendanceHeader from "./AttendanceHeader";
@@ -7,6 +8,7 @@ import AttendanceDayCell from "./AttendanceDayCell";
 
 import { useAttendanceContext } from "../../context/AttendanceContext";
 import { useAttendanceCalendar } from "../../hooks/useAttendance";
+import { usePublicHolidays } from "../../queries/leaves.queries";
 
 const MotionButton = motion.button;
 const MotionAside = motion.aside;
@@ -38,25 +40,13 @@ const getCalendarDays = (date) => {
         0
     ).getDate();
 
-    const previousMonthDays = new Date(
-        year,
-        month,
-        0
-    ).getDate();
-
     const days = [];
 
-    // Previous month
-    for (let i = startDay - 1; i >= 0; i--) {
-        const day = previousMonthDays - i;
-
+    // Keep the weekday alignment without showing dates from another month.
+    for (let i = 0; i < startDay; i++) {
         days.push({
-            day,
-            date: new Date(
-                year,
-                month - 1,
-                day
-            ),
+            day: null,
+            date: null,
             isCurrentMonth: false,
         });
     }
@@ -74,21 +64,13 @@ const getCalendarDays = (date) => {
         });
     }
 
-    // Next month
-    let nextDay = 1;
-
-    while (days.length < 42) {
+    // Complete only the final week; do not render the next month's dates.
+    while (days.length % 7 !== 0) {
         days.push({
-            day: nextDay,
-            date: new Date(
-                year,
-                month + 1,
-                nextDay
-            ),
+            day: null,
+            date: null,
             isCurrentMonth: false,
         });
-
-        nextDay++;
     }
 
     return days;
@@ -105,6 +87,14 @@ const formatDate = (date) => {
         date.getDate()
     ).padStart(2, "0");
 
+    return `${year}-${month}-${day}`;
+};
+
+const parseHolidayDateKey = (value) => {
+    const match = String(value || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+
+    const [, month, day, year] = match;
     return `${year}-${month}-${day}`;
 };
 
@@ -364,6 +354,7 @@ const EmployeeAttendanceCalendar = ({
         email,
         month,
     });
+    const publicHolidays = usePublicHolidays();
 
     const calendarDays = useMemo(
         () =>
@@ -392,6 +383,20 @@ const EmployeeAttendanceCalendar = ({
             ),
         [data]
     );
+
+    const holidayMap = useMemo(() => {
+        const records = Array.isArray(publicHolidays.data?.records)
+            ? publicHolidays.data.records
+            : [];
+
+        return records.reduce((holidays, record) => {
+            const dateKey = parseHolidayDateKey(record?.holiday_date);
+            if (dateKey) {
+                holidays[dateKey] = he.decode(String(record?.name || "Public holiday"));
+            }
+            return holidays;
+        }, {});
+    }, [publicHolidays.data]);
 
     const today = new Date();
 
@@ -538,7 +543,16 @@ const EmployeeAttendanceCalendar = ({
                                                 day,
                                                 date,
                                                 isCurrentMonth,
-                                            }) => {
+                                            }, index) => {
+                                                if (!isCurrentMonth) {
+                                                    return (
+                                                        <AttendanceDayCell
+                                                            key={`empty-${index}`}
+                                                            isCurrentMonth={false}
+                                                        />
+                                                    );
+                                                }
+
                                                 const dateKey =
                                                     formatDate(
                                                         date
@@ -552,6 +566,9 @@ const EmployeeAttendanceCalendar = ({
                                                 const isToday =
                                                     date.toDateString() ===
                                                     today.toDateString();
+                                                const isWeekend =
+                                                    date.getDay() === 0 ||
+                                                    date.getDay() === 6;
 
                                                 return (
                                                     <AttendanceDayCell
@@ -573,6 +590,8 @@ const EmployeeAttendanceCalendar = ({
                                                         attendance={
                                                             attendance
                                                         }
+                                                        isWeekend={isWeekend}
+                                                        holidayName={holidayMap[dateKey]}
                                                         onClick={
                                                             isCurrentMonth
                                                                 ? (

@@ -21,9 +21,26 @@ const AttendanceDayCell = ({
     isCurrentMonth,
     isToday,
     attendance,
+    isWeekend = false,
+    holidayName,
     onClick,
 }) => {
     const isLate = isLoginLate(attendance?.login);
+
+    if (!isCurrentMonth) {
+        return (
+            <div
+                aria-hidden="true"
+                className="min-h-[110px] border-b border-r border-[var(--border)] bg-[var(--muted)]/35 sm:min-h-[125px]"
+            />
+        );
+    }
+
+    const dayType = holidayName
+        ? { label: holidayName, shortLabel: "Public holiday", icon: "IoSparklesOutline" }
+        : isWeekend
+            ? { label: "Weekend", shortLabel: "Weekend", icon: "IoCafeOutline" }
+            : null;
 
     return (
         <div
@@ -45,7 +62,9 @@ const AttendanceDayCell = ({
 
                 ${isToday
                     ? "bg-[var(--accent)]/10 ring-1 ring-inset ring-[var(--primary)]"
-                    : "bg-[var(--card)]"
+                    : dayType
+                        ? "bg-[var(--muted)]/45"
+                        : "bg-[var(--card)]"
                 }
 
                 ${onClick
@@ -93,6 +112,25 @@ const AttendanceDayCell = ({
                     {day}
                 </div>
             </div>
+
+            {dayType && !attendance && (
+                <div className="mt-2 flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--card)]/65 px-1.5 py-2 text-center sm:min-h-[62px]">
+                    <Icon
+                        name={dayType.icon}
+                        library="io5"
+                        size={14}
+                        className={holidayName ? "text-emerald-600" : "text-amber-600"}
+                    />
+                    <span className="text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:text-[10px]">
+                        {dayType.shortLabel}
+                    </span>
+                    {holidayName && (
+                        <span className="line-clamp-2 text-[8px] leading-tight text-[var(--muted-foreground)] sm:text-[9px]" title={dayType.label}>
+                            {dayType.label}
+                        </span>
+                    )}
+                </div>
+            )}
 
             {isCurrentMonth && attendance && (
                 <div className="mt-1 space-y-1 sm:mt-2">
