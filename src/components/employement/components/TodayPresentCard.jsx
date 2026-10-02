@@ -19,7 +19,6 @@ import afternoonScene from "../../../assets/attendance/workday-afternoon.png";
 import eveningScene from "../../../assets/attendance/workday-evening.png";
 
 const SHIFT_DURATION_SECONDS = 9 * 60 * 60;
-const BREAK_DURATION_SECONDS = 40 * 60;
 
 /**
  * API date format:
@@ -122,7 +121,9 @@ export default function TodayPresentCard({
     handleTakeBreak,
     handleBackFromBreak,
     handleCheckOut,
+    lunchOutMinutes = 40,
 }) {
+    const breakDurationSeconds = lunchOutMinutes * 60;
     const [breakStartedAt, setBreakStartedAt] = useState(null);
 
     /**
@@ -377,23 +378,17 @@ export default function TodayPresentCard({
         workedSeconds
     );
 
-    const shiftOvertimeSeconds = Math.max(
-        (isCheckedOut ? workedSeconds : shiftElapsedSeconds) -
-        SHIFT_DURATION_SECONDS,
-        0
-    );
-
     const hasCompletedShift =
         (isCheckedOut ? workedSeconds : shiftElapsedSeconds) >=
         SHIFT_DURATION_SECONDS;
 
     const breakOvertimeSeconds = Math.max(
-        breakSeconds - BREAK_DURATION_SECONDS,
+        breakSeconds - breakDurationSeconds,
         0
     );
 
     const lunchSecondsLeft = Math.max(
-        BREAK_DURATION_SECONDS - breakSeconds,
+        breakDurationSeconds - breakSeconds,
         0
     );
 
@@ -403,7 +398,7 @@ export default function TodayPresentCard({
     );
 
     const isLunchOutLate =
-        hasTakenBreak && completedBreakSeconds > BREAK_DURATION_SECONDS;
+        hasTakenBreak && completedBreakSeconds > breakDurationSeconds;
 
     const breakReturnTime = useMemo(() => {
         if (!isOnBreak) return null;
@@ -414,13 +409,13 @@ export default function TodayPresentCard({
         if (!timerStartedAt) return null;
 
         return new Date(
-            timerStartedAt + BREAK_DURATION_SECONDS * 1000
+            timerStartedAt + breakDurationSeconds * 1000
         ).toLocaleTimeString("en-IN", {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
         });
-    }, [breakStartedAt, isOnBreak, record?.lunch_in]);
+    }, [breakDurationSeconds, breakStartedAt, isOnBreak, record?.lunch_in]);
 
     const displayedShiftSeconds = isCheckedOut
         ? workedSeconds
@@ -449,13 +444,6 @@ export default function TodayPresentCard({
         : dayPeriod === "afternoon"
             ? afternoonScene
             : eveningScene;
-    const greeting = isCheckedOut
-        ? "Great work today!"
-        : `Good ${dayPeriod}!`;
-    const lunchTimer = breakOvertimeSeconds > 0
-        ? `+${formatDuration(breakOvertimeSeconds)}`
-        : formatDuration(lunchSecondsLeft);
-
     /**
      * ------------------------------------------------------------
      * RENDER
@@ -554,8 +542,8 @@ export default function TodayPresentCard({
 
                                 <p className="max-w-md text-sm leading-6 text-muted-foreground">
                                     {breakOvertimeSeconds > 0
-                                        ? "Your 40-minute lunch time has ended. Please return to work."
-                                        : "Your 40-minute lunch time is counting down."}
+                                        ? `Your ${lunchOutMinutes}-minute lunch time has ended. Please return to work.`
+                                        : `Your ${lunchOutMinutes}-minute lunch time is counting down.`}
                                 </p>
 
                                 <div className="mt-4 flex items-center gap-2">
@@ -772,7 +760,7 @@ export default function TodayPresentCard({
                                 id="break-confirmation-description"
                                 className="mt-1.5 text-sm leading-6 text-white/85"
                             >
-                                Your 40-minute lunch countdown will start immediately after you confirm.
+                                Your {lunchOutMinutes}-minute lunch countdown will start immediately after you confirm.
                             </Dialog.Description>
                         </div>
 

@@ -1,18 +1,17 @@
 import Icon from "../../../ui/Icon/Icon";
 
-const isLoginLate = (loginTime) => {
+const timeToMinutes = (time) => {
+    const match = String(time || "").match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3].toUpperCase() === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+};
+
+const isLoginLate = (loginTime, lateAfterMinutes) => {
     if (!loginTime) return false;
-
-    const match = loginTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-    if (!match) return false;
-
-    const [, hours, minutes, period] = match;
-    let hour = Number(hours) % 12;
-
-    if (period.toUpperCase() === "PM") hour += 12;
-
-    return hour > 10 || (hour === 10 && Number(minutes) > 0);
+    const loginMinutes = timeToMinutes(loginTime);
+    return loginMinutes !== null && loginMinutes > lateAfterMinutes;
 };
 
 const AttendanceDayCell = ({
@@ -23,9 +22,10 @@ const AttendanceDayCell = ({
     attendance,
     isWeekend = false,
     holidayName,
+    lateAfterMinutes = 600,
     onClick,
 }) => {
-    const isLate = isLoginLate(attendance?.login);
+    const isLate = isLoginLate(attendance?.login, lateAfterMinutes);
 
     if (!isCurrentMonth) {
         return (
@@ -161,7 +161,7 @@ const AttendanceDayCell = ({
                             {isLate && (
                                 <span
                                     className="ml-1 rounded bg-[var(--chart-4)] px-1 py-0.5 text-[8px] text-[var(--foreground)] sm:text-[9px]"
-                                    title="Logged in after 10:00 AM"
+                                    title="Logged in after the configured login grace period"
                                 >
                                     Late
                                 </span>

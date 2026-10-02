@@ -9,6 +9,7 @@ import AttendanceDayCell from "./AttendanceDayCell";
 import { useAttendanceContext } from "../../context/AttendanceContext";
 import { useAttendanceCalendar } from "../../hooks/useAttendance";
 import { usePublicHolidays } from "../../queries/leaves.queries";
+import { useAttendanceLimits } from "../../attendanceLimits";
 
 const MotionButton = motion.button;
 const MotionAside = motion.aside;
@@ -178,19 +179,9 @@ const formatTime = (value) => {
     )}:${minutes} ${suffix}`;
 };
 
-const isLoginLate = (loginTime) => {
-    if (!loginTime) return false;
-
-    const match = loginTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-    if (!match) return false;
-
-    const [, hours, minutes, period] = match;
-    let hour = Number(hours) % 12;
-
-    if (period.toUpperCase() === "PM") hour += 12;
-
-    return hour > 10 || (hour === 10 && Number(minutes) > 0);
+const isLoginLate = (loginTime, lateAfterMinutes) => {
+    const loginMinutes = timeToMinutes(loginTime);
+    return loginMinutes !== null && loginMinutes > lateAfterMinutes;
 };
 
 const timeToMinutes = (time) => {
@@ -355,6 +346,9 @@ const EmployeeAttendanceCalendar = ({
         month,
     });
     const publicHolidays = usePublicHolidays();
+    const limits = useAttendanceLimits();
+    const configuredLoginMinutes = timeToMinutes(limits.actualLoginTime);
+    const lateAfterMinutes = (configuredLoginMinutes ?? 570) + limits.loginDelayMinutes;
 
     const calendarDays = useMemo(
         () =>
@@ -592,6 +586,7 @@ const EmployeeAttendanceCalendar = ({
                                                         }
                                                         isWeekend={isWeekend}
                                                         holidayName={holidayMap[dateKey]}
+                                                        lateAfterMinutes={lateAfterMinutes}
                                                         onClick={
                                                             isCurrentMonth
                                                                 ? (
@@ -620,6 +615,7 @@ const EmployeeAttendanceCalendar = ({
                         date={selectedDate}
                         attendance={selectedAttendance}
                         email={email}
+                        lateAfterMinutes={lateAfterMinutes}
                         onClose={() => selectDate(null)}
                     />
                 )}
@@ -628,7 +624,7 @@ const EmployeeAttendanceCalendar = ({
     );
 };
 
-const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
+const AttendanceDayDrawer = ({ date, attendance, email, lateAfterMinutes, onClose }) => {
     const [currentMinutes, setCurrentMinutes] = useState(getCurrentIndiaMinutes);
 
     useEffect(() => {
@@ -641,7 +637,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
     }, []);
 
     const isToday = dateKeyInIndia(date) === dateKeyInIndia(new Date());
-    const late = isLoginLate(attendance?.login);
+    const late = isLoginLate(attendance?.login, lateAfterMinutes);
     const totalMinutes = attendance?.logout
         ? getDuration(attendance?.login, attendance.logout)
         : isToday
@@ -662,7 +658,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
     const loginMinutes = timeToMinutes(attendance?.login);
     const lateMinutes = loginMinutes === null
         ? 0
-        : Math.max(loginMinutes - 10 * 60, 0);
+        : Math.max(loginMinutes - lateAfterMinutes, 0);
     const activities = [
         ["Login", attendance?.login, "IoLogInOutline"],
         ["Lunch started", attendance?.lunch_in, "IoFastFoodOutline"],
