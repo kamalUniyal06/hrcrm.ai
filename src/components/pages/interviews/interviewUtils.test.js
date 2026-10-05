@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { candidateId, groupInterviews, hasOutcome, interviewDate, localInterviewTime, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
+import { candidateId, groupInterviews, hasOutcome, interviewDate, isFirstRound, localInterviewTime, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
+
+test("test-link generation only accepts the Round 1 label", () => {
+  for (const description of ["Round 1", " round  1 ", "ROUND1", "Round\t1"])
+    assert.equal(isFirstRound({ description }), true);
+  for (const description of ["Round 2", "Round 3", "Round 10", "Round 11", "Technical", "", " "])
+    assert.equal(isFirstRound({ description }), false);
+  assert.equal(isFirstRound(null), false);
+  assert.equal(isFirstRound({}), false);
+});
 
 test("groups arbitrary descriptions without imposing predefined rounds", () => {
   const groups = groupInterviews([
@@ -71,6 +80,50 @@ test("creation failure leaves current round unpassed and feedback is mandatory",
   await assert.rejects(passToNextRound(record, "Good", "Round 2", api));
   await assert.rejects(passToNextRound(record, " ", "Round 2", api));
   assert.equal(updated, false);
+});
+
+test("moving into a completed destination does not modify either interview", async () => {
+  const record = { id: "source", candidate_id: "person", job_id: "job", description: "Round 2" };
+  for (const interview_status of ["Pass", "Fail"]) {
+    const api = {
+      fetchAllRecords: async () => [{ ...record, id: "completed", description: "Round 1", interview_status }],
+      createInterview: async () => assert.fail("Must not replace a completed round"),
+      updateInterview: async () => assert.fail("Must not pass the source round"),
+    };
+    await assert.rejects(passToNextRound(record, "Good", "Round 1", api), /already completed Round 1/);
+  }
+});
+
+test("moving into an existing pending round preserves its schedule and avoids a duplicate", async () => {
+  const record = { id: "source", candidate_id: "person", job_id: "job", description: "Round 1" };
+  const target = Object.freeze({ ...record, id: "target", description: "Round 2", interview_datetime: "2026-10-15 10:00:00", interview_status: "Pending" });
+  const updates = [];
+  const api = {
+    fetchAllRecords: async () => [target],
+    createInterview: async () => assert.fail("Must reuse the pending interview"),
+    updateInterview: async (...args) => updates.push(args),
+  };
+  await passToNextRound(record, "  Ready for technical interview  ", "Round 2", api);
+  assert.deepEqual(updates, [["source", { interview_status: "Pass", interview_feedback: "Ready for technical interview" }]]);
+  assert.equal(target.interview_datetime, "2026-10-15 10:00:00");
+});
+
+test("destination checks use the latest active interview and ignore deleted duplicates", async () => {
+  const record = { id: "source", candidate_id: "person", job_id: "job", description: "Round 1" };
+  const older = { ...record, id: "old", description: "Round 2", interview_status: "Pass", date_modified: "2026-10-01 12:00:00" };
+  const latest = { ...older, id: "latest", interview_status: "", date_modified: "2026-10-02 12:00:00" };
+  const deleted = { ...older, id: "deleted", deleted: "1", date_modified: "2026-10-03 12:00:00" };
+  let updates = 0;
+  const api = {
+    fetchAllRecords: async () => [latest, deleted, older],
+    createInterview: async () => assert.fail("Must reuse the latest active interview"),
+    updateInterview: async () => { updates++; },
+  };
+  await passToNextRound(record, "Good", "Round 2", api);
+  assert.equal(updates, 1);
+  latest.interview_status = "Fail";
+  await assert.rejects(passToNextRound(record, "Good", "Round 2", api), /already completed/);
+  assert.equal(updates, 1);
 });
 
 test("blank job IDs stay separate, repeated record IDs and deleted records do not", () => {

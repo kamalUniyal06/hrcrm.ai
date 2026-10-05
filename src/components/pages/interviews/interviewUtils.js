@@ -1,5 +1,6 @@
 export const clean = (value) => String(value ?? "").trim();
 export const roundName = (record) => clean(record.description).replace(/\s+/g, " ") || "Unspecified round";
+export const isFirstRound = (record) => Boolean(record && /^round\s*1$/i.test(roundName(record)));
 export const hasOutcome = (record) => ["pass", "passed", "fail", "failed"].includes(clean(record.interview_status).toLowerCase());
 export const candidateId = (record) => clean(record.candidate_id) || clean(record.hrc_candidates_hrc_interviews_1hrc_candidates_ida);
 export const isPassed = (record) => /^(pass|passed)$/i.test(clean(record.interview_status));
@@ -33,7 +34,10 @@ export async function passToNextRound(record, feedback, description, api) {
   if (!clean(feedback)) throw new Error("Interview feedback is required.");
   const data = nextRoundData(record, description);
   const existing = await api.fetchAllRecords("hrc_interviews");
-  if (!existing.some((item) => String(item.deleted) !== "1" && interviewKey(item) === interviewKey(data)))
+  const target = uniqueInterviews(existing).find((item) => interviewKey(item) === interviewKey(data));
+  if (target && hasOutcome(target))
+    throw new Error(`This candidate has already completed ${data.description}. Choose another round.`);
+  if (!target)
     await api.createInterview(data);
   await api.updateInterview(record.id, { interview_status: "Pass", interview_feedback: clean(feedback) });
 }
