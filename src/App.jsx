@@ -3,6 +3,7 @@ import { SettingsPage } from "./components/pages/settingpages/SettingsPage";
 import { useDispatch, useSelector } from "react-redux";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
 import RootLayout from "./RootLayout";
+import RecruitmentProvider from "./context/RecruitmentProvider";
 
 import { getUser, userAction } from "./store/Slices/userSlice";
 import Login from "./components/pages/Login";
@@ -57,7 +58,7 @@ const router = createBrowserRouter([
       <ErrorBoundary>
         <PageContextProvider>
           <BootApp />
-          <RootLayout />
+          <RecruitmentProvider><RootLayout /></RecruitmentProvider>
         </PageContextProvider>
       </ErrorBoundary>
     ),
@@ -206,7 +207,7 @@ const router = createBrowserRouter([
       },
       {
         path: "interviews",
-        element: <Interview />,
+        element: <PageAccessGuard><Interview /></PageAccessGuard>,
         handle: { breadcrumb: "Interviews" },
       },
       {

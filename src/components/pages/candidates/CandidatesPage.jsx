@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Link2,
   RefreshCw,
   Search,
   Users,
@@ -17,6 +18,7 @@ import toast from "react-hot-toast";
 import ScheduleInterviewDialog from "./ScheduleInterviewDialog";
 import CandidateInterviewsDialog from "../interviews/CandidateInterviewsDialog";
 import CandidateDetails from "./CandidateDetails";
+import RecruitmentPanel from "../recruitment/RecruitmentPanel";
 import {
   candidateName,
   fetchAllRecords,
@@ -34,6 +36,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
   const client = useQueryClient();
   const [scheduling, setScheduling] = useState(null);
   const [rescheduling, setRescheduling] = useState(null);
+  const [assessment, setAssessment] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const candidates = useQuery({
     queryKey: ["candidates", "list"],
@@ -168,6 +171,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
           </div>
         </div>
       </header>
+      {isAdmin && assessment && <RecruitmentPanel key={assessment.id || "select-candidate"} candidates={allRecords} initialCandidate={assessment.id ? assessment : null} onClose={() => setAssessment(null)} />}
       <section
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         aria-label="Candidate directory"
@@ -183,6 +187,8 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
               Select a candidate to view and edit their profile.
             </p>
           </div>
+          <div className="flex flex-wrap gap-2">
+          {isAdmin && <button onClick={() => setAssessment({})} disabled={!candidates.isSuccess} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"><Link2 size={15} />View assessments</button>}
           <button
             onClick={refresh}
             disabled={candidates.isFetching}
@@ -194,6 +200,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             />
             Refresh
           </button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3 p-5">
           <label className="flex min-w-52 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-indigo-500">
@@ -395,6 +402,10 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                       className="px-5 py-4"
                       onClick={(event) => event.stopPropagation()}
                     >
+                      {isAdmin && <button disabled={!record.id} onClick={() => {
+                        setAssessment(record);
+                        requestAnimationFrame(() => document.getElementById("assessment-invitations")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }));
+                      }} className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-2.5 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50"><Link2 size={14} />View assessment</button>}
                       {shortlistedOnly ? (value(record, "status").trim().toLowerCase() !== "rejected" && <div className="flex flex-wrap gap-2">
                         <button
                           disabled={
