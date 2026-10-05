@@ -199,15 +199,17 @@ export function Sidebar() {
      */
     setSidebarStatsQuery(
       visibleGroups.flatMap((group) =>
-        (group.data ?? []).map((item) => ({
-          key: item.key,
-          module: item.module_name,
-          ignore_email:
-            item.filter_by_email == "1"
-              ? false
-              : true,
-          filters: item.count_filters ?? {},
-        })),
+        (group.data ?? [])
+          .filter((item) => item.show_count === true)
+          .map((item) => ({
+            key: item.key,
+            module: item.module_name,
+            ignore_email:
+              item.filter_by_email == "1"
+                ? false
+                : true,
+            filters: item.count_filters ?? {},
+          })),
       ),
     );
   }, [visibleGroups]);
@@ -719,21 +721,23 @@ function MenuItem({ item, isDesktop, setActivePage, activePage, sidebarDestinati
             {item.name}
           </span>
 
-          {item.key &&
-            sidebarCounts?.stats?.[item.key] &&
-            sidebarCountPending ? (
-            <Skeleton count={1} />
-          ) : (
-            <span
-              className="
-                                        rounded-full
-                                        bg-[color-mix(in_srgb,var(--primary)_20%,transparent)]
-                                        px-2 py-0.5
-                                        text-xs
-                                      "
-            >
-              {sidebarCounts?.stats?.[item.key]?.count || 0}
-            </span>
+          {item.show_count === true && (
+            item.key &&
+              sidebarCounts?.stats?.[item.key] &&
+              sidebarCountPending ? (
+              <Skeleton count={1} />
+            ) : (
+              <span
+                className="
+                                          rounded-full
+                                          bg-[color-mix(in_srgb,var(--primary)_20%,transparent)]
+                                          px-2 py-0.5
+                                          text-xs
+                                        "
+              >
+                {sidebarCounts?.stats?.[item.key]?.count || 0}
+              </span>
+            )
           )}
         </>
       )}
