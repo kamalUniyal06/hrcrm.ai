@@ -55,7 +55,7 @@ export default function EmployeeOptions() {
 
           <button
             type="button"
-            onClick={() => navigate("/leaves")}
+            onClick={() => navigate("/my-leaves")}
             className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition hover:bg-indigo-50"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">

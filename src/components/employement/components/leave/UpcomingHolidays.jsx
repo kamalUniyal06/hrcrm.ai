@@ -101,19 +101,20 @@ export default function UpcomingHolidays() {
     }, [activeMonthKey, groupedHolidays]);
 
     return (
-        <aside className="holiday-card">
-            <div className="holiday-title">
-                <CalendarDays size={19} />
+        <aside className="sticky top-4 overflow-hidden rounded-2xl border border-border bg-[var(--leave-surface)] shadow-sm max-lg:static">
+            <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <CalendarDays size={18} />
+                </span>
                 <div>
-                    <span className="eyebrow">CALENDAR</span>
-                    <h2>Public Holidays</h2>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Calendar</span>
+                    <h2 className="mt-0.5 text-base font-semibold text-[var(--leave-text)]">Public holidays</h2>
                 </div>
             </div>
 
             <div
                 ref={scrollRef}
-                style={{ display: "block" }}
-                className="max-h-[430px] overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]"
+                className="custom-scrollbar block h-[430px] overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
             >
                 {isLoading ? (
                     <div className="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
@@ -137,7 +138,7 @@ export default function UpcomingHolidays() {
                                 if (element) monthRefs.current.set(group.key, element);
                                 else monthRefs.current.delete(group.key);
                             }}
-                            className="scroll-mt-0"
+                            className="block scroll-mt-0"
                         >
                             <div className={`sticky top-0 z-10 border-y px-2 py-2 text-[10px] font-bold uppercase tracking-[0.14em] backdrop-blur-sm ${group.key === activeMonthKey
                                 ? "border-primary bg-primary text-primary-foreground shadow-sm"
@@ -146,23 +147,25 @@ export default function UpcomingHolidays() {
                                 {group.label}
                             </div>
 
+                            <div className="divide-y divide-border px-4">
                             {group.holidays.map((holiday) => (
-                                <div className="holiday-row" key={holiday.id || `${holiday.holiday_date}-${holiday.displayName}`}>
-                                    <div>
-                                        <strong>
+                                <div className="grid grid-cols-[minmax(0,1fr)_minmax(7rem,0.9fr)] items-center gap-4 py-3.5" key={holiday.id || `${holiday.holiday_date}-${holiday.displayName}`}>
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <strong className="text-xs font-semibold tabular-nums text-[var(--leave-text)]">
                                             {holiday.date.toLocaleDateString("en-IN", {
                                                 day: "2-digit",
                                                 month: "short",
                                                 year: "numeric",
                                             })}
                                         </strong>
-                                        <span>
+                                        <span className="text-[11px] text-[var(--leave-muted)]">
                                             {holiday.date.toLocaleDateString("en-IN", { weekday: "long" })}
                                         </span>
                                     </div>
-                                    <b>{holiday.displayName}</b>
+                                    <b className="text-right text-xs font-semibold leading-5 text-[var(--leave-text)]">{holiday.displayName}</b>
                                 </div>
                             ))}
+                            </div>
                         </section>
                     ))
                 )}

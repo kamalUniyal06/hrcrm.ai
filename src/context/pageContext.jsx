@@ -17,6 +17,7 @@ export const PageContextProvider = (props) => {
     );
 
     const [collapsed, setSidebarCollapsed] = useState(true);
+    const [sidebarHovered, setSidebarHovered] = useState(false);
 
     /* Off-canvas sidebar (drawer) state — only used below the `lg` breakpoint */
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -132,6 +133,8 @@ export const PageContextProvider = (props) => {
         enteredEmail,
         setEnteredEmail,
         collapsed,
+        sidebarHovered,
+        setSidebarHovered,
         superfastToggle,
         superfastReply,
         setSidebarCollapsed,

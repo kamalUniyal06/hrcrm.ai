@@ -32,12 +32,13 @@ export function Sidebar() {
     setActivePage,
     collapsed: desktopCollapsed,
     setSidebarCollapsed,
+    sidebarHovered,
+    setSidebarHovered,
     mobileSidebarOpen,
     setMobileSidebarOpen,
   } = useContext(PageContext);
 
   const isDesktop = useIsDesktop();
-  const [sidebarHovered, setSidebarHovered] = useState(false);
   const collapsed = isDesktop ? desktopCollapsed && !sidebarHovered : false;
   const toggleSidebarPinned = () => {
     setSidebarCollapsed(!desktopCollapsed);

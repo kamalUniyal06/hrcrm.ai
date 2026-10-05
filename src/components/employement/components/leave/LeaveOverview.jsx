@@ -13,6 +13,8 @@ import LeaveBalances from "./LeaveBalances";
 import UpcomingHolidays from "./UpcomingHolidays";
 import LeaveApplications from "./LeavesApplications";
 import LeaveHistory from "./LeaveHistory";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 const views = [
     { id: "applications", label: "Applications", icon: <Clock3 size={16} /> },
@@ -23,7 +25,8 @@ export default function LeaveOverview() {
     const { setView } = useLeave();
     const pageRef = useRef(null);
     const [activeView, setActiveView] = useState("applications");
-
+    const isAdmin = useSelector((state) => state.user.userInfo?.status === "admin");
+    const navigate = useNavigate();
     useEffect(() => {
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         if (reduceMotion) return undefined;
@@ -73,33 +76,38 @@ export default function LeaveOverview() {
             <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-5 lg:gap-7">
                 <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-start">
                     <div className="flex min-w-0 flex-1 flex-col gap-5">
-                <section data-leave-reveal className="relative overflow-hidden rounded-2xl border border-border bg-[var(--leave-blue-soft)] shadow-sm">
-                    <div className="flex min-h-[210px] flex-col justify-between gap-7 px-6 py-7 sm:px-8 xl:flex-row xl:items-center xl:px-10">
-                        <div className="max-w-xl">
-                            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Take a breath</div>
-                            <h1 className="text-2xl font-medium tracking-[-0.02em] text-[var(--leave-text)]">Need a Break?</h1>
-                            <p className="mt-3 max-w-lg text-sm leading-6 text-[var(--leave-muted)]">Submit your leave request in just a few clicks. Whether it’s a vacation, sick day, or personal time off, we’ve got you covered.</p>
-                            <button type="button" onClick={() => setView("apply")} className="group mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-                                Apply for Leave <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                            </button>
-                        </div>
-                        <div className="flex shrink-0 justify-center lg:w-56">
-                            <div className="flex h-36 w-36 flex-col items-center justify-center rounded-[45%_25%_45%_30%] bg-primary/5 text-primary sm:h-40 sm:w-40">
-                                <Palmtree size={68} strokeWidth={1.8} />
-                                <span className="mt-2 text-[9px] font-bold uppercase tracking-[0.18em]">Rest · Reset · Return</span>
+                        <section data-leave-reveal className="relative overflow-hidden rounded-2xl border border-border bg-[var(--leave-blue-soft)] shadow-sm">
+                            <div className="flex min-h-[210px] flex-col justify-between gap-7 px-6 py-7 sm:px-8 xl:flex-row xl:items-center xl:px-10">
+                                <div className="max-w-xl">
+                                    <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Take a breath</div>
+                                    <h1 className="text-2xl font-medium tracking-[-0.02em] text-[var(--leave-text)]">Need a Break?</h1>
+                                    <p className="mt-3 max-w-lg text-sm leading-6 text-[var(--leave-muted)]">Submit your leave request in just a few clicks. Whether it’s a vacation, sick day, or personal time off, we’ve got you covered.</p>
+                                    <button type="button" onClick={() => setView("apply")} className="group mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                                        Apply for Leave <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+                                    </button>
+                                    {isAdmin && (
+                                        <button type="button" onClick={() => navigate("/leave-approvals")} className="inline-flex ml-2 items-center gap-2 rounded-xl border border-border bg-[var(--leave-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--leave-text)] shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:text-primary hover:shadow-md">
+                                            Open leave approvals
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex shrink-0 justify-center lg:w-56">
+                                    <div className="flex h-36 w-36 flex-col items-center justify-center rounded-[45%_25%_45%_30%] bg-primary/5 text-primary sm:h-40 sm:w-40">
+                                        <Palmtree size={68} strokeWidth={1.8} />
+                                        <span className="mt-2 text-[9px] font-bold uppercase tracking-[0.18em]">Rest · Reset · Return</span>
+                                    </div>
+                                </div>
                             </div>
+                        </section>
+
+                        <div data-leave-reveal className="min-w-0">
+                            <LeaveBalances />
                         </div>
                     </div>
-                </section>
 
-                <div data-leave-reveal className="min-w-0">
-                    <LeaveBalances />
-                </div>
+                    <div data-leave-reveal className="min-w-0 lg:w-[360px] lg:shrink-0">
+                        <UpcomingHolidays />
                     </div>
-
-                <div data-leave-reveal className="min-w-0 lg:w-[360px] lg:shrink-0">
-                    <UpcomingHolidays />
-                </div>
                 </div>
 
                 <section data-leave-reveal className="min-w-0 overflow-hidden rounded-[2rem] border border-border bg-[var(--leave-surface)] shadow-xl shadow-primary/5">

@@ -37,6 +37,8 @@ import TableView from "./components/layouts/table-view/TableView";
 import Home from "./components/Home";
 import { PageContextProvider } from "./context/pageContext";
 import LeaveManagementPage from "./components/employement/pages/LeaveManagementPage";
+import EmployeeLeavePage from "./components/employement/pages/EmployeeLeavePage";
+import AdminLeavePage from "./components/employement/pages/AdminLeavePage";
 import AttendanceDashboard from "./components/employement/pages/AttendanceDashboard";
 import LeaveApplications from "./components/employement/components/leave/LeavesApplications";
 import LimitManagementPage from "./components/pages/LimitManagementPage";
@@ -224,6 +226,16 @@ const router = createBrowserRouter([
       {
         path: "leaves",
         element: <LeaveManagementPage />,
+      },
+      {
+        path: "my-leaves",
+        element: <EmployeeLeavePage />,
+        handle: { breadcrumb: "My leave" },
+      },
+      {
+        path: "leave-approvals",
+        element: <PageAccessGuard><AdminLeavePage /></PageAccessGuard>,
+        handle: { breadcrumb: "Leave approvals" },
       },
       {
         path: "increment-request",
