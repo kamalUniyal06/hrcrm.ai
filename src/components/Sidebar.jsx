@@ -186,8 +186,8 @@ export function Sidebar() {
 
   /**
    * Only keep:
-   * 1. Groups where is_active === 1
-   * 2. Items/fields where is_active === 1
+   * 1. Groups where is_visible is true
+   * 2. Items/fields where is_visible is true
    *
    * Empty groups are also removed because there is nothing
    * active to display inside them.

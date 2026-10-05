@@ -1,15 +1,20 @@
-
+/**
+ * The column list, in published rank order, with drag-to-reorder.
+ *
+ * Reordering is disabled - not just visually, but at the SortableContext -
+ * whenever a write is in flight or the rank data is invalid. In both cases the
+ * neighbours a new rank would be calculated from cannot be trusted: they would
+ * be read off an order the server has not accepted.
+ *
+ * Ordering metadata stays internal; rows show only editable presentation.
+ *
+ * THE DND CONTEXT IS NOT HERE. It lives in the parent `ColumnsPane`, because
+ * the field library on the other side of the pane drags INTO this list, and a
+ * draggable and its drop target have to share one context. `StatusList` still
+ * owns its own context: nothing drags into it, so it has no reason to.
+ */
 
 import React from "react";
-
-import {
-  closestCenter,
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
 
 import {
   SortableContext,
@@ -21,7 +26,8 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { GripVertical, Loader2, Lock } from "lucide-react";
 
-import { Badge, Toggle } from "./Primitives";
+import { Badge, Toggle } from "@/components/layouts/shared/Primitives";
+import FieldTypeIcon from "@/components/layouts/shared/FieldTypeIcon";
 
 /* =========================================================================
    ROW
@@ -34,6 +40,8 @@ function SortableColumn({
   onToggleVisible,
   busy,
   reorderDisabled,
+  disabled = false,
+  insertAfter = false,
 }) {
   const {
     attributes,
@@ -45,7 +53,19 @@ function SortableColumn({
   } = useSortable({
     id: column.accessor,
 
-    disabled: reorderDisabled,
+    /*
+     * Reordering and receiving are separate permissions here.
+     *
+     * A blocked reorder - a write in flight, invalid ranks, or an active
+     * search - must not stop a library field being dropped onto this row. The
+     * two are unrelated: a reorder needs the neighbours on screen to match the
+     * neighbours in the view, while `rank_after` only names one accessor and
+     * the backend generates the rank from it either way.
+     *
+     * Passing a plain boolean would disable both, which is what silently broke
+     * placement while the list was filtered.
+     */
+    disabled: { draggable: reorderDisabled, droppable: false },
 
     data: {
       type: "column",
@@ -62,142 +82,130 @@ function SortableColumn({
   const rankWritable = column.presentation?.rank?.writable;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      onClick={() => onSelect(column)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          onSelect(column);
-        }
-      }}
-      className={`
-        group
-        flex
-        cursor-pointer
-        items-center
-        gap-2
-        rounded-lg
-        border
-        px-2
-        py-2
-        transition-colors
-
-        ${selected
-          ? "border-primary/40 bg-primary/[0.06]"
-          : "border-transparent hover:bg-accent/60"
-        }
-
-        ${isDragging ? "opacity-50" : ""}
-
-        ${column.visible ? "" : "opacity-60"}
-      `}
-    >
-      {/* DRAG HANDLE */}
-
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        onClick={(event) => event.stopPropagation()}
-        disabled={reorderDisabled || !rankWritable}
-        title={
-          !rankWritable
-            ? "This column's position is not writable"
-            : reorderDisabled
-              ? "Reordering is unavailable right now"
-              : `Drag to move ${column.label}`
-        }
-        aria-label={`Drag to move ${column.label}`}
-        className="
+    <div className="relative">
+      <div
+        ref={setNodeRef}
+        style={style}
+        onClick={() => onSelect(column)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onSelect(column);
+          }
+        }}
+        className={`
+          group
           flex
-          h-7
-          w-5
-          shrink-0
-          cursor-grab
+          cursor-pointer
           items-center
-          justify-center
-          rounded-md
-          text-muted-foreground/40
-          hover:bg-accent
-          hover:text-foreground
-          active:cursor-grabbing
-          disabled:cursor-not-allowed
-          disabled:opacity-30
-          disabled:hover:bg-transparent
-        "
+          gap-2
+          rounded-lg
+          border
+          px-2
+          py-3
+          transition-colors
+
+          ${
+            selected
+              ? "border-primary/40 bg-primary/[0.06]"
+              : "border-transparent hover:bg-accent/60"
+          }
+
+          ${isDragging ? "opacity-50" : ""}
+
+          ${column.visible ? "" : "opacity-60"}
+        `}
       >
-        {rankWritable ? (
-          <GripVertical className="h-3.5 w-3.5" />
-        ) : (
-          <Lock className="h-3 w-3" />
-        )}
-      </button>
+        {/* DRAG HANDLE */}
 
-      {/* LABEL */}
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          onClick={(event) => event.stopPropagation()}
+          disabled={reorderDisabled || !rankWritable}
+          title={
+            !rankWritable
+              ? "This column's position is not writable"
+              : reorderDisabled
+                ? "Reordering is unavailable right now"
+                : `Drag to move ${column.label}`
+          }
+          aria-label={`Drag to move ${column.label}`}
+          className="
+            flex
+            h-7
+            w-5
+            shrink-0
+            touch-none cursor-grab
+            items-center
+            justify-center
+            rounded-md
+            text-muted-foreground/40
+            hover:bg-accent
+            hover:text-foreground
+            active:cursor-grabbing
+            disabled:cursor-not-allowed
+            disabled:opacity-30
+            disabled:hover:bg-transparent
+          "
+        >
+          {rankWritable ? (
+            <GripVertical className="h-3.5 w-3.5" />
+          ) : (
+            <Lock className="h-3 w-3" />
+          )}
+        </button>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className="truncate text-xs font-medium text-foreground">
-            {column.label}
-          </span>
+        {/* LABEL */}
 
-          <Badge tone="neutral">{column.type}</Badge>
+        <FieldTypeIcon type={column.type} />
 
-          {!column.visible && <Badge tone="warning">hidden</Badge>}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-sm font-medium text-foreground">
+              {column.label}
+            </span>
+
+            {column.dirty && <Badge tone="primary">Unsaved</Badge>}
+            {!column.visible && <Badge tone="warning">hidden</Badge>}
+          </div>
         </div>
 
-        <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-          {column.accessor}
-        </p>
+        {/* BUSY / VISIBILITY */}
+
+        {busy ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+        ) : (
+          <Toggle
+            checked={column.visible}
+            disabled={!visibilityWritable || disabled}
+            onChange={() => onToggleVisible(column)}
+            label={`Show ${column.label}`}
+          />
+        )}
       </div>
 
-      {/* WIDTH */}
-
-      <span
-        className="
-          w-12
-          shrink-0
-          text-right
-          font-mono
-          text-[10px]
-          text-muted-foreground
-        "
-        title={`${column.width}px wide`}
-      >
-        {column.width}px
-      </span>
-
-      {/* RANK - opaque string, never a position number */}
-
-      <span
-        className="
-          w-14
-          shrink-0
-          truncate
-          text-right
-          font-mono
-          text-[9px]
-          text-muted-foreground
-        "
-        title={column.rank ? `rank ${column.rank}` : "no rank"}
-      >
-        {column.rank ?? "—"}
-      </span>
-
-      {/* BUSY / VISIBILITY */}
-
-      {busy ? (
-        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
-      ) : (
-        <Toggle
-          checked={column.visible}
-          disabled={!visibilityWritable}
-          onChange={() => onToggleVisible(column)}
-          label={`Show ${column.label}`}
+      {/*
+        Where a dragged library field would land. Drawn under the row rather
+        than as a border on it, so the row does not shift while the pointer
+        moves across the list.
+      */}
+      {insertAfter && (
+        <div
+          aria-hidden="true"
+          className="
+            pointer-events-none
+            absolute
+            -bottom-[3px]
+            left-2
+            right-2
+            h-[3px]
+            rounded-full
+            bg-primary
+          "
         />
       )}
     </div>
@@ -208,64 +216,17 @@ function SortableColumn({
    LIST
    ========================================================================= */
 
-/**
- * Columns are only ever compared inside this one view, so the collision
- * detection is restricted to column droppables. Nothing else on the page is a
- * valid drop target.
- */
-const collisionDetectionStrategy = (args) =>
-  closestCenter({
-    ...args,
-    droppableContainers: args.droppableContainers.filter(
-      (container) => container.data?.current?.type === "column",
-    ),
-  });
-
 export default function ColumnList({
   columns,
-  allColumns,
   selection,
   onSelect,
   onToggleVisible,
-  onMove,
   busyAccessor,
   reorderDisabled,
+  disabled = false,
   searching,
+  insertAfterAccessor = null,
 }) {
-  const [dragging, setDragging] = React.useState(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-  );
-
-  /**
-   * A filtered list cannot be reordered: the neighbours on screen are not the
-   * neighbours in the view, so a rank calculated from them would put the
-   * column somewhere the user did not ask for.
-   */
-  const dragDisabled = reorderDisabled || searching;
-
-  const handleDragEnd = ({ active, over }) => {
-    setDragging(null);
-
-    if (!over || active.id === over.id) {
-      return;
-    }
-
-    /* Indexes are resolved against the FULL list, never the filtered one. */
-    const destinationIndex = allColumns.findIndex(
-      (column) => column.accessor === over.id,
-    );
-
-    if (destinationIndex === -1) {
-      return;
-    }
-
-    onMove(active.id, destinationIndex);
-  };
-
   if (!columns.length) {
     /*
      * Say which of the two it is. Reporting a search miss when the search box
@@ -281,55 +242,29 @@ export default function ColumnList({
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={collisionDetectionStrategy}
-      onDragStart={({ active }) => setDragging(active.data.current)}
-      onDragCancel={() => setDragging(null)}
-      onDragEnd={handleDragEnd}
+    <SortableContext
+      items={columns.map((column) => column.accessor)}
+      strategy={verticalListSortingStrategy}
+      disabled={{ draggable: reorderDisabled, droppable: false }}
     >
-      <SortableContext
-        items={columns.map((column) => column.accessor)}
-        strategy={verticalListSortingStrategy}
-        disabled={dragDisabled}
-      >
-        <div className="space-y-0.5">
-          {columns.map((column) => (
-            <SortableColumn
-              key={column.accessor}
-              column={column}
-              selected={
-                selection?.type === "column" &&
-                selection?.accessor === column.accessor
-              }
-              onSelect={onSelect}
-              onToggleVisible={onToggleVisible}
-              busy={busyAccessor === column.accessor}
-              reorderDisabled={dragDisabled}
-            />
-          ))}
-        </div>
-      </SortableContext>
-
-      <DragOverlay>
-        {dragging?.accessor ? (
-          <div
-            className="
-              rounded-lg
-              border
-              border-primary/30
-              bg-card
-              px-3
-              py-2
-              shadow-xl
-            "
-          >
-            <p className="font-mono text-xs font-medium text-foreground">
-              {dragging.accessor}
-            </p>
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      <div className="space-y-0.5">
+        {columns.map((column) => (
+          <SortableColumn
+            key={column.accessor}
+            column={column}
+            selected={
+              selection?.type === "column" &&
+              selection?.accessor === column.accessor
+            }
+            onSelect={onSelect}
+            onToggleVisible={onToggleVisible}
+            busy={busyAccessor === column.accessor}
+            reorderDisabled={reorderDisabled}
+            disabled={disabled}
+            insertAfter={insertAfterAccessor === column.accessor}
+          />
+        ))}
+      </div>
+    </SortableContext>
   );
 }

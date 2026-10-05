@@ -23,7 +23,7 @@ import { CircleDotDashed, GripVertical, Loader2, Lock } from "lucide-react";
 
 import Icon from "@/components/ui/Icon/Icon";
 
-import { Badge, Toggle } from "./Primitives";
+import { Badge, Toggle } from "@/components/layouts/shared/Primitives";
 
 function StatusIcon({ status, className = "h-4 w-4" }) {
   if (!status.icon?.name || !status.icon?.library) {
@@ -48,6 +48,7 @@ function SortableStatus({
   onToggleVisible,
   busy,
   reorderDisabled,
+  disabled = false,
 }) {
   const {
     attributes,
@@ -73,7 +74,7 @@ function SortableStatus({
       role="button"
       tabIndex={0}
       onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
+        if (event.target === event.currentTarget && (event.key === "Enter" || event.key === " ")) {
           event.preventDefault();
           onSelect(status);
         }
@@ -87,7 +88,7 @@ function SortableStatus({
         rounded-lg
         border
         px-2
-        py-2
+        py-3
         transition-colors
 
         ${
@@ -119,7 +120,7 @@ function SortableStatus({
           h-7
           w-5
           shrink-0
-          cursor-grab
+          touch-none cursor-grab
           items-center
           justify-center
           rounded-md
@@ -145,31 +146,25 @@ function SortableStatus({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-xs font-medium text-foreground">
+          <span className="truncate text-sm font-medium text-foreground">
             {status.label}
           </span>
 
+          {status.dirty && <Badge tone="primary">Unsaved</Badge>}
           {!status.visible && <Badge tone="warning">hidden</Badge>}
         </div>
 
-        <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-          {status.key}
-        </p>
+
       </div>
 
-      <span
-        className="w-14 shrink-0 truncate text-right font-mono text-[9px] text-muted-foreground"
-        title={status.rank ? `rank ${status.rank}` : "no rank"}
-      >
-        {status.rank ?? "—"}
-      </span>
+
 
       {busy ? (
         <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
       ) : (
         <Toggle
           checked={status.visible}
-          disabled={!visibilityWritable}
+          disabled={!visibilityWritable || disabled}
           onChange={() => onToggleVisible(status)}
           label={`Show ${status.label} status stat`}
         />
@@ -195,6 +190,7 @@ export default function StatusList({
   onMove,
   busyStatusKey,
   reorderDisabled,
+  disabled = false,
   searching,
 }) {
   const [dragging, setDragging] = React.useState(null);
@@ -256,6 +252,7 @@ export default function StatusList({
               onToggleVisible={onToggleVisible}
               busy={busyStatusKey === status.key}
               reorderDisabled={dragDisabled}
+              disabled={disabled}
             />
           ))}
         </div>
@@ -264,7 +261,7 @@ export default function StatusList({
       <DragOverlay>
         {dragging?.key ? (
           <div className="rounded-lg border border-primary/30 bg-card px-3 py-2 shadow-xl">
-            <p className="font-mono text-xs font-medium text-foreground">
+            <p className="font-mono text-sm font-medium text-foreground">
               {dragging.key}
             </p>
           </div>

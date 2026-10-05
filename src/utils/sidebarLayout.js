@@ -11,9 +11,9 @@
  *
  *   rank       opaque ASCII string, ascending, binary order.
  *              Stored as `rank_key`, exposed as `rank`.
- *   is_active  1 / 0. Whether it shows in the sidebar.
+ *   is_visible 1 / 0. Whether it shows in the sidebar.
  *
- * Both live on outr_ui_groups and outr_ui_modules.
+ * The group and item module names come from each response record.
  *
  * `weight` is gone. Ordering is never numeric and never comes
  * from the array index - see src/utils/rank.js.
@@ -25,14 +25,14 @@
  *   modules  the modules of one group_name
  */
 
-import { orderByRank, toRankedRecord } from "./rank";
+import { orderByRank, toRankedRecord } from "./rank.js";
 
-export const SIDEBAR_GROUP_MODULE = "outr_ui_groups";
-export const SIDEBAR_MODULE_MODULE = "outr_ui_modules";
+/** The HR CRM metadata service used by the layout editors. */
+export const getMetadataEndpoint = () => "https://flight.hrcrm.ai/index.php";
 
 /** Scope descriptor: the global UI group list. */
-export const groupScope = () => ({
-  collection: SIDEBAR_GROUP_MODULE,
+export const groupScope = (module) => ({
+  collection: module,
   label: "sidebar groups",
 });
 
@@ -43,23 +43,22 @@ export const groupScope = () => ({
  * module move sends, so the backend knows which scope to
  * validate the neighbour IDs against.
  */
-export const moduleScope = (groupName) => ({
-  collection: SIDEBAR_MODULE_MODULE,
+export const moduleScope = (groupName, module) => ({
+  collection: module,
   label: `sidebar modules in group "${groupName ?? ""}"`,
   group_name: groupName ?? "",
 });
 
 /**
- * The endpoint sends is_active as 1 / "1" for groups and
- * fields alike, and local state holds it as a boolean.
- * Read all of those the same way.
+ * is_visible is authoritative. Older sidebar responses may expose the
+ * same value as visible, so accept that alias while reading.
  *
- * Anything unrecognised counts as active, so a record
+ * Anything unrecognised counts as visible, so a record
  * never disappears from the sidebar because of an
  * unexpected value.
  */
-export const isActive = (record) => {
-  const value = record?.is_active;
+export const isVisible = (record) => {
+  const value = record?.is_visible ?? record?.visible;
 
   if (value === undefined || value === null || value === "") {
     return true;
@@ -73,9 +72,9 @@ export const isActive = (record) => {
 };
 
 /**
- * The value to send for is_active. The column is numeric.
+ * The value to send for is_visible. The column is numeric.
  */
-export const toActiveFlag = (active) => (active ? 1 : 0);
+export const toVisibilityFlag = (visible) => (visible ? 1 : 0);
 
 /**
  * Locally created records have no server row yet,
@@ -86,7 +85,7 @@ export const isPersistableId = (id) =>
 
 /**
  * Put the response into rank order and coerce rank and
- * is_active into consistent types.
+ * is_visible into consistent types.
  *
  * We deliberately do NOT reassign ranks. The rank belongs to
  * the backend; the editor shows exactly what is stored.
@@ -105,26 +104,30 @@ export function normalizeSidebarResponse(response, { onInvalid } = {}) {
 
   const groups = raw.map(toRankedRecord);
 
-  const ordered = orderByRank(groups, groupScope(), { onInvalid }).items;
+  const ordered = orderByRank(groups, groupScope(groups[0]?.module), {
+    onInvalid,
+  }).items;
 
   return ordered.map((group) => {
     const fields = (Array.isArray(group.data) ? group.data : []).map(
       toRankedRecord,
     );
 
-    const orderedFields = orderByRank(fields, moduleScope(group.group_name), {
-      onInvalid,
-    }).items;
+    const orderedFields = orderByRank(
+      fields,
+      moduleScope(group.group_name, fields[0]?.module),
+      { onInvalid },
+    ).items;
 
     return {
       ...group,
 
-      is_active: isActive(group),
+      is_visible: isVisible(group),
 
       data: orderedFields.map((item) => ({
         ...item,
 
-        is_active: isActive(item),
+        is_visible: isVisible(item),
       })),
     };
   });
@@ -146,11 +149,14 @@ export function inspectSidebarRanks(groups) {
 
   const list = Array.isArray(groups) ? groups : [];
 
-  collect(orderByRank(list, groupScope()).report);
+  collect(orderByRank(list, groupScope(list[0]?.module)).report);
 
   list.forEach((group) => {
     collect(
-      orderByRank(group?.data ?? [], moduleScope(group?.group_name)).report,
+      orderByRank(
+        group?.data ?? [],
+        moduleScope(group?.group_name, group?.data?.[0]?.module),
+      ).report,
     );
   });
 
@@ -161,16 +167,16 @@ export function inspectSidebarRanks(groups) {
  * Narrow normalized data down to what the live sidebar
  * should render.
  *
- * A group is dropped when it is inactive, and also when
- * every field inside it is inactive - an empty heading is
+ * A group is dropped when it is hidden, and also when
+ * every field inside it is hidden - an empty heading is
  * just noise.
  */
 export function selectVisibleGroups(groups) {
   return groups
-    .filter(isActive)
+    .filter(isVisible)
     .map((group) => ({
       ...group,
-      data: (group.data ?? []).filter(isActive),
+      data: (group.data ?? []).filter(isVisible),
     }))
     .filter((group) => group.data.length > 0);
 }

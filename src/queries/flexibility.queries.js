@@ -1,15 +1,3 @@
-/**
- * Query layer for the UI metadata editor.
- *
- * The rule the whole file is built around: refetch after every successful
- * write. The client never synthesizes the final canonical contract. A write
- * confirms that something was stored; only the next read tells you what.
- *
- * That is what turns a `create` mutation into an `update` mutation - the
- * server hands back the new record id and the matching update payload. The
- * editor must never rewrite one into the other itself, so the write path here
- * always ends in a real read.
- */
 
 import {
   useMutation,
@@ -19,20 +7,19 @@ import {
 
 import {
   createTableField,
+  fetchModuleFields,
   fetchViewContract,
   sendUiMutation,
 } from "../api/flexibility.api";
 
-import { fetchLayout } from "../api/prefrences.api";
-
-import { collectTableViews } from "../utils/tableViewRegistry";
+import { fetchTableViewRegistry } from "../api/tableViewRegistry.api";
 
 import { entityLayoutKey } from "./layouts.queries";
 
 export const flexibilityKeys = {
   all: ["flexibility"],
 
-  registry: () => ["flexibility", "registry"],
+  registry: () => ["flexibility", "registry", "table-view-catalog"],
 
   contract: (moduleKey, viewKey) => [
     "flexibility",
@@ -40,25 +27,22 @@ export const flexibilityKeys = {
     moduleKey ?? null,
     viewKey ?? null,
   ],
+
+  moduleFields: (module) => ["flexibility", "module-fields", module ?? null],
 };
 
 /* =========================================================================
    REGISTRY
    ========================================================================= */
 
-/**
- * Every module/view pair the editor can open, derived from the sidebar
- * payload.
- *
- * This reads the same cache entry as the live sidebar would if it used
- * `preferenceKeys.layout()`, but under its own key so a metadata write here
- * cannot invalidate the navigation the user is looking at.
- */
+/** The picker reads only Table records; the selected view loads separately. */
 export function useTableViewRegistry() {
   return useQuery({
     queryKey: flexibilityKeys.registry(),
-    queryFn: async () => collectTableViews(await fetchLayout()),
+    queryFn: fetchTableViewRegistry,
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: false,
   });
 }
 
@@ -103,13 +87,34 @@ export function useViewContract(moduleKey, viewKey) {
   });
 }
 
+
+/* =========================================================================
+   MODULE FIELD CATALOG
+   ========================================================================= */
+
 /**
- * Read the contract straight back from the server and put it in the cache.
+ * The vardefs of the module a view reads from, for the field library.
  *
- * `fetchQuery` rather than `invalidateQueries` because the caller needs to
- * await the new payload: the next edit builds on the record ids and expected
- * values it carries.
+ * Cached hard, unlike the contract: vardefs only change when someone adds a
+ * field in Studio, and this list never carries a mutation or a config version,
+ * so a slightly old copy cannot cause a stale write. The worst case is a
+ * brand new Studio field missing from the library until the cache expires,
+ * and the panel has a refresh for that.
+ *
+ * `module` is the bean name from `contract.module` - not `moduleKey`, which is
+ * the view catalog key and is not what SuiteCRM's bean registry is keyed by.
  */
+export function useModuleFields(module) {
+  return useQuery({
+    queryKey: flexibilityKeys.moduleFields(module),
+    queryFn: () => fetchModuleFields(module),
+    enabled: Boolean(module),
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+}
+
 export function useRefetchContract() {
   const queryClient = useQueryClient();
 
