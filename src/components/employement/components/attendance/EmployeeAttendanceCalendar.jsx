@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import he from "he";
 
 import Icon from "../../../ui/Icon/Icon";
 import AttendanceHeader from "./AttendanceHeader";
@@ -7,6 +8,8 @@ import AttendanceDayCell from "./AttendanceDayCell";
 
 import { useAttendanceContext } from "../../context/AttendanceContext";
 import { useAttendanceCalendar } from "../../hooks/useAttendance";
+import { usePublicHolidays } from "../../queries/leaves.queries";
+import { useAttendanceLimits } from "../../attendanceLimits";
 
 const MotionButton = motion.button;
 const MotionAside = motion.aside;
@@ -38,25 +41,13 @@ const getCalendarDays = (date) => {
         0
     ).getDate();
 
-    const previousMonthDays = new Date(
-        year,
-        month,
-        0
-    ).getDate();
-
     const days = [];
 
-    // Previous month
-    for (let i = startDay - 1; i >= 0; i--) {
-        const day = previousMonthDays - i;
-
+    // Keep the weekday alignment without showing dates from another month.
+    for (let i = 0; i < startDay; i++) {
         days.push({
-            day,
-            date: new Date(
-                year,
-                month - 1,
-                day
-            ),
+            day: null,
+            date: null,
             isCurrentMonth: false,
         });
     }
@@ -74,21 +65,13 @@ const getCalendarDays = (date) => {
         });
     }
 
-    // Next month
-    let nextDay = 1;
-
-    while (days.length < 42) {
+    // Complete only the final week; do not render the next month's dates.
+    while (days.length % 7 !== 0) {
         days.push({
-            day: nextDay,
-            date: new Date(
-                year,
-                month + 1,
-                nextDay
-            ),
+            day: null,
+            date: null,
             isCurrentMonth: false,
         });
-
-        nextDay++;
     }
 
     return days;
@@ -105,6 +88,14 @@ const formatDate = (date) => {
         date.getDate()
     ).padStart(2, "0");
 
+    return `${year}-${month}-${day}`;
+};
+
+const parseHolidayDateKey = (value) => {
+    const match = String(value || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!match) return null;
+
+    const [, month, day, year] = match;
     return `${year}-${month}-${day}`;
 };
 
@@ -188,19 +179,9 @@ const formatTime = (value) => {
     )}:${minutes} ${suffix}`;
 };
 
-const isLoginLate = (loginTime) => {
-    if (!loginTime) return false;
-
-    const match = loginTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-    if (!match) return false;
-
-    const [, hours, minutes, period] = match;
-    let hour = Number(hours) % 12;
-
-    if (period.toUpperCase() === "PM") hour += 12;
-
-    return hour > 10 || (hour === 10 && Number(minutes) > 0);
+const isLoginLate = (loginTime, lateAfterMinutes) => {
+    const loginMinutes = timeToMinutes(loginTime);
+    return loginMinutes !== null && loginMinutes > lateAfterMinutes;
 };
 
 const timeToMinutes = (time) => {
@@ -364,6 +345,10 @@ const EmployeeAttendanceCalendar = ({
         email,
         month,
     });
+    const publicHolidays = usePublicHolidays();
+    const limits = useAttendanceLimits();
+    const configuredLoginMinutes = timeToMinutes(limits.actualLoginTime);
+    const lateAfterMinutes = (configuredLoginMinutes ?? 570) + limits.loginDelayMinutes;
 
     const calendarDays = useMemo(
         () =>
@@ -392,6 +377,20 @@ const EmployeeAttendanceCalendar = ({
             ),
         [data]
     );
+
+    const holidayMap = useMemo(() => {
+        const records = Array.isArray(publicHolidays.data?.records)
+            ? publicHolidays.data.records
+            : [];
+
+        return records.reduce((holidays, record) => {
+            const dateKey = parseHolidayDateKey(record?.holiday_date);
+            if (dateKey) {
+                holidays[dateKey] = he.decode(String(record?.name || "Public holiday"));
+            }
+            return holidays;
+        }, {});
+    }, [publicHolidays.data]);
 
     const today = new Date();
 
@@ -538,7 +537,16 @@ const EmployeeAttendanceCalendar = ({
                                                 day,
                                                 date,
                                                 isCurrentMonth,
-                                            }) => {
+                                            }, index) => {
+                                                if (!isCurrentMonth) {
+                                                    return (
+                                                        <AttendanceDayCell
+                                                            key={`empty-${index}`}
+                                                            isCurrentMonth={false}
+                                                        />
+                                                    );
+                                                }
+
                                                 const dateKey =
                                                     formatDate(
                                                         date
@@ -552,6 +560,9 @@ const EmployeeAttendanceCalendar = ({
                                                 const isToday =
                                                     date.toDateString() ===
                                                     today.toDateString();
+                                                const isWeekend =
+                                                    date.getDay() === 0 ||
+                                                    date.getDay() === 6;
 
                                                 return (
                                                     <AttendanceDayCell
@@ -573,6 +584,9 @@ const EmployeeAttendanceCalendar = ({
                                                         attendance={
                                                             attendance
                                                         }
+                                                        isWeekend={isWeekend}
+                                                        holidayName={holidayMap[dateKey]}
+                                                        lateAfterMinutes={lateAfterMinutes}
                                                         onClick={
                                                             isCurrentMonth
                                                                 ? (
@@ -601,6 +615,7 @@ const EmployeeAttendanceCalendar = ({
                         date={selectedDate}
                         attendance={selectedAttendance}
                         email={email}
+                        lateAfterMinutes={lateAfterMinutes}
                         onClose={() => selectDate(null)}
                     />
                 )}
@@ -609,7 +624,7 @@ const EmployeeAttendanceCalendar = ({
     );
 };
 
-const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
+const AttendanceDayDrawer = ({ date, attendance, email, lateAfterMinutes, onClose }) => {
     const [currentMinutes, setCurrentMinutes] = useState(getCurrentIndiaMinutes);
 
     useEffect(() => {
@@ -622,7 +637,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
     }, []);
 
     const isToday = dateKeyInIndia(date) === dateKeyInIndia(new Date());
-    const late = isLoginLate(attendance?.login);
+    const late = isLoginLate(attendance?.login, lateAfterMinutes);
     const totalMinutes = attendance?.logout
         ? getDuration(attendance?.login, attendance.logout)
         : isToday
@@ -643,7 +658,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, onClose }) => {
     const loginMinutes = timeToMinutes(attendance?.login);
     const lateMinutes = loginMinutes === null
         ? 0
-        : Math.max(loginMinutes - 10 * 60, 0);
+        : Math.max(loginMinutes - lateAfterMinutes, 0);
     const activities = [
         ["Login", attendance?.login, "IoLogInOutline"],
         ["Lunch started", attendance?.lunch_in, "IoFastFoodOutline"],

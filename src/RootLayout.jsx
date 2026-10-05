@@ -13,6 +13,8 @@ import {
   rememberOnboardingComplete,
   rememberOnboardingStarted,
 } from "./components/pages/profile/onboardingState";
+import IncrementReminder from "./components/employement/components/IncrementReminder";
+import { useSelector } from "react-redux";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -38,6 +40,8 @@ const RootLayout = () => {
     return () =>
       window.removeEventListener("system-alerts-required", showRequiredAlerts);
   }, [navigate]);
+  const userEmail =
+    useSelector((state) => state.user.user?.email)?.trim() || "";
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
     if (!isPending && !isError && onboarding === null) {
@@ -105,7 +109,7 @@ const RootLayout = () => {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-sidebar-primary">
+    <div className="flex h-screen overflow-hidden bg-sidebar-primary">
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
 

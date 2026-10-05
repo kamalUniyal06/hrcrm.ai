@@ -4,7 +4,7 @@ import {
   LogIn,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Skeleton from "react-loading-skeleton";
 
 import {
@@ -19,6 +19,7 @@ import TodayPresentCard from "./TodayPresentCard";
 import morningScene from "../../../assets/attendance/workday-morning.png";
 import afternoonScene from "../../../assets/attendance/workday-afternoon.png";
 import eveningScene from "../../../assets/attendance/workday-evening.png";
+import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
 
 const apiDateKey = (value) => {
   const match = String(value || "")
@@ -35,6 +36,17 @@ const todayInIndia = () =>
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+
+const currentMinutesInIndia = () => {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  return Number(parts.find((part) => part.type === "hour")?.value) * 60
+    + Number(parts.find((part) => part.type === "minute")?.value);
+};
 
 const getDayScene = () => {
   const hour = Number(
@@ -179,7 +191,7 @@ function ErrorState({ onRetry }) {
   );
 }
 
-function AbsentState({ isPending, onMarkPresent }) {
+function AbsentState({ isPending, onMarkPresent, canLogin, actualLoginTime }) {
   const dayScene = getDayScene();
 
   return (
@@ -249,21 +261,21 @@ function AbsentState({ isPending, onMarkPresent }) {
         </div>
 
         {/* Action */}
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={onMarkPresent}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-[var(--employee-blue)] px-4 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isPending ? (
-            "Marking Present..."
-          ) : (
-            <>
-              <LogIn size={17} />
-              Mark Present
-            </>
-          )}
-        </button>
+        {canLogin ? (
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={onMarkPresent}
+            className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-primary to-[var(--employee-blue)] px-4 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isPending ? "Marking Present..." : <><LogIn size={17} />Mark Present</>}
+          </button>
+        ) : (
+          <div className="mt-5 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-border bg-muted/50 px-4 text-center text-sm font-medium text-muted-foreground">
+            <Clock3 size={17} />
+            Login opens at {actualLoginTime}
+          </div>
+        )}
       </div>
     </section>
   );
@@ -271,12 +283,25 @@ function AbsentState({ isPending, onMarkPresent }) {
 
 export default function TodayAttendanceCard() {
   const { data, isPending, error, refetch } = useDailyActivity();
+  const limits = useAttendanceLimits();
+  const [currentMinutes, setCurrentMinutes] = useState(currentMinutesInIndia);
 
   const present = useMarkPresent();
   const lunchIn = useLunchIn();
   const lunchOut = useLunchOut();
   const logout = useLogOut();
   const [loginStartedAt, setLoginStartedAt] = useState(null);
+
+  useEffect(() => {
+    const interval = window.setInterval(
+      () => setCurrentMinutes(currentMinutesInIndia()),
+      30_000,
+    );
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const loginStartMinutes = timeToMinutes(limits.actualLoginTime);
+  const canLogin = loginStartMinutes === null || currentMinutes >= loginStartMinutes;
 
   const handleMarkPresent = async () => {
     try {
@@ -315,6 +340,8 @@ export default function TodayAttendanceCard() {
       <AbsentState
         isPending={present.isPending}
         onMarkPresent={handleMarkPresent}
+        canLogin={canLogin}
+        actualLoginTime={limits.actualLoginTime}
       />
     );
   }
@@ -335,6 +362,7 @@ export default function TodayAttendanceCard() {
       handleTakeBreak={() => lunchIn.mutateAsync()}
       handleBackFromBreak={() => lunchOut.mutate()}
       handleCheckOut={() => logout.mutate()}
+      lunchOutMinutes={limits.lunchOutMinutes}
     />
   );
 }

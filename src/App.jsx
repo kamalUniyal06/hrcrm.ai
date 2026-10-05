@@ -42,6 +42,7 @@ import LeaveApplications from "./components/employement/components/leave/LeavesA
 import LimitManagementPage from "./components/pages/LimitManagementPage";
 import OffboardingPage from "./components/employement/pages/OffboardingPage";
 import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
+import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 
 const router = createBrowserRouter([
   {
@@ -223,6 +224,11 @@ const router = createBrowserRouter([
       {
         path: "leaves",
         element: <LeaveManagementPage />,
+      },
+      {
+        path: "increment-request",
+        element: <IncrementRequestPage />,
+        handle: { breadcrumb: "Increment request" },
       },
       {
         path: "/leave-applications",

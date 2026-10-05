@@ -29,6 +29,23 @@ test("preserves unmatched attendance and respects authoritative relationships", 
   assert.equal(rows.find(row => !row.matched).days["2026-09-18"].length, 1);
 });
 
+test("excludes exited ex-employees and their linked or email-only attendance", () => {
+  const employees = [
+    { id: "exited", email1: " FORMER@example.com ", stage_id_name: "Ex Employee", hrc_phase_id_name: "Exit" },
+    { id: "exited-without-activity", stage_id_name: "Ex Employee", hrc_phase_id_name: "Exit" },
+    { id: "stage-only", stage_id_name: "Ex Employee" },
+    { id: "phase-only", hrc_phase_id_name: "Exit" },
+    { id: "active", email1: "active@example.com" },
+  ];
+  const rows = buildAttendanceRows(employees, [
+    { ...sample, id: "linked-exit", hrc_employees_hrc_daily_activity_1hrc_employees_ida: "exited" },
+    { ...sample, id: "email-exit", name: "former@EXAMPLE.com" },
+    { ...sample, id: "linked-active", name: "former@example.com", hrc_employees_hrc_daily_activity_1hrc_employees_ida: "active" },
+  ]);
+  assert.deepEqual(rows.map(row => row.key).sort(), ["employee:active", "employee:phase-only", "employee:stage-only"]);
+  assert.equal(rows.find(row => row.key === "employee:active").days["2026-09-18"][0].id, "linked-active");
+});
+
 test("parses CRM dates without relying on browser date parsing", () => {
   assert.equal(parseActivityTime(sample.login).date, "2026-09-18");
   assert.equal(parseActivityTime(sample.login).time, "05:59 PM");

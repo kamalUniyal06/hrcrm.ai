@@ -37,7 +37,12 @@ export function Sidebar() {
   } = useContext(PageContext);
 
   const isDesktop = useIsDesktop();
-  const collapsed = isDesktop ? desktopCollapsed : false;
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const collapsed = isDesktop ? desktopCollapsed && !sidebarHovered : false;
+  const toggleSidebarPinned = () => {
+    setSidebarCollapsed(!desktopCollapsed);
+    setSidebarHovered(false);
+  };
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [selectedTheme, setSelectedTheme] = useState(getTheme);
   const [showCropper, setShowCropper] = useState(false);
@@ -188,10 +193,6 @@ export function Sidebar() {
    * active to display inside them.
    */
   useEffect(() => {
-    setExpandedGroups(
-      Object.fromEntries(visibleGroups.map((group) => [group.id, true])),
-    );
-
     /**
      * Only ask for counts on fields that are actually
      * on screen.
@@ -238,6 +239,10 @@ export function Sidebar() {
         role={!isDesktop ? "dialog" : undefined}
         aria-modal={!isDesktop ? drawerOpen : undefined}
         aria-label="Main navigation"
+        onMouseEnter={() => {
+          if (isDesktop) setSidebarHovered(true);
+        }}
+        onMouseLeave={() => setSidebarHovered(false)}
         aria-hidden={!isDesktop && !drawerOpen}
         initial={false}
         animate={{
@@ -350,31 +355,41 @@ export function Sidebar() {
               "
             >
               <div className="group relative flex h-full items-center justify-center gap-3">
+                <button
+                  type="button"
+                  aria-label={isDesktop ? (desktopCollapsed ? "Pin sidebar open" : "Unpin sidebar") : "Go to home"}
+                  aria-pressed={isDesktop ? !desktopCollapsed : undefined}
+                  onClick={() => {
+                    if (isDesktop) {
+                      toggleSidebarPinned();
+                    } else {
+                      setMobileSidebarOpen(false);
+                      navigateTo("");
+                    }
+                  }}
+                >
                 <img
                   src={collapsed ? logo : headingLogo}
                   className={`
                     h-9 w-auto max-w-[160px]
                     cursor-pointer object-contain
                     transition-all duration-200
-                    ${collapsed ? "group-hover:hidden" : ""}
                   `}
                   alt="App logo"
-                  onClick={() => {
-                    if (!isDesktop) setMobileSidebarOpen(false);
-                    navigateTo("");
-                  }}
                   draggable={false}
                 />
+                </button>
 
                 {/* Collapse / Expand Button — desktop only */}
                 {isDesktop && (
                   <button
                     type="button"
                     aria-label={
-                      collapsed ? "Expand sidebar" : "Collapse sidebar"
+                      desktopCollapsed ? "Pin sidebar open" : "Unpin sidebar"
                     }
-                    title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                    onClick={() => setSidebarCollapsed(!collapsed)}
+                    title={desktopCollapsed ? "Pin sidebar open" : "Unpin sidebar"}
+                    aria-pressed={!desktopCollapsed}
+                    onClick={toggleSidebarPinned}
                     className={`
                       flex h-7 w-7
                       items-center justify-center
@@ -382,7 +397,7 @@ export function Sidebar() {
                       shadow
                       cursor-pointer
                       transition-all duration-200
-                      ${collapsed ? "hidden group-hover:flex" : "flex"}
+                      ${collapsed ? "hidden" : "flex"}
                       bg-[var(--card)]
                     `}
                   >
@@ -467,6 +482,8 @@ export function Sidebar() {
                   {/* Group Header */}
                   {!collapsed && (
                     <button
+                      type="button"
+                      aria-expanded={Boolean(expandedGroups[group.id])}
                       onClick={() => toggleGroup(group.id)}
                       className="
                           flex w-full
@@ -495,7 +512,7 @@ export function Sidebar() {
                   {(collapsed || expandedGroups[group.id]) && (
                     <div className="mt-1 ml-2 space-y-1">
                       {group.data.map((item) => (
-                        <MenuItem item={item} isDesktop={isDesktop} setSidebarCollapsed={setSidebarCollapsed} setActivePage={setActivePage} activePage={activePage} sidebarDestination={sidebarDestination} navigateTo={navigateTo} sidebarCounts={sidebarCounts} sidebarCountPending={sidebarCountPending} collapsed={collapsed} setMobileSidebarOpen={setMobileSidebarOpen} />
+                        <MenuItem key={item.id} item={item} isDesktop={isDesktop} setActivePage={setActivePage} activePage={activePage} sidebarDestination={sidebarDestination} navigateTo={navigateTo} sidebarCounts={sidebarCounts} sidebarCountPending={sidebarCountPending} collapsed={collapsed} setMobileSidebarOpen={setMobileSidebarOpen} />
                       ))}
                     </div>
                   )}
@@ -657,16 +674,14 @@ export function Sidebar() {
     </>
   );
 }
-function MenuItem({ item, isDesktop, setSidebarCollapsed, setActivePage, activePage, sidebarDestination, navigateTo, sidebarCounts, sidebarCountPending, collapsed, setMobileSidebarOpen }) {
+function MenuItem({ item, isDesktop, setActivePage, activePage, sidebarDestination, navigateTo, sidebarCounts, sidebarCountPending, collapsed, setMobileSidebarOpen }) {
   return (
     <button
       key={item.id}
       disabled={!sidebarDestination(item)}
       title={!sidebarDestination(item) ? "Navigation is not configured for this item" : item.name}
       onClick={() => {
-        if (isDesktop) {
-          setSidebarCollapsed(true);
-        } else {
+        if (!isDesktop) {
           setMobileSidebarOpen(false);
         }
         setActivePage(item.id);

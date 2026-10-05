@@ -1,18 +1,17 @@
 import Icon from "../../../ui/Icon/Icon";
 
-const isLoginLate = (loginTime) => {
+const timeToMinutes = (time) => {
+    const match = String(time || "").match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hour = Number(match[1]) % 12;
+    if (match[3].toUpperCase() === "PM") hour += 12;
+    return hour * 60 + Number(match[2]);
+};
+
+const isLoginLate = (loginTime, lateAfterMinutes) => {
     if (!loginTime) return false;
-
-    const match = loginTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-    if (!match) return false;
-
-    const [, hours, minutes, period] = match;
-    let hour = Number(hours) % 12;
-
-    if (period.toUpperCase() === "PM") hour += 12;
-
-    return hour > 10 || (hour === 10 && Number(minutes) > 0);
+    const loginMinutes = timeToMinutes(loginTime);
+    return loginMinutes !== null && loginMinutes > lateAfterMinutes;
 };
 
 const AttendanceDayCell = ({
@@ -21,9 +20,27 @@ const AttendanceDayCell = ({
     isCurrentMonth,
     isToday,
     attendance,
+    isWeekend = false,
+    holidayName,
+    lateAfterMinutes = 600,
     onClick,
 }) => {
-    const isLate = isLoginLate(attendance?.login);
+    const isLate = isLoginLate(attendance?.login, lateAfterMinutes);
+
+    if (!isCurrentMonth) {
+        return (
+            <div
+                aria-hidden="true"
+                className="min-h-[110px] border-b border-r border-[var(--border)] bg-[var(--muted)]/35 sm:min-h-[125px]"
+            />
+        );
+    }
+
+    const dayType = holidayName
+        ? { label: holidayName, shortLabel: "Public holiday", icon: "IoSparklesOutline" }
+        : isWeekend
+            ? { label: "Weekend", shortLabel: "Weekend", icon: "IoCafeOutline" }
+            : null;
 
     return (
         <div
@@ -45,7 +62,9 @@ const AttendanceDayCell = ({
 
                 ${isToday
                     ? "bg-[var(--accent)]/10 ring-1 ring-inset ring-[var(--primary)]"
-                    : "bg-[var(--card)]"
+                    : dayType
+                        ? "bg-[var(--muted)]/45"
+                        : "bg-[var(--card)]"
                 }
 
                 ${onClick
@@ -94,6 +113,25 @@ const AttendanceDayCell = ({
                 </div>
             </div>
 
+            {dayType && !attendance && (
+                <div className="mt-2 flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--card)]/65 px-1.5 py-2 text-center sm:min-h-[62px]">
+                    <Icon
+                        name={dayType.icon}
+                        library="io5"
+                        size={14}
+                        className={holidayName ? "text-emerald-600" : "text-amber-600"}
+                    />
+                    <span className="text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:text-[10px]">
+                        {dayType.shortLabel}
+                    </span>
+                    {holidayName && (
+                        <span className="line-clamp-2 text-[8px] leading-tight text-[var(--muted-foreground)] sm:text-[9px]" title={dayType.label}>
+                            {dayType.label}
+                        </span>
+                    )}
+                </div>
+            )}
+
             {isCurrentMonth && attendance && (
                 <div className="mt-1 space-y-1 sm:mt-2">
                     {/* Login */}
@@ -123,7 +161,7 @@ const AttendanceDayCell = ({
                             {isLate && (
                                 <span
                                     className="ml-1 rounded bg-[var(--chart-4)] px-1 py-0.5 text-[8px] text-[var(--foreground)] sm:text-[9px]"
-                                    title="Logged in after 10:00 AM"
+                                    title="Logged in after the configured login grace period"
                                 >
                                     Late
                                 </span>
