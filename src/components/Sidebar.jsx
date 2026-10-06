@@ -262,7 +262,7 @@ export function Sidebar() {
           top-0
           z-[1010]
           flex
-          h-screen
+          h-dvh
           max-w-[85vw]
           flex-col
           overflow-hidden

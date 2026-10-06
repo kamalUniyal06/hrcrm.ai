@@ -1,4 +1,12 @@
 import { http } from "../../../services/api";
+import { loadCandidatePage, loadShortlistSource } from "./candidateList.js";
+export { shortlistedCandidatesKey } from "./candidateList.js";
+
+export const fetchCandidatePage = (options) =>
+  loadCandidatePage((body) => http({ method: "POST", body }), options);
+
+export const fetchShortlistSource = () =>
+  loadShortlistSource((body) => http({ method: "POST", body }));
 
 export const workflowModules = {
   stage: "hrc_stages",
@@ -96,6 +104,7 @@ export function workflowValue(record, kind, options = []) {
   );
   return (
     option?.name ||
+    record[`${key}_name`] ||
     record[workflowFields[kind]] ||
     record[`${kind}_name`] ||
     raw ||

@@ -39,6 +39,7 @@ import {
 import IconInput from "@/components/IconInput";
 
 import Icon from "@/components/ui/Icon/Icon";
+import { SwitchRow } from "@/components/layouts/shared/Primitives";
 
 import {
   useCrmModules,
@@ -898,6 +899,14 @@ function ItemEditor({
             placeholder="/contacts"
           />
 
+          <SwitchRow
+            title="Show count"
+            description="Display the module's record count in the sidebar."
+            checked={item.show_count}
+            onChange={() => onUpdate({ show_count: !item.show_count })}
+            disabled={saving}
+          />
+
         </div>
       </div>
     </div>
@@ -1578,6 +1587,8 @@ const Sidebar = () => {
 
           is_visible: true,
 
+          show_count: false,
+
           isNew: true,
         };
 
@@ -1895,6 +1906,7 @@ const Sidebar = () => {
       library: item.library ?? "",
       navigation: item.navigation ?? "",
       is_visible: toVisibilityFlag(item.is_visible),
+      show_count: item.show_count ? 1 : 0,
       ...(!profileSidebar ? {
         group_name: parentGroup.group_name,
         [groupLinkField]: resolveId(parentGroup.id),
@@ -2060,6 +2072,7 @@ const Sidebar = () => {
                 "library",
                 "navigation",
                 "is_visible",
+                "show_count",
               ]))
           ) {
             await saveLayoutRecord({

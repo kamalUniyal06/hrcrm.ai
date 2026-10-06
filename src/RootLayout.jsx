@@ -14,7 +14,6 @@ import {
   rememberOnboardingStarted,
 } from "./components/pages/profile/onboardingState";
 import IncrementReminder from "./components/employement/components/IncrementReminder";
-import { useSelector } from "react-redux";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -40,8 +39,6 @@ const RootLayout = () => {
     return () =>
       window.removeEventListener("system-alerts-required", showRequiredAlerts);
   }, [navigate]);
-  const userEmail =
-    useSelector((state) => state.user.user?.email)?.trim() || "";
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
     if (!isPending && !isError && onboarding === null) {
@@ -109,26 +106,26 @@ const RootLayout = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-sidebar-primary">
+    <div className="flex h-dvh overflow-hidden bg-sidebar-primary">
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
 
       {/* RIGHT */}
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-primary">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-sidebar-primary">
         {/* The navigation and sidebar intentionally share the same shell colour. */}
         <div className="shrink-0 px-2 py-1.5 sm:px-3">
           <TopNav sidebarAvailable={hasCandidate} />
         </div>
 
-        {/* One inset surface keeps every routed page visually attached to the shell. */}
+        {/* The page scrolls above the footer, which reserves its own space in the shell. */}
         <main
           ref={mainRef}
-          className={`hide-scrollbar min-h-0 flex-1 overflow-x-hidden rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"}`}
+          className="hide-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"
         >
           <div
-            className={`flex w-full flex-col px-3 pt-3 sm:px-4 sm:pt-4 min-h-full pb-16"}`}
+            className="flex min-h-full w-full flex-col px-3 pb-6 pt-3 sm:px-4 sm:pt-4"
           >
-            <div className={`flex min-h-0 flex-1 flex-col `}>
+            <div className="flex flex-1 flex-col">
               <Outlet />
             </div>
           </div>

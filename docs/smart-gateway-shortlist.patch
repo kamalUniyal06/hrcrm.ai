@@ -1,0 +1,56 @@
+--- a/custom/outright_products/hrcrm/entryPoints/smart_gateway.php
++++ b/custom/outright_products/hrcrm/entryPoints/smart_gateway.php
+@@ -679,7 +679,44 @@
+             'nin' => 'NOT IN',
+         ];
+ 
++        $stageFilterUsesCustomFields = false;
+         foreach ($filters as $field => $value) {
++
++            // This display key is derived from the related stage, not a candidate SQL column.
++            if ($module === 'hrc_candidates' && $field === 'hrc_stages_id_c_name') {
++                $stageName = is_string($value) ? trim($value) : '';
++                if ($stageName === '') {
++                    return $this->error('The candidate stage name filter must be a non-empty string.', 422);
++                }
++                if (!isset($bean->field_defs['hrc_stages_id_c'])
++                    || ($bean->field_defs['hrc_stages_id_c']['source'] ?? '') === 'non-db') {
++                    return $this->error('The candidate stage ID field is unavailable.', 422);
++                }
++                $stageBean = BeanFactory::newBean('hrc_stages');
++                if (!$stageBean || empty($stageBean->table_name)
++                    || !isset($stageBean->field_defs['name'])
++                    || ($stageBean->field_defs['name']['source'] ?? '') === 'non-db') {
++                    return $this->error('The candidate stage name field is unavailable.', 422);
++                }
++                $stageIdTable = $this->resolveFieldTable($bean, 'hrc_stages_id_c');
++                $stageNameTable = $this->resolveFieldTable($stageBean, 'name');
++                $customStageName = $stageNameTable !== $stageBean->table_name;
++                $stageNameJoin = $customStageName
++                    ? " LEFT JOIN {$stageNameTable} sg_candidate_stage_name"
++                        . ' ON sg_candidate_stage_name.id_c = sg_candidate_stage.id'
++                    : '';
++                $stageNameColumn = $customStageName
++                    ? 'sg_candidate_stage_name.name' : 'sg_candidate_stage.name';
++                $stageDeleted = isset($stageBean->field_defs['deleted'])
++                    ? ' AND sg_candidate_stage.deleted = 0' : '';
++                $safeStageName = $db->quote($stageName);
++                $where[] = "EXISTS (SELECT 1 FROM {$stageBean->table_name} sg_candidate_stage"
++                    . $stageNameJoin
++                    . " WHERE sg_candidate_stage.id = {$stageIdTable}.hrc_stages_id_c"
++                    . " AND {$stageNameColumn} = '{$safeStageName}'{$stageDeleted})";
++                $stageFilterUsesCustomFields = $stageIdTable !== $bean->table_name;
++                continue;
++            }
+ 
+             if (!isset($bean->field_defs[$field])) {
+                 continue;
+@@ -777,7 +814,7 @@
+         // Check if _cstm join is needed for COUNT query
+         // -------------------------------------------------------
+ 
+-        $needsCstm = false;
++        $needsCstm = $stageFilterUsesCustomFields;
+ 
+         foreach ($filters as $field => $value) {
+             $def = $bean->field_defs[$field] ?? [];

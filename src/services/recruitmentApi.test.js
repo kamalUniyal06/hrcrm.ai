@@ -32,6 +32,23 @@ test("expired sessions retain an HTTP status for disconnect handling", async (co
   await assert.rejects(recruitmentRequest("/admin/invitations", { token: "expired" }), (error) => error.status === 401 && /sign in to HRCRM/.test(error.message));
 });
 
+test("a valid session missing its candidate email reports a setup issue instead of asking for another login", async (context) => {
+  const mocked = context.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({
+    success: false, code: "HRCRM_CANDIDATE_EMAIL_REQUIRED",
+    error: "Your HRCRM session has no verified candidate email. Sign in again or contact HR.",
+  }), { status: 401 }));
+  for (const status of [401, 503]) {
+    mocked.mock.mockImplementation(async () => new Response(JSON.stringify({ success: false, code: "HRCRM_CANDIDATE_EMAIL_REQUIRED" }), { status }));
+    await assert.rejects(recruitmentRequest("/integrations/hrcrm/my-invitation", { token: "valid-crm-token" }), (error) => {
+      assert.equal(error.status, status);
+      assert.equal(error.code, "HRCRM_CANDIDATE_EMAIL_REQUIRED");
+      assert.match(error.message, /You are signed in/);
+      assert.doesNotMatch(error.message, /sign in to HRCRM again/i);
+      return true;
+    });
+  }
+});
+
 test("permission errors, malformed responses and network failures do not show success", async (context) => {
   const mocked = context.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ success: false, error: "Recruiter access required" }), { status: 403 }));
   await assert.rejects(recruitmentRequest("/admin/invitations", { token: "viewer" }), /Recruiter access required/);

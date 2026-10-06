@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectIsAdmin } from "../../../utils/pageAccess";
 import { Link } from "react-router-dom";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookmarkCheck,
   CalendarPlus,
@@ -22,6 +22,10 @@ import RecruitmentPanel from "../recruitment/RecruitmentPanel";
 import {
   candidateName,
   fetchAllRecords,
+  fetchCandidatePage,
+  fetchShortlistSource,
+  shortlistedCandidatesKey,
+  workflowFields,
   workflowModules,
   workflowValue,
   workflowUpdate,
@@ -29,7 +33,6 @@ import {
 } from "./candidatesApi";
 
 const kinds = Object.keys(workflowModules);
-const pageSize = 20;
 
 export default function CandidatesPage({ shortlistedOnly = false }) {
   const isAdmin = useSelector(selectIsAdmin);
@@ -38,9 +41,29 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
   const [rescheduling, setRescheduling] = useState(null);
   const [assessment, setAssessment] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState({ stage: "", phase: "", status: "" });
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState(null);
+  const [sort, setSort] = useState(() => shortlistedOnly
+    ? { key: "name", direction: 1 }
+    : { key: "date_entered", direction: -1 });
+
+  const request = {
+    page,
+    orderBy: sort.key === "name" ? "first_name"
+      : sort.key === "email" ? "email1"
+        : workflowFields[sort.key] || sort.key,
+    orderDir: sort.direction === 1 ? "ASC" : "DESC",
+  };
+  // Share the filtered shortlist with assessment selectors; directory pages keep their own cache.
+  const candidatesKey = shortlistedOnly
+    ? shortlistedCandidatesKey
+    : ["candidates", "list", "page", request];
   const candidates = useQuery({
-    queryKey: ["candidates", "list"],
-    queryFn: () => fetchAllRecords("hrc_candidates"),
+    queryKey: candidatesKey,
+    queryFn: shortlistedOnly ? fetchShortlistSource : () => fetchCandidatePage(request),
+    placeholderData: shortlistedOnly ? undefined : keepPreviousData,
   });
   const results = useQueries({
     queries: kinds.map((kind) => ({
@@ -55,20 +78,14 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
   const lookups = Object.fromEntries(
     kinds.map((kind, index) => [kind, results[index]]),
   );
-  const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({ stage: "", phase: "", status: "" });
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(null);
-  const [sort, setSort] = useState({ key: "name", direction: 1 });
-  const allRecords = candidates.data || [];
-  const records = shortlistedOnly
-    ? allRecords.filter(
-        (record) =>
-          workflowValue(record, "stage", lookups.stage.data)
-            .trim()
-            .toLowerCase() === "shortlisted",
-      )
-    : allRecords;
+  const allRecords = shortlistedOnly
+    ? (Array.isArray(candidates.data) ? candidates.data : [])
+    : candidates.data?.records || [];
+  const records = allRecords;
+
+  function openAssessment(record = {}) {
+    setAssessment(record);
+  }
   async function shortlist(record) {
     if (busyId) return;
     setBusyId(record.id);
@@ -80,10 +97,10 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
         lookups.stage.data,
       );
       await updateCandidateRecord(record.id, data);
-      client.setQueryData(["candidates", "list"], (items) =>
-        items?.map((item) =>
+      client.setQueryData(candidatesKey, (previous) =>
+        previous && { ...previous, records: previous.records.map((item) =>
           item.id === record.id ? { ...item, ...data } : item,
-        ),
+        ) },
       );
       void client.invalidateQueries({ queryKey: ["candidates"] });
       void client.invalidateQueries({ queryKey: ["candidate-profile"] });
@@ -99,35 +116,36 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
       ? candidateName(record)
       : key === "email"
         ? record.email1 || ""
+        : key === "date_entered"
+          ? record.date_entered || ""
         : workflowValue(record, key, lookups[key].data);
-  const visible = records
-    .filter(
-      (record) =>
-        [candidateName(record), record.email1, record.phone_mobile].some(
-          (item) =>
-            String(item || "")
-              .toLowerCase()
-              .includes(search.trim().toLowerCase()),
-        ) &&
-        kinds.every(
-          (kind) => !filters[kind] || value(record, kind) === filters[kind],
-        ),
-    )
-    .sort(
-      (a, b) =>
-        String(value(a, sort.key)).localeCompare(
-          String(value(b, sort.key)),
-          undefined,
-          { numeric: true, sensitivity: "base" },
-        ) * sort.direction,
-    );
-  const pages = Math.max(1, Math.ceil(visible.length / pageSize));
-  const currentPage = Math.min(page, pages);
-  const rows = visible.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
+  const searchTerm = search.trim().toLowerCase();
+  const visible = records.filter((record) =>
+    [candidateName(record), record.email1, record.phone_mobile].some((item) =>
+      String(item || "").toLowerCase().includes(searchTerm),
+    ) && kinds.every((kind) => !filters[kind] || value(record, kind) === filters[kind]),
   );
-  const filterActive = search || kinds.some((kind) => filters[kind]);
+  if (shortlistedOnly) {
+    visible.sort((left, right) => String(value(left, sort.key)).localeCompare(
+      String(value(right, sort.key)), undefined, { numeric: true, sensitivity: "base" },
+    ) * sort.direction);
+  }
+  const pageSize = shortlistedOnly ? 20 : candidates.data?.perPage ?? 20;
+  const total = shortlistedOnly ? records.length : candidates.data?.total ?? 0;
+  const paginationTotal = shortlistedOnly ? visible.length : total;
+  const pages = shortlistedOnly
+    ? Math.max(1, Math.ceil(visible.length / pageSize))
+    : candidates.data?.pages ?? 1;
+  const currentPage = shortlistedOnly ? Math.min(page, pages) : candidates.data?.page ?? page;
+  const rows = shortlistedOnly
+    ? visible.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : visible;
+  const workflowFilterActive = kinds.some((kind) => filters[kind]);
+  const filterActive = searchTerm || workflowFilterActive;
+
+  useEffect(() => {
+    if (candidates.isSuccess && !candidates.isPlaceholderData && page > pages) setPage(pages);
+  }, [candidates.isSuccess, candidates.isPlaceholderData, page, pages]);
   function refresh() {
     void candidates.refetch();
     results.forEach((query) => {
@@ -160,7 +178,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             <Users className="text-indigo-300" size={28} />
             <div>
               <p className="text-3xl font-semibold">
-                {candidates.isPending ? "—" : records.length.toLocaleString()}
+                {candidates.isPending || candidates.isError || (shortlistedOnly && lookups.stage.isPending) ? "—" : total.toLocaleString()}
               </p>
               <p className="mt-1 text-xs text-slate-300">
                 {shortlistedOnly
@@ -171,10 +189,11 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
           </div>
         </div>
       </header>
-      {isAdmin && assessment && <RecruitmentPanel key={assessment.id || "select-candidate"} candidates={allRecords} initialCandidate={assessment.id ? assessment : null} onClose={() => setAssessment(null)} />}
+      {isAdmin && assessment && <RecruitmentPanel key={assessment.id || "select-candidate"} initialCandidate={assessment.id ? assessment : null} onClose={() => setAssessment(null)} />}
       <section
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
         aria-label="Candidate directory"
+        aria-busy={candidates.isFetching}
       >
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
           <div>
@@ -188,7 +207,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-          {isAdmin && <button onClick={() => setAssessment({})} disabled={!candidates.isSuccess} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"><Link2 size={15} />View assessments</button>}
+          {isAdmin && <button onClick={() => openAssessment()} disabled={!candidates.isSuccess} className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"><Link2 size={15} />View assessments</button>}
           <button
             onClick={refresh}
             disabled={candidates.isFetching}
@@ -207,12 +226,12 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             <Search size={17} className="text-slate-400" />
             <input
               type="search"
-              aria-label="Search candidates"
-              placeholder="Search name, email or phone"
+              aria-label={shortlistedOnly ? "Search shortlisted candidates" : "Search candidates on this page"}
+              placeholder={shortlistedOnly ? "Search name, email or phone" : "Search this page by name, email or phone"}
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
-                setPage(1);
+                if (shortlistedOnly) setPage(1);
               }}
               className="w-full bg-transparent py-2.5 text-sm outline-none"
             />
@@ -238,6 +257,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                 ...new Set([
                   ...records.map((record) => value(record, kind)),
                   ...(lookups[kind].data || []).map((option) => option.name),
+                  "Unassigned",
                 ]),
               ]
                 .sort()
@@ -252,8 +272,11 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             <button
               onClick={() => {
                 setSearch("");
-                setFilters({ stage: "", phase: "", status: "" });
-                setPage(1);
+                if (workflowFilterActive) {
+                  setFilters({ stage: "", phase: "", status: "" });
+                  setPage(1);
+                }
+                if (shortlistedOnly) setPage(1);
               }}
               className="px-2 text-sm font-medium text-indigo-600"
             >
@@ -286,8 +309,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             </button>
           </div>
         )}
-        {candidates.isPending ||
-        (shortlistedOnly && lookups.stage.isPending) ? (
+        {candidates.isPending ? (
           <p
             role="status"
             className="flex items-center justify-center gap-2 p-16 text-sm text-slate-500"
@@ -334,13 +356,14 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                       className="px-5 py-3"
                     >
                       <button
-                        onClick={() =>
+                        onClick={() => {
                           setSort((previous) => ({
                             key,
                             direction:
                               previous.key === key ? -previous.direction : 1,
-                          }))
-                        }
+                          }));
+                          setPage(1);
+                        }}
                         className="font-semibold uppercase"
                       >
                         {key}
@@ -403,7 +426,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                       onClick={(event) => event.stopPropagation()}
                     >
                       {isAdmin && <button disabled={!record.id} onClick={() => {
-                        setAssessment(record);
+                        openAssessment(record);
                         requestAnimationFrame(() => document.getElementById("assessment-invitations")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }));
                       }} className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-2.5 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50"><Link2 size={14} />View assessment</button>}
                       {shortlistedOnly ? (value(record, "status").trim().toLowerCase() !== "rejected" && <div className="flex flex-wrap gap-2">
@@ -464,15 +487,14 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
         )}
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-xs text-slate-500">
           <p>
-            {visible.length
-              ? `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, visible.length)}`
-              : "0"}{" "}
-            of {visible.length} candidates
+            {!shortlistedOnly && filterActive
+              ? `${rows.length} ${rows.length === 1 ? "match" : "matches"} on this page (${total} total candidates)`
+              : `${rows.length ? `${(currentPage - 1) * pageSize + 1}–${(currentPage - 1) * pageSize + rows.length}` : "0"} of ${paginationTotal} candidates`}
           </p>
           <div className="flex items-center gap-3">
             <button
               aria-label="Previous page"
-              disabled={currentPage <= 1}
+              disabled={candidates.isFetching || candidates.isError || currentPage <= 1}
               onClick={() => setPage(currentPage - 1)}
               className="rounded-lg border border-slate-200 p-2 disabled:opacity-30"
             >
@@ -483,7 +505,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
             </span>
             <button
               aria-label="Next page"
-              disabled={currentPage >= pages}
+              disabled={candidates.isFetching || candidates.isError || currentPage >= pages}
               onClick={() => setPage(currentPage + 1)}
               className="rounded-lg border border-slate-200 p-2 disabled:opacity-30"
             >
