@@ -11,7 +11,7 @@ export const workflowFields = {
   status: "status",
 };
 
-export async function fetchAllRecords(module, dateFilter = null) {
+export async function fetchAllRecords(module, dateFilter = null, filters = null) {
   const records = [];
   let page = 1;
   let pages = 1;
@@ -27,6 +27,7 @@ export async function fetchAllRecords(module, dateFilter = null) {
           date_from: dateFilter.from,
           date_to: dateFilter.to,
         } : {}),
+        ...(filters ? { filters } : {}),
         page,
         per_page: 100,
       },
