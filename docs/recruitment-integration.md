@@ -6,16 +6,19 @@ provide assessment viewing. Email delivery is deferred.
 
 ## Workflow
 
-1. Select **Test link** beside a candidate in **Round 1** on the Interviews board.
+1. Select **Test link** beside a candidate in **Round 1** on the Interviews board
+   to open the assessment drawer without moving or scrolling the board.
 2. HRCRM automatically authorizes assessment access using your current session.
-3. Choose a CRM candidate with a valid email, then select **Generate test link**.
+3. The drawer shows the candidate from the interview card automatically. Select
+   **Generate test link** for that profile.
 4. Copy the returned personal URL. New HRCRM invitations also appear as
    **Open test** under **Round 1** in the candidate's **My interviews** page,
    including after a reload. The backend retains the validation hash and an
    encrypted token bound to the CRM reference and intended email. The admin
    copy panel still keeps its issued URL in memory while switching pages.
-5. Refresh status to view registration, assessment scores, submitted rounds,
-   hiring decision, and integrity warnings.
+5. Open **Results** and refresh status to view registration, assessment outcomes,
+   scores and percentages for each submitted round, hiring decision, and integrity
+   warnings. Invitation history is available below either tab.
 
 Generating a replacement requires an inline confirmation and revokes the previous
 unused invitation. Registered candidates show assessment progress instead of
@@ -24,12 +27,15 @@ Assessment results do not automatically change CRM interview outcomes.
 
 Only Round 1 interview cards show **Test link** once the candidate directory loads,
 regardless of their schedule, round decision, or CRM rejection status. Linked CRM
-candidates are selected automatically. Interviews without a matching CRM profile
-open the candidate selector with the interview's name and email for context.
-An unmatched explicit candidate ID or ambiguous email never selects another
-profile automatically. Generating a link still requires a saved CRM candidate
+candidates are shown directly, even if they have moved beyond the shortlist.
+The drawer does not offer candidate switching when opened from a card. If the
+profile was not supplied, it loads the interview's linked CRM candidate, or
+resolves a unique exact email when no relationship exists. An unavailable linked
+ID or ambiguous email shows a retryable error without selecting another profile.
+The general **View assessments** action still provides a candidate selector.
+Generating a link still requires a saved CRM candidate
 with a valid email and recruitment invitation permission.
-The shared assessment panel only generates or replaces links when opened with a
+The shared assessment drawer only generates or replaces links when opened with a
 Round 1 interview. Later rounds do not show the control, the general Interviews
 generation shortcut is removed, and Candidates and Shortlisted provide
 **View assessment** controls instead.

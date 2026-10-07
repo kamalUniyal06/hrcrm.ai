@@ -53,7 +53,6 @@ function AdminInterviews() {
   function openAssessment(candidate, interview = null) {
     if (!isFirstRound(interview)) return;
     setAssessment({ candidate, interview });
-    requestAnimationFrame(() => document.getElementById("assessment-invitations")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }));
   }
   function closeInterviewAction() {
     const dropped = selected?.targetRound;
@@ -78,7 +77,7 @@ function AdminInterviews() {
     </header>
 
     <InterviewStats total={all.length} scheduled={scheduledCount} unscheduled={unscheduledCount} rounds={groups.length} loading={interviews.isPending || (interviews.isError && !interviews.data)} />
-    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview} onClose={() => setAssessment(null)} />}
+    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview || assessment.interview} onClose={() => setAssessment(null)} />}
 
     <div className="mb-4 flex items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2.5"><LayoutDashboard size={18} strokeWidth={1.7} className="text-primary" aria-hidden="true" /><h2 className="text-base font-semibold tracking-tight">Round by round</h2><span className="ml-1 hidden border-l border-border pl-3 text-[10px] text-muted-foreground sm:inline">Interview board</span></div>

@@ -427,7 +427,6 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                     >
                       {isAdmin && <button disabled={!record.id} onClick={() => {
                         openAssessment(record);
-                        requestAnimationFrame(() => document.getElementById("assessment-invitations")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth", block: "start" }));
                       }} className="mb-2 inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 px-2.5 py-2 text-xs font-medium text-indigo-700 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-400 disabled:opacity-50"><Link2 size={14} />View assessment</button>}
                       {shortlistedOnly ? (value(record, "status").trim().toLowerCase() !== "rejected" && <div className="flex flex-wrap gap-2">
                         <button
