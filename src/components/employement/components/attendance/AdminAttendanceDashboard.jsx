@@ -1,8 +1,10 @@
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
+import { useNavigate, useParams } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
+  ArrowLeft,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -25,8 +27,8 @@ import {
 const statuses = {
   onTime: {
     label: "On time",
-    color: "border-l-rose-200 bg-rose-50/60 text-slate-700",
-    dot: "bg-rose-300",
+    color: "border-l-emerald-300 bg-emerald-50/70 text-emerald-800",
+    dot: "bg-emerald-500",
   },
   late: {
     label: "Late",
@@ -52,13 +54,15 @@ const statuses = {
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40";
 const PAGE_SIZE = 50;
-export default function AdminAttendanceDashboard() {
+export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const isAdmin = useSelector(selectIsAdmin);
+  const navigate = useNavigate();
+  const { employeeId } = useParams();
+  const selectedPersonKey = employeeId ? `employee:${employeeId}` : null;
   const [anchor, setAnchor] = useState(() => new Date());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
-  const [selectedPersonKey, setSelectedPersonKey] = useState(null);
   const [overviewFilter, setOverviewFilter] = useState("all");
   const activityFrom = selectedPersonKey
     ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
@@ -67,18 +71,23 @@ export default function AdminAttendanceDashboard() {
     ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0))
     : dateKey(anchor);
   const employees = useQuery({
-    queryKey: ["employees", "list"],
-    queryFn: () => fetchAllRecords("hrc_employees"),
+    queryKey: ["employees", employeeId || "list"],
+    queryFn: () => fetchAllRecords("hrc_employees", null, employeeId ? { id: employeeId } : null),
     enabled: isAdmin,
   });
+  const selectedEmployeeEmail = employeeId
+    ? String(
+      employees.data?.find((employee) => String(employee.id) === String(employeeId))?.email1 ?? "",
+    ).trim().toLowerCase()
+    : "";
   const activity = useQuery({
-    queryKey: ["dailyActivity", "admin", activityFrom, activityTo],
+    queryKey: ["dailyActivity", "admin", selectedEmployeeEmail || "all", activityFrom, activityTo],
     queryFn: () => fetchAllRecords("hrc_daily_activity", {
       field: "date_entered",
       from: `${activityFrom} 00:00:00`,
       to: `${activityTo} 23:59:59`,
-    }),
-    enabled: isAdmin,
+    }, employeeId ? { name: selectedEmployeeEmail } : null),
+    enabled: isAdmin && (!employeeId || Boolean(selectedEmployeeEmail)),
     refetchInterval: 60000,
   });
   const days = selectedPersonKey
@@ -101,6 +110,7 @@ export default function AdminAttendanceDashboard() {
       ),
   );
   const visible = matchingRows.filter((row) => {
+    if (selectedPersonKey) return true;
     if (overviewFilter === "all") return true;
     const records = row.days[dateKey(anchor)] || [];
     if (overviewFilter === "missing") {
@@ -131,8 +141,9 @@ export default function AdminAttendanceDashboard() {
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const loading = employees.isPending || activity.isPending;
-  const failed = employees.isError || activity.isError;
+  const missingEmployeeEmail = Boolean(employeeId) && !employees.isPending && !selectedEmployeeEmail;
+  const loading = employees.isPending || ((!employeeId || selectedEmployeeEmail) && activity.isPending);
+  const failed = employees.isError || activity.isError || missingEmployeeEmail;
   const fetching = employees.isFetching || activity.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
@@ -142,6 +153,19 @@ export default function AdminAttendanceDashboard() {
     ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
     : null;
   const targetProgress = effectiveMinutes === null ? 0 : Math.min(Math.round((effectiveMinutes / 540) * 100), 100);
+  const overviewItems = selectedPersonKey
+    ? [
+      ["Days in month", days.length, CalendarDays, "text-indigo-600 bg-indigo-50", "all"],
+      ["On-time days", totals.onTime, Clock3, "text-emerald-700 bg-emerald-50", "all"],
+      ["Late days", totals.late, Clock3, "text-amber-600 bg-amber-50", "all"],
+      ["No record", totals.missing, Users, "text-slate-600 bg-slate-100", "all"],
+    ]
+    : [
+      ["Employees shown", matchingRows.length, Users, "text-indigo-600 bg-indigo-50", "all"],
+      ["Checked in", totals.onTime + totals.late, CalendarDays, "text-emerald-700 bg-emerald-50", "checkedIn"],
+      ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
+      ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
+    ];
 
   function moveWeek(direction) {
     setAnchor(selectedPersonKey
@@ -165,6 +189,16 @@ export default function AdminAttendanceDashboard() {
     <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
+          {selectedPersonKey && (
+            <button
+              type="button"
+              onClick={() => navigate("/attendance")}
+              className="mb-4 inline-flex items-center gap-2 rounded-lg text-sm font-medium text-slate-600 transition hover:text-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
+            >
+              <ArrowLeft size={16} />
+              Back to all employees
+            </button>
+          )}
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
             People workspace
           </p>
@@ -177,39 +211,31 @@ export default function AdminAttendanceDashboard() {
               : "Today's attendance for every employee. Select a person to review their month."}
           </p>
         </div>
-        <button onClick={refresh} disabled={fetching} className={buttonClass}>
-          <RefreshCw size={15} className={fetching ? "animate-spin" : ""} />
-          Refresh
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {onViewMyAttendance && (
+            <button type="button" onClick={onViewMyAttendance} className={buttonClass}>
+              <CalendarDays size={15} />
+              My attendance
+            </button>
+          )}
+          <button onClick={refresh} disabled={fetching} className={buttonClass}>
+            <RefreshCw size={15} className={fetching ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </header>
 
       <section
         aria-label="Weekly attendance overview"
         className="grid gap-3 sm:grid-cols-4"
       >
-        {[
-          [
-            "Employees shown",
-            matchingRows.length,
-            Users,
-            "text-indigo-600 bg-indigo-50",
-            "all",
-          ],
-          [
-            "Days with check-in",
-            totals.onTime + totals.late,
-            CalendarDays,
-            "text-rose-600 bg-rose-50",
-            "checkedIn",
-          ],
-          ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
-          ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
-        ].map((item) => {
+        {overviewItems.map((item) => {
           const [label, count, Icon, color, filter] = item;
           return (
             <button
               key={label}
               type="button"
+              disabled={Boolean(selectedPersonKey)}
               onClick={() => {
                 if (filter === "missing") {
                   setOverviewFilter("missing");
@@ -219,8 +245,8 @@ export default function AdminAttendanceDashboard() {
                   setPage(1);
                 }
               }}
-              aria-pressed={overviewFilter === filter}
-              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition hover:border-indigo-200 hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"}`}
+              aria-pressed={!selectedPersonKey && overviewFilter === filter}
+              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition enabled:hover:border-indigo-200 enabled:hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${!selectedPersonKey && overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"}`}
             >
               <span className={`rounded-xl p-3 ${color}`}>
                 <Icon size={21} />
@@ -242,12 +268,7 @@ export default function AdminAttendanceDashboard() {
       >
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-xs font-medium text-white">
-              <CalendarDays size={14} />
-              {selectedPersonKey
-                ? anchor.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
-                : "Attendance for " + anchor.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </span>
+
             <button
               aria-label={selectedPersonKey ? "Previous month" : "Previous day"}
               onClick={() => moveWeek(-1)}
@@ -272,12 +293,12 @@ export default function AdminAttendanceDashboard() {
               Today
             </button>
             <input
-              type="date"
+              type={selectedPersonKey ? "month" : "date"}
               aria-label={selectedPersonKey ? "Choose a month for this employee" : "Choose an attendance date"}
-              value={dateKey(anchor)}
+              value={selectedPersonKey ? dateKey(anchor).slice(0, 7) : dateKey(anchor)}
               onChange={(event) => {
                 if (!event.target.value) return;
-                const [year, month, day] = event.target.value
+                const [year, month, day = 1] = event.target.value
                   .split("-")
                   .map(Number);
                 setAnchor(new Date(year, month - 1, day));
@@ -285,7 +306,6 @@ export default function AdminAttendanceDashboard() {
               }}
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600"
             />
-            {selectedPersonKey && <button onClick={() => { setSelectedPersonKey(null); setAnchor(new Date()); setPage(1); }} className={buttonClass}>Back to today's attendance</button>}
           </div>
           <div className="flex flex-wrap gap-3" aria-label="Attendance legend">
             {["onTime", "late", "incomplete", "missing"].map((status) => (
@@ -302,7 +322,7 @@ export default function AdminAttendanceDashboard() {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <label className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 sm:max-w-sm">
+          {!selectedPersonKey && <label className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 sm:max-w-sm">
             <Search size={16} className="text-slate-400" />
             <input
               type="search"
@@ -315,7 +335,7 @@ export default function AdminAttendanceDashboard() {
               }}
               className="w-full bg-transparent py-2.5 text-sm outline-none"
             />
-          </label>
+          </label>}
           <p className="text-xs text-slate-400">
             {selectedPersonKey ? "Select a day to open its attendance report" : "Click an employee to view their monthly attendance"}
           </p>
@@ -329,6 +349,7 @@ export default function AdminAttendanceDashboard() {
             <p>
               {employees.error?.message ||
                 activity.error?.message ||
+                (missingEmployeeEmail && "This employee does not have an email address for matching attendance.") ||
                 "Could not load attendance."}
             </p>
             <button onClick={refresh} className="mt-2 font-semibold underline">
@@ -412,11 +433,12 @@ export default function AdminAttendanceDashboard() {
                             .join("")
                             .toUpperCase()}
                         </span>
-                        <div className="min-w-0" onClick={() => { setSelectedPersonKey(row.key); setPage(1); }}>
+                        <div className="min-w-0">
                           <button
                             type="button"
-                            
-                            className="max-w-44 truncate font-medium text-slate-800"
+                            disabled={!row.matched || Boolean(selectedPersonKey)}
+                            onClick={() => navigate(`/attendance/${encodeURIComponent(row.key.replace(/^employee:/, ""))}`)}
+                            className="max-w-44 truncate font-medium text-slate-800 transition hover:text-indigo-600 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-default disabled:hover:text-slate-800"
                             title={row.name}
                           >
                             {row.name}
@@ -570,80 +592,80 @@ export default function AdminAttendanceDashboard() {
             <div className="mt-6 space-y-4">
               {selectedRecords.length ? (
                 <>
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm font-semibold text-slate-900">Day report · {selectedRow?.email || selectedRow?.name}</p>
-                  <div className="mt-3 grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Time in office</p><p className="mt-1 font-semibold">{formatMinutes(selectedSummary.inOffice)}</p></div>
-                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Effective time</p><p className="mt-1 font-semibold">{formatMinutes(effectiveMinutes)}</p></div>
-                    <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Break time</p><p className="mt-1 font-semibold">{formatMinutes(breakMinutes)}</p></div>
-                  </div>
-                  <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="flex justify-between text-xs"><span>Daily target</span><span className="font-semibold text-indigo-600">{targetProgress}%</span></div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${targetProgress}%` }} /></div>
-                    <p className="mt-2 text-xs text-slate-500">{formatMinutes(effectiveMinutes)} of 9h 00m</p>
-                  </div>
-                  <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
-                </section>
-                {selectedRecords.map((record, index) => {
-                  const summary = daySummary([record], selected.date, today);
-                  const session = summary.sessions[0];
-                  return (
-                    <section
-                      key={record.id || index}
-                      className="rounded-xl border border-slate-200 p-4"
-                    >
-                      <div className="flex justify-between gap-3 text-sm">
-                        <h3 className="font-semibold text-slate-800">
-                          Session {index + 1}
-                        </h3>
-                        <span className="text-slate-500">
-                          {statuses[summary.status].label}
-                        </span>
-                      </div>
-                      <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                        {[
-                          ["Login", session.login],
-                          ["Logout", session.logout],
-                          ["Lunch in", session.lunchIn],
-                          ["Lunch out", session.lunchOut],
-                        ].map(([label, time]) => (
-                          <div key={label}>
-                            <dt className="text-xs text-slate-400">{label}</dt>
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-900">Day report · {selectedRow?.email || selectedRow?.name}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Time in office</p><p className="mt-1 font-semibold">{formatMinutes(selectedSummary.inOffice)}</p></div>
+                      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Effective time</p><p className="mt-1 font-semibold">{formatMinutes(effectiveMinutes)}</p></div>
+                      <div className="rounded-lg border border-slate-200 bg-white p-3"><p className="text-xs text-slate-500">Break time</p><p className="mt-1 font-semibold">{formatMinutes(breakMinutes)}</p></div>
+                    </div>
+                    <div className="mt-3 rounded-lg border border-slate-200 bg-white p-3">
+                      <div className="flex justify-between text-xs"><span>Daily target</span><span className="font-semibold text-indigo-600">{targetProgress}%</span></div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-600" style={{ width: `${targetProgress}%` }} /></div>
+                      <p className="mt-2 text-xs text-slate-500">{formatMinutes(effectiveMinutes)} of 9h 00m</p>
+                    </div>
+                    <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
+                  </section>
+                  {selectedRecords.map((record, index) => {
+                    const summary = daySummary([record], selected.date, today);
+                    const session = summary.sessions[0];
+                    return (
+                      <section
+                        key={record.id || index}
+                        className="rounded-xl border border-slate-200 p-4"
+                      >
+                        <div className="flex justify-between gap-3 text-sm">
+                          <h3 className="font-semibold text-slate-800">
+                            Session {index + 1}
+                          </h3>
+                          <span className="text-slate-500">
+                            {statuses[summary.status].label}
+                          </span>
+                        </div>
+                        <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                          {[
+                            ["Login", session.login],
+                            ["Logout", session.logout],
+                            ["Lunch in", session.lunchIn],
+                            ["Lunch out", session.lunchOut],
+                          ].map(([label, time]) => (
+                            <div key={label}>
+                              <dt className="text-xs text-slate-400">{label}</dt>
+                              <dd className="mt-1 text-slate-700">
+                                {time?.time || "Not recorded"}
+                                {time && time.date !== selected.date && (
+                                  <span className="block text-xs text-slate-400">
+                                    {time.date}
+                                  </span>
+                                )}
+                              </dd>
+                            </div>
+                          ))}
+                          <div>
+                            <dt className="text-xs text-slate-400">
+                              Break duration
+                            </dt>
                             <dd className="mt-1 text-slate-700">
-                              {time?.time || "Not recorded"}
-                              {time && time.date !== selected.date && (
-                                <span className="block text-xs text-slate-400">
-                                  {time.date}
-                                </span>
-                              )}
+                              {formatMinutes(session.breakMinutes)}
                             </dd>
                           </div>
-                        ))}
-                        <div>
-                          <dt className="text-xs text-slate-400">
-                            Break duration
-                          </dt>
-                          <dd className="mt-1 text-slate-700">
-                            {formatMinutes(session.breakMinutes)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs text-slate-400">
-                            Effective time (excluding lunch)
-                          </dt>
-                          <dd className="mt-1 font-semibold text-indigo-600">
-                            {formatMinutes(session.worked)}
-                          </dd>
-                        </div>
-                      </dl>
-                      {record.description?.trim() && (
-                        <p className="mt-4 whitespace-pre-wrap break-words border-t pt-3 text-xs text-slate-500">
-                          {record.description}
-                        </p>
-                      )}
-                    </section>
-                  );
-                })}
+                          <div>
+                            <dt className="text-xs text-slate-400">
+                              Effective time (excluding lunch)
+                            </dt>
+                            <dd className="mt-1 font-semibold text-indigo-600">
+                              {formatMinutes(session.worked)}
+                            </dd>
+                          </div>
+                        </dl>
+                        {record.description?.trim() && (
+                          <p className="mt-4 whitespace-pre-wrap break-words border-t pt-3 text-xs text-slate-500">
+                            {record.description}
+                          </p>
+                        )}
+                      </section>
+                    );
+                  })}
                 </>
               ) : (
                 <p className="text-sm text-slate-500">

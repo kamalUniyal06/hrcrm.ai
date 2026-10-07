@@ -191,6 +191,11 @@ const router = createBrowserRouter([
         handle: { breadcrumb: "Attendance" },
       },
       {
+        path: "attendance/:employeeId",
+        element: <AttendanceDashboard />,
+        handle: { breadcrumb: "Employee attendance" },
+      },
+      {
         path: "offboarding",
         element: <PageAccessGuard><OffboardingPage /></PageAccessGuard>,
         handle: { breadcrumb: "Employee offboarding" },
