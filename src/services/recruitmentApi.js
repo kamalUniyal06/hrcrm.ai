@@ -21,9 +21,11 @@ export async function recruitmentRequest(path, { token, method = "GET", body, pa
     });
     const data = await response.json().catch(() => null);
     if (!response.ok || data?.success !== true) {
-      const error = new Error(response.status === 401 && token
-        ? "Your assessment connection could not be authorized. Retry, or sign in to HRCRM again."
-        : data?.error || data?.message || `Recruitment request failed (${response.status}). Please retry.`);
+      const error = new Error(data?.code === "HRCRM_CANDIDATE_EMAIL_REQUIRED"
+        ? "You are signed in, but HR needs to enable test-link access. Please contact HR."
+        : response.status === 401 && token
+          ? "Your assessment connection could not be authorized. Retry, or sign in to HRCRM again."
+          : data?.error || data?.message || `Recruitment request failed (${response.status}). Please retry.`);
       error.status = response.status;
       error.code = data?.code;
       throw error;

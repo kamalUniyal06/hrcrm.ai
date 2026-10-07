@@ -1,5 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
+import { selectIsAdmin } from "../../utils/pageAccess";
+import CandidateInterviewPage from "./interviews/CandidateInterviewPage";
 import { Link } from "react-router-dom";
 import { BriefcaseBusiness, CalendarClock, ChevronRight, CircleAlert, GripVertical, LayoutDashboard, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "../ui/button";
@@ -11,6 +14,11 @@ import RecruitmentPanel from "./recruitment/RecruitmentPanel";
 import { clean, groupInterviews, hasOutcome, interviewDate, isFirstRound } from "./interviews/interviewUtils";
 
 export default function Interview() {
+  const isAdmin = useSelector(selectIsAdmin);
+  return isAdmin ? <AdminInterviews /> : <CandidateInterviewPage />;
+}
+
+function AdminInterviews() {
   const [search, setSearch] = useState("");
   const [round, setRound] = useState("");
   const [status, setStatus] = useState("");
@@ -70,7 +78,7 @@ export default function Interview() {
     </header>
 
     <InterviewStats total={all.length} scheduled={scheduledCount} unscheduled={unscheduledCount} rounds={groups.length} loading={interviews.isPending || (interviews.isError && !interviews.data)} />
-    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} candidates={candidates.data || []} initialCandidate={assessment.candidate} interview={assessmentInterview} onClose={() => setAssessment(null)} />}
+    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview} onClose={() => setAssessment(null)} />}
 
     <div className="mb-4 flex items-center justify-between gap-3">
       <div className="flex flex-wrap items-center gap-2.5"><LayoutDashboard size={18} strokeWidth={1.7} className="text-primary" aria-hidden="true" /><h2 className="text-base font-semibold tracking-tight">Round by round</h2><span className="ml-1 hidden border-l border-border pl-3 text-[10px] text-muted-foreground sm:inline">Interview board</span></div>

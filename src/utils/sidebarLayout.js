@@ -85,7 +85,7 @@ export const isPersistableId = (id) =>
 
 /**
  * Put the response into rank order and coerce rank and
- * is_visible into consistent types.
+ * is_visible and show_count into consistent types.
  *
  * We deliberately do NOT reassign ranks. The rank belongs to
  * the backend; the editor shows exactly what is stored.
@@ -128,6 +128,7 @@ export function normalizeSidebarResponse(response, { onInvalid } = {}) {
         ...item,
 
         is_visible: isVisible(item),
+        show_count: ["1", "true"].includes(String(item.show_count).toLowerCase()),
       })),
     };
   });

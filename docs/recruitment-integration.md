@@ -9,9 +9,11 @@ provide assessment viewing. Email delivery is deferred.
 1. Select **Test link** beside a candidate in **Round 1** on the Interviews board.
 2. HRCRM automatically authorizes assessment access using your current session.
 3. Choose a CRM candidate with a valid email, then select **Generate test link**.
-4. Copy the returned personal URL. The backend stores only its hash, so HRCRM
-   cannot retrieve the URL after a page reload. Newly created links remain
-   available in memory while switching between HRCRM pages in the same session.
+4. Copy the returned personal URL. New HRCRM invitations also appear as
+   **Open test** under **Round 1** in the candidate's **My interviews** page,
+   including after a reload. The backend retains the validation hash and an
+   encrypted token bound to the CRM reference and intended email. The admin
+   copy panel still keeps its issued URL in memory while switching pages.
 5. Refresh status to view registration, assessment scores, submitted rounds,
    hiring decision, and integrity warnings.
 
@@ -55,6 +57,50 @@ or additional color-token system is required.
 
 ## Configuration and prerequisites
 
+### Candidate shortlist source
+
+The **Shortlisted** list and every assessment candidate selector share
+`fetchShortlistSource()` and the same filtered query cache. Each page requests:
+
+```json
+{
+  "action": "fetch",
+  "module": "hrc_candidates",
+  "filters": {
+    "employee": 0,
+    "hrc_stages_id_c_name": "Shortlisted"
+  },
+  "page": 1,
+  "per_page": 20
+}
+```
+
+The selector loads its shortlist directly instead of receiving the unfiltered
+Interviews directory or a single Candidates page. It follows the filtered
+server pagination and rejects responses containing employees, another stage,
+or missing eligibility fields. Loading, empty, failure and retry states apply
+to the selector itself. A Round 1 initial profile must be present in the
+filtered pool before it can be selected for link generation. Direct read-only
+assessment viewing still follows an existing profile that has moved beyond
+the shortlist, without adding that profile to the dropdown options.
+
+Sync the updated CRM `smart_gateway.php`, or apply
+[smart-gateway-shortlist.patch](smart-gateway-shortlist.patch). The displayed
+`hrc_stages_id_c_name` is derived from a related stage and was previously
+ignored by the generic vardef filter. The gateway now matches the candidate's
+existing `hrc_stages_id_c` against an undeleted stage with that name, using bean
+metadata for custom-field storage. The predicate applies to both row retrieval
+and total counts. A missing field or non-string stage-name filter returns 422
+rather than falling through to an unfiltered result.
+
+Verification covers 15 focused frontend tests, PHP syntax, the actual fetch
+handler against an isolated SQLite fixture (both standard/custom storage,
+pagination/counts, excluded employees/stages and quoted filter values), and
+static selector rendering for eligibility, default selection and failure states.
+Targeted lint and the production build pass; the build retains its large-chunk warning.
+
+### Assessment connection
+
 Set `VITE_RECRUITMENT_API_URL` in the HRCRM environment to the public API root.
 The current default is `https://recruitmentbackend.outrightsystems.org/api`.
 Local development can use `http://localhost:3001/api`. HTTPS is required for
@@ -72,11 +118,20 @@ The recruitment backend's in-progress HRCRM changes must be deployed, including:
   allowlist is used. The backend's `docs/hrcrm-auth-token.patch` contains this change.
 - Candidate-bound invitation metadata and email enforcement.
 - Migration `010_candidate_invitation_context.sql`, applied after migrations 001–009.
+- Migration `011_hrcrm_invitation_link_storage.sql`, applied after migration 010.
+- A dedicated `HRCRM_INVITATION_ENCRYPTION_KEY` on the recruitment server:
+  a randomly generated 32-byte key encoded as Base64. Keep it stable, out of
+  frontend environment variables, and separate from JWT signing keys.
+- The HRCRM access token's signed `email` claim must contain the authenticated
+  user's verified email. Candidate reads fail closed if it is missing or invalid.
+  Apply the backend's `docs/hrcrm-auth-email.patch` to the PHP issuer: `me()`
+  passes the verified login identity into `makeCrmToken()`, which signs its email.
 - The HRCRM origin in `CORS_ALLOWED_ORIGINS`. HRCRM should be served over HTTPS.
 - `CANDIDATE_APP_URL` pointing at the deployed candidate application, so links
   do not accidentally target localhost.
 
-No migration or backend deployment is performed by this frontend change.
+The migration and backend code are supplied locally; deployment and production
+schema changes are separate release steps.
 
 ## API contract
 
@@ -87,6 +142,7 @@ No migration or backend deployment is performed by this frontend change.
 | `POST /integrations/hrcrm/invitations` | `candidate_email`, `candidate_first_name`, `candidate_last_name`, `external_reference` |
 | `GET /integrations/hrcrm/candidates?search={email}&page_size=100&page={page}` | Exact email matching when there is no accepted bound invitation |
 | `GET /integrations/hrcrm/candidates/{id}` | Candidate status, round scores, and integrity details |
+| `GET /integrations/hrcrm/my-invitation?external_reference={crmId}` | Candidate's own invitation, authenticated directly with their signed HRCRM access token |
 
 The invitation response must include `invitation_url` and an `invitation` with
 matching `external_reference` and `intended_email`. HRCRM refuses an unbound link.
@@ -108,6 +164,30 @@ from recruitment requests. Limited tokens cannot access general admin routes,
 question banks, settings, or candidate mutations. Invitation audit entries
 include the verified HRCRM actor ID.
 
+## Candidate Round 1 test link
+
+The candidate page fetches its own invitation through `my-invitation`, using
+the CRM token directly rather than an administrator assessment session. The
+backend verifies the token signature, issuer, audience, type, expiry, subject,
+and signed email, then selects only the invitation matching that email and the
+CRM reference. A browser-supplied email or role cannot authorize access.
+Responses use `Cache-Control: no-store` and omit hashes, ciphertext, recruiter
+notes, and administrator details.
+
+Only a pending, unexpired invitation produces **Open test**. Used, withdrawn,
+and expired invitations have explanatory states. A missing invitation shows
+that HR has not created the test link yet. Test-link loading errors have their
+own retry control and leave interview details available. The normal Refresh
+button refreshes both sections, and invitation status is rechecked while the
+page is active. Times retain the display without a timezone suffix.
+
+Existing invitations stored only as hashes cannot be recovered. HR must use
+the existing confirmed replacement action for those links after migration 011
+and the server key are configured. This revokes the old unused URL; candidates
+then see the new one. The candidate page never creates or replaces an invitation.
+Rotating or losing the encryption key prevents recovery of existing encrypted
+links, so preserve it in the server's secret management and backups.
+
 ## Implementation status and verification, 5 October 2026
 
 The recruitment workspace already contains the backend contract and candidate
@@ -119,3 +199,26 @@ Live link generation requires the server-side integration account and HRCRM
 token-verification configuration. Deploy the PHP issuer's signed `role` claim
 and refresh HRCRM to obtain a fresh token. New CRM administrators are authorized
 automatically; no environment change is needed when adding an administrator.
+
+## Round 1 candidate link verification, 6 October 2026
+
+The candidate UI, private read endpoint, encrypted invitation storage, and
+migration 011 are implemented locally. All 30 focused HRCRM tests and all
+72 recruitment backend tests pass. Targeted frontend lint, backend syntax
+checks, static component rendering for link states, and the HRCRM production
+build pass. The build retains its large-chunk warning. Deployment requires the
+server configuration and migration above; existing hash-only links require an
+explicit replacement. The deployed authentication issuer's signed email claim
+still needs verification against its actual configuration.
+
+The supplied authentication issuer was inspected and corrected on 6 October:
+the login response had an email, while its CRM access token omitted that claim.
+`AuthController.php` now signs the email from the verified login identity. Sync
+that file to the auth server before retrying the test link. A manual retry
+obtains a fresh token from the existing login after this specific error.
+Missing-email errors now describe an access setup problem instead of asking
+the candidate to sign in again; automatic replay, interval polling, and
+window-focus refetch are suppressed for that error.
+
+The issuer's PHP lint and isolated real-method smoke check pass, along with
+33 focused frontend tests, 72 backend tests, and targeted frontend lint.

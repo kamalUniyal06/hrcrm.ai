@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { filterAdminNavigation, isAdminPage, selectIsAdmin } from "./pageAccess.js";
+import { sidebarDestination } from "./sidebarNavigation.js";
 
 test("only authenticated admins receive admin access", () => {
   for (const status of [null, undefined, "employee", "candidate", "Admin", "Joining Confirmed"]) {
@@ -12,22 +13,31 @@ test("only authenticated admins receive admin access", () => {
 });
 
 test("protects direct and generic module routes", () => {
-  for (const path of ["/employees", "/interviews/", "/EMPLOYEES", "/interviews?view=list", "/%65mployees", "/entity/hrc_employees/view", "/entity/hrc_interviews/create", "/entity/hrc_employees/person/edit", "/entity/hrc_interviews/list/table"]) {
+  for (const path of ["/employees", "/salaries/", "/EMPLOYEES", "/salaries?view=list", "/%65mployees", "/entity/hrc_employees/view", "/entity/hrc_salaries/create", "/entity/hrc_employees/person/edit", "/entity/hrc_salaries/list/table"]) {
     assert.equal(isAdminPage(path), true, path);
   }
-  for (const path of ["/", "/profile", "/attendance", "/candidates", "/interviews-other", "/entity/hrc_candidates/view", null]) {
+  for (const path of ["/", "/profile", "/attendance", "/candidates", "/interviews", "/interviews/", "/INTERVIEWS", "/interviews?view=list", "/interviews-other", "/entity/hrc_interviews/create", "/entity/hrc_interviews/list/table", "/entity/hrc_candidates/view", null]) {
     assert.equal(isAdminPage(path), false, String(path));
   }
 });
 
 test("hides admin destinations and empty groups without changing source layout", () => {
   const groups = [
-    { id: "mixed", data: [{ name: "Employees" }, { name: "Interviews" }, { name: "Profile" }] },
-    { id: "admin", data: [{ module_name: "hrc_employees" }, { navigation: "entity/hrc_interviews/view" }] },
+    { id: "mixed", data: [{ name: "Employees" }, { name: "Interviews", navigation: "/interviews" }, { name: "Profile" }] },
+    { id: "admin", data: [{ module_name: "hrc_employees" }, { navigation: "entity/hrc_salaries/view" }] },
   ];
-  assert.deepEqual(filterAdminNavigation(groups, false), [{ id: "mixed", data: [{ name: "Profile" }] }]);
+  assert.deepEqual(filterAdminNavigation(groups, false), [{ id: "mixed", data: [{ name: "Interviews", navigation: "/interviews" }, { name: "Profile" }] }]);
   assert.equal(filterAdminNavigation(groups, true), groups);
   assert.equal(groups[0].data.length, 3);
+});
+
+test("Interview uses the response navigation and remains visible to non-admin users", () => {
+  const interview = { name: "Interview", module_name: "hrc_candidates", navigation: "/interviews", visible: true };
+  const groups = [{ id: "recruitment", data: [interview] }];
+  assert.equal(sidebarDestination(interview), "/interviews");
+  assert.deepEqual(filterAdminNavigation(groups, false), groups);
+  assert.equal(sidebarDestination({ ...interview, navigation: "/entity/hrc_candidates/view" }), "/entity/hrc_candidates/view");
+  assert.equal(sidebarDestination({ name: "Interviews", module_name: "hrc_interviews", navigation: "/entity/hrc_interviews/view" }), "/entity/hrc_interviews/view");
 });
 
 test("system alerts route and module navigation are admin only", () => {

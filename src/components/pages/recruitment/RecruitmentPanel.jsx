@@ -4,12 +4,23 @@ import { Check, Copy, ExternalLink, Link2, Loader2, RefreshCw, ShieldCheck, X } 
 import { useRecruitment } from "../../../context/recruitmentContext";
 import { invitationPayload, recruitmentDate, recruitmentEmail, recruitmentName, safeInvitationUrl } from "../../../services/recruitmentUtils";
 import { isFirstRound } from "../interviews/interviewUtils";
+import { fetchShortlistSource, shortlistedCandidatesKey } from "../candidates/candidatesApi";
 
-export default function RecruitmentPanel({ candidates = [], initialCandidate, interview, onClose }) {
+export default function RecruitmentPanel({ initialCandidate, interview, onClose }) {
   const recruitment = useRecruitment();
+  const shortlist = useQuery({
+    queryKey: shortlistedCandidatesKey,
+    queryFn: fetchShortlistSource,
+    enabled: recruitment.isAdmin,
+    retry: false,
+  });
+  const candidates = shortlist.isSuccess ? shortlist.data || [] : [];
   const [selectedId, setSelectedId] = useState(String(initialCandidate?.id || ""));
-  const candidate = candidates.find((item) => String(item.id) === selectedId) || (String(initialCandidate?.id) === selectedId ? initialCandidate : null);
   const canGenerate = isFirstRound(interview);
+  const selectedCandidate = candidates.find((item) => String(item.id) === selectedId) || null;
+  // Direct assessment viewing can follow a profile that has moved beyond the shortlist.
+  const viewedCandidate = !canGenerate && String(initialCandidate?.id || "") === selectedId ? initialCandidate : null;
+  const candidate = selectedCandidate || viewedCandidate;
   if (!recruitment.isAdmin) return null;
   return <section className="mb-7 overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm shadow-foreground/[.025]" aria-label="Assessment invitations" id="assessment-invitations">
     <header className="flex items-start gap-3 border-b border-border px-4 py-5 sm:items-center sm:px-6">
@@ -20,12 +31,15 @@ export default function RecruitmentPanel({ candidates = [], initialCandidate, in
     {recruitment.user ? <div className="flex flex-wrap items-center gap-2 border-b border-border bg-secondary px-4 py-3 text-xs text-secondary-foreground sm:px-6"><span className="inline-flex items-center gap-2"><ShieldCheck size={15} aria-hidden="true" />Assessment access is ready through your HRCRM session.</span></div> : <RecruitmentConnection />}
     <div className="max-w-2xl px-4 pt-5 sm:px-6 [&>label]:text-xs [&>label]:font-medium [&>select]:mt-2">
       <label htmlFor="assessment-candidate">CRM candidate</label>
-      <select id="assessment-candidate" value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className="min-h-10 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:bg-muted">
+      <select id="assessment-candidate" value={selectedCandidate ? selectedId : ""} onChange={(event) => setSelectedId(event.target.value)} disabled={!shortlist.isSuccess} className="min-h-10 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:bg-muted">
         <option value="">Select a candidate</option>
         {candidates.map((item) => <option key={item.id} value={item.id}>{recruitmentName(item)}{recruitmentEmail(item) ? ` (${recruitmentEmail(item)})` : " (no email)"}</option>)}
       </select>
       {!candidate && canGenerate && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Select the CRM profile for {recruitmentName(interview)}{recruitmentEmail(interview) ? ` (${recruitmentEmail(interview)})` : ""} to create their test link.</p>}
-      {!candidates.length && <p className="text-xs leading-relaxed text-muted-foreground">Load the candidate directory to create an invitation.</p>}
+      {shortlist.isPending && <p role="status" className="mt-2 text-xs leading-relaxed text-muted-foreground">Loading shortlisted candidates…</p>}
+      {shortlist.isError && <p role="alert" className="mt-2 text-xs leading-relaxed text-destructive">{shortlist.error.message} <button type="button" onClick={() => { void shortlist.refetch(); }} disabled={shortlist.isFetching} className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">Retry candidates</button></p>}
+      {shortlist.isSuccess && !candidates.length && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">No shortlisted candidates are available.</p>}
+      {!selectedCandidate && viewedCandidate && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Viewing {recruitmentName(viewedCandidate)}. Only shortlisted candidates are available in the selector.</p>}
     </div>
     {candidate ? <CandidateAssessment key={candidate.id} candidate={candidate} canGenerate={canGenerate} /> : <p className="px-4 pt-4 pb-6 text-xs text-muted-foreground sm:px-6">{canGenerate ? "Choose a candidate to generate a Round 1 test link or check their assessment." : "Choose a candidate to check their assessment."}</p>}
   </section>;
@@ -125,7 +139,7 @@ function CandidateAssessment({ candidate, canGenerate }) {
         </div>}
         {canGenerate && confirmReplace && <div className="rounded-lg border border-border bg-secondary p-3 text-xs leading-relaxed text-secondary-foreground [overflow-wrap:anywhere]" role="alert"><p>The previous unused link will stop working. Share the replacement with the candidate.</p><div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} className="inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 border-primary bg-primary text-primary-foreground hover:bg-primary/85" onClick={create}>Replace unused link</button><button disabled={busy} className="inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50" onClick={() => setConfirmReplace(false)}>Keep existing link</button></div></div>}
         {link && <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 [&>p]:mt-2 [&>p]:text-xs [&>p]:leading-relaxed [&>p]:text-muted-foreground" role="status">
-          <h4 className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><Check size={16} /> Test link generated</h4><p>Copy this link now. For security, it cannot be retrieved after reloading HRCRM.</p>
+          <h4 className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><Check size={16} /> Test link generated</h4><p>{issued.candidate_link_available ? "Copy this link to share it. The candidate can also open it from Round 1 in My interviews." : "Copy this link now. It cannot be retrieved after reloading HRCRM."}</p>
           <div className="mt-3 flex flex-wrap items-center gap-2 sm:flex-nowrap [&>input]:min-w-0 [&>input]:flex-[1_1_100%] sm:[&>input]:flex-1"><input aria-label="Generated assessment invitation link" className="min-h-10 w-full rounded-lg border border-border bg-card px-3 py-2.5 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:bg-muted" value={link} readOnly onFocus={(event) => event.target.select()} /><button onClick={copy} className="inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button><a href={link} target="_blank" rel="noopener noreferrer" className="inline-flex size-10 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50" aria-label="Open test invitation" title="Open test invitation"><ExternalLink size={17} /></a></div>
         </div>}
         <InvitationHistory invitations={query.data.invitations} />
