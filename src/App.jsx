@@ -46,6 +46,7 @@ import LimitManagementPage from "./components/pages/LimitManagementPage";
 import OffboardingPage from "./components/employement/pages/OffboardingPage";
 import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
 import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
+import IncrementManagementPage from "./components/employement/pages/IncrementManagementPage";
 
 const router = createBrowserRouter([
   {
@@ -73,7 +74,7 @@ const router = createBrowserRouter([
 
       {
         path: "entity/:entity/list/:view",
-        element: <DynamicEntityHandler mode="list" />,
+        element: <PageAccessGuard><DynamicEntityHandler mode="list" /></PageAccessGuard>,
         handle: {
           breadcrumb: ({ params }) => [
             {
@@ -90,7 +91,7 @@ const router = createBrowserRouter([
 
       {
         path: "entity/:entity/view",
-        element: <DynamicEntityHandler mode="list" />,
+        element: <PageAccessGuard><DynamicEntityHandler mode="list" /></PageAccessGuard>,
         handle: {
           breadcrumb: ({ params }) => [
             {
@@ -107,7 +108,7 @@ const router = createBrowserRouter([
 
       {
         path: "entity/:entity/:email",
-        element: <DynamicEntityHandler mode="detail" />,
+        element: <PageAccessGuard><DynamicEntityHandler mode="detail" /></PageAccessGuard>,
         handle: {
           breadcrumb: ({ params }) => [
             {
@@ -124,7 +125,7 @@ const router = createBrowserRouter([
 
       {
         path: "entity/:entity/create",
-        element: <DynamicEntityHandler mode="create" />,
+        element: <PageAccessGuard><DynamicEntityHandler mode="create" /></PageAccessGuard>,
         handle: {
           breadcrumb: ({ params }) => [
             {
@@ -141,7 +142,7 @@ const router = createBrowserRouter([
 
       {
         path: "entity/:entity/:email/edit",
-        element: <DynamicEntityHandler mode="edit" />,
+        element: <PageAccessGuard><DynamicEntityHandler mode="edit" /></PageAccessGuard>,
         handle: {
           breadcrumb: ({ params }) => [
             {
@@ -247,6 +248,11 @@ const router = createBrowserRouter([
         path: "increment-request",
         element: <IncrementRequestPage />,
         handle: { breadcrumb: "Increment request" },
+      },
+      {
+        path: "increment-management",
+        element: <PageAccessGuard><IncrementManagementPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Increment management" },
       },
       {
         path: "/leave-applications",

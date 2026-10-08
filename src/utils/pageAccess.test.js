@@ -52,3 +52,16 @@ test("system alerts route and module navigation are admin only", () => {
   assert.deepEqual(filterAdminNavigation(groups, false), []);
   assert.equal(filterAdminNavigation(groups, true), groups);
 });
+
+test("increment management and its three modules are admin only while employee requests remain available", () => {
+  assert.equal(isAdminPage("/increment-management"), true);
+  assert.equal(isAdminPage("/increment-request"), false);
+  const items = ["hrc_increment", "hrc_increment_questions", "hrc_increment_replies"].map((module_name) => ({ module_name }));
+  for (const item of items) {
+    assert.equal(sidebarDestination(item), "/increment-management");
+    assert.equal(isAdminPage(`/entity/${item.module_name}/view`), true);
+  }
+  const employeeLink = { name: "Increment request", module_name: "hrc_increment", navigation: "/increment-request" };
+  assert.equal(sidebarDestination(employeeLink), "/increment-request");
+  assert.deepEqual(filterAdminNavigation([{ data: [...items, employeeLink] }], false), [{ data: [employeeLink] }]);
+});
