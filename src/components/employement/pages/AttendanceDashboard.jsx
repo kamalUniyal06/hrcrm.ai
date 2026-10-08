@@ -39,7 +39,7 @@ const AttendanceDashboard = () => {
                             Back to admin attendance
                         </button>
                     )}
-                    <EmployeeAttendanceCalendar email={email} />
+                    <EmployeeAttendanceCalendar email={email} employeeId={userInfo?.id} />
                 </div>
             )}
         </AttendanceProvider>

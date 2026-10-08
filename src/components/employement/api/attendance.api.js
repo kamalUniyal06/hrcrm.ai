@@ -271,3 +271,21 @@ export const applyAttendanceRequest = async (
         data,
     };
 };
+
+export const getWorkingHistory = async ({ email, dateFrom, dateTo }) => {
+    return http({
+        method: "POST",
+        body: {
+            action: "fetch",
+            module: "hrc_daily_activity",
+            filters: { name: email },
+            date_field: "date_entered",
+            date_from: `${dateFrom} 00:00:00`,
+            date_to: `${dateTo} 23:59:59`,
+            order_by: "date_entered",
+            order_dir: "DESC",
+            page: 1,
+            per_page: 7,
+        },
+    });
+};

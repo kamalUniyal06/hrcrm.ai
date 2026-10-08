@@ -55,18 +55,18 @@ test("parses CRM dates without relying on browser date parsing", () => {
   }
 });
 
-test("calculates both provided examples and an overnight session", () => {
+test("calculates login-to-logout time without deducting lunch", () => {
   assert.equal(sessionSummary(sample).breakMinutes, 38);
-  assert.equal(sessionSummary(sample).worked, 57);
+  assert.equal(sessionSummary(sample).worked, 95);
   assert.equal(sessionSummary({ login: "09/21/2026 16:02", logout: "09/21/2026 18:07", lunch_in: "09/21/2026 16:37", lunch_out: "09/21/2026 16:37" }).worked, 125);
   assert.equal(sessionSummary({ login: "09/21/2026 23:00", logout: "09/22/2026 02:00" }).worked, 180);
 });
 
 test("does not invent totals for missing or inconsistent timestamps", () => {
   assert.equal(sessionSummary({ ...sample, logout: "" }).worked, null);
-  assert.equal(sessionSummary({ ...sample, lunch_out: "" }).worked, null);
+  assert.equal(sessionSummary({ ...sample, lunch_out: "" }).worked, 95);
   assert.equal(sessionSummary({ ...sample, logout: "09/18/2026 17:00" }).worked, null);
-  assert.equal(sessionSummary({ ...sample, lunch_in: "09/18/2026 16:00" }).worked, null);
+  assert.equal(sessionSummary({ ...sample, lunch_in: "09/18/2026 16:00" }).worked, 95);
 });
 
 test("uses the first daily login for lateness and retains multiple sessions", () => {
@@ -75,7 +75,7 @@ test("uses the first daily login for lateness and retains multiple sessions", ()
   const summary = daySummary(records, "2026-09-18", "2026-09-21");
   assert.equal(summary.status, "onTime");
   assert.equal(summary.sessions.length, 2);
-  assert.equal(summary.worked, 117);
+  assert.equal(summary.worked, 155);
   assert.equal(daySummary([{ login: "09/18/2026 10:01" }], "2026-09-18", "2026-09-21").status, "late");
 });
 

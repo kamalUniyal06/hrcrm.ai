@@ -45,6 +45,11 @@ const statuses = {
     color: "border-l-slate-200 bg-slate-50/60 text-slate-400",
     dot: "bg-slate-300",
   },
+  leave: {
+    label: "On leave",
+    color: "border-l-indigo-300 bg-indigo-50/70 text-indigo-800",
+    dot: "bg-indigo-500",
+  },
   upcoming: {
     label: "Upcoming",
     color: "border-l-transparent bg-white text-slate-300",
@@ -90,6 +95,11 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     enabled: isAdmin && (!employeeId || Boolean(selectedEmployeeEmail)),
     refetchInterval: 60000,
   });
+  const leaves = useQuery({
+    queryKey: ["leaves", "attendance", employeeId || "all"],
+    queryFn: () => fetchAllRecords("hrc_leaves", null, employeeId ? { employee_id: employeeId } : null),
+    enabled: isAdmin,
+  });
   const days = selectedPersonKey
     ? Array.from({ length: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate() }, (_, index) => new Date(anchor.getFullYear(), anchor.getMonth(), index + 1))
     : [anchor];
@@ -100,6 +110,33 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
+  const leaveDays = useMemo(() => {
+    const result = new Set();
+    for (const leave of leaves.data || []) {
+      if (String(leave.status).toLowerCase() !== "accepted") continue;
+      const id = String(leave.employee_id || leave.hrc_employees_hrc_leaves_1hrc_employees_ida || "").trim();
+      const email = String(leave.email || "").trim().toLowerCase();
+      const parse = (value) => {
+        const text = String(value || "");
+        const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const crm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : crm ? `${crm[3]}-${crm[1].padStart(2, "0")}-${crm[2].padStart(2, "0")}` : null;
+      };
+      const from = parse(leave.leave_from);
+      const to = parse(leave.leave_to) || from;
+      if ((!id && !email) || !from || !to) continue;
+      const cursor = new Date(`${from}T00:00:00`);
+      const last = new Date(`${to}T00:00:00`);
+      while (cursor <= last) {
+        const day = dateKey(cursor);
+        if (id) result.add(`employee:${id}|${day}`);
+        if (email) result.add(`email:${email}|${day}`);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    }
+    return result;
+  }, [leaves.data]);
+  const isOnLeave = (row, day) => leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);
   const matchingRows = rows.filter(
     (row) =>
       (!selectedPersonKey || row.key === selectedPersonKey) &&
@@ -114,9 +151,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     if (overviewFilter === "all") return true;
     const records = row.days[dateKey(anchor)] || [];
     if (overviewFilter === "missing") {
-      return row.matched && !records.some((record) => Boolean(String(record.login ?? "").trim()));
+      return row.matched && !isOnLeave(row, dateKey(anchor)) && !records.some((record) => Boolean(String(record.login ?? "").trim()));
     }
-    const status = daySummary(records, dateKey(anchor), today).status;
+    const status = daySummary(records, dateKey(anchor), today, isOnLeave(row, dateKey(anchor))).status;
     if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
     if (overviewFilter === "late") return status === "late";
     return true;
@@ -124,6 +161,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const attendanceDate = dateKey(anchor);
   const notCheckedIn = rows.filter((row) =>
     row.matched &&
+    !isOnLeave(row, attendanceDate) &&
     !(row.days[attendanceDate] || []).some((record) =>
       Boolean(String(record.login ?? "").trim()),
     ) &&
@@ -131,23 +169,23 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       value.toLowerCase().includes(search.trim().toLowerCase()),
     ),
   );
-  const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0 };
+  const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0, leave: 0 };
   matchingRows.forEach((row) =>
     days.forEach((day) => {
       const key = dateKey(day);
-      totals[daySummary(row.days[key], key, today).status] += 1;
+      totals[daySummary(row.days[key], key, today, isOnLeave(row, key)).status] += 1;
     }),
   );
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const missingEmployeeEmail = Boolean(employeeId) && !employees.isPending && !selectedEmployeeEmail;
-  const loading = employees.isPending || ((!employeeId || selectedEmployeeEmail) && activity.isPending);
-  const failed = employees.isError || activity.isError || missingEmployeeEmail;
-  const fetching = employees.isFetching || activity.isFetching;
+  const loading = employees.isPending || leaves.isPending || ((!employeeId || selectedEmployeeEmail) && activity.isPending);
+  const failed = employees.isError || activity.isError || leaves.isError || missingEmployeeEmail;
+  const fetching = employees.isFetching || activity.isFetching || leaves.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
-  const selectedSummary = daySummary(selectedRecords, selected?.date, today);
+  const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false);
   const effectiveMinutes = selectedSummary.worked;
   const breakMinutes = selectedSummary.sessions.every((session) => session.breakMinutes !== null)
     ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
@@ -176,6 +214,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   function refresh() {
     void employees.refetch();
     void activity.refetch();
+    void leaves.refetch();
   }
 
   if (!isAdmin)
@@ -308,7 +347,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             />
           </div>
           <div className="flex flex-wrap gap-3" aria-label="Attendance legend">
-            {["onTime", "late", "incomplete", "missing"].map((status) => (
+            {["onTime", "late", "incomplete", "leave", "missing"].map((status) => (
               <span
                 key={status}
                 className="inline-flex items-center gap-1.5 text-xs text-slate-500"
@@ -460,7 +499,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     {selectedPersonKey ? days.map((day) => {
                       const key = dateKey(day);
                       const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today);
+                      const summary = daySummary(records, key, today, isOnLeave(row, key));
                       const style = statuses[summary.status];
                       return (
                         <td
@@ -508,7 +547,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     }) : (() => {
                       const key = dateKey(anchor);
                       const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today);
+                      const summary = daySummary(records, key, today, isOnLeave(row, key));
                       const style = statuses[summary.status];
                       const logouts = summary.sessions.map((session) => session.logout).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
                       return <Fragment key={row.key}>
@@ -559,9 +598,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         </footer>
       </section>
       <p className="px-1 text-xs leading-5 text-slate-400">
-        No record means no activity was returned for that day. Holidays, leave
-        and absence are not inferred. Daily summaries show total time in office;
-        the report separates effective work time from recorded lunch breaks.
+        No record means no activity or approved leave was returned for that day. Approved leave
+        comes from the leave module; holidays and absence are not inferred. Effective time is calculated from login to logout;
+        recorded lunch time is shown separately and is not deducted.
       </p>
 
       <Dialog.Root

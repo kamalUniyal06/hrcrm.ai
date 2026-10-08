@@ -3,6 +3,7 @@ import {
     getAttendanceCalendar,
     getAttendanceDay,
     applyAttendanceRequest,
+    getWorkingHistory,
 } from "../api/attendance.api";
 export const attendanceKeys = {
     all: ["attendance"],
@@ -20,6 +21,25 @@ export const attendanceKeys = {
         email,
         date,
     ],
+
+    history: (email, dateFrom, dateTo) => [
+        ...attendanceKeys.all,
+        "history",
+        email,
+        dateFrom,
+        dateTo,
+    ],
+};
+
+export const useWorkingHistory = ({ email, dateFrom, dateTo }) => {
+    return useQuery({
+        queryKey: attendanceKeys.history(email, dateFrom, dateTo),
+        queryFn: () => getWorkingHistory({ email, dateFrom, dateTo }),
+        enabled: Boolean(email && dateFrom && dateTo),
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+    });
 };
 export const useAttendanceCalendar = ({ email, month }) => {
     return useQuery({
