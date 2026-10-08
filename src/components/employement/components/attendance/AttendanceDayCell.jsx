@@ -22,6 +22,7 @@ const AttendanceDayCell = ({
     attendance,
     isWeekend = false,
     holidayName,
+    leaveName,
     lateAfterMinutes = 600,
     onClick,
 }) => {
@@ -36,7 +37,9 @@ const AttendanceDayCell = ({
         );
     }
 
-    const dayType = holidayName
+    const dayType = leaveName
+        ? { label: leaveName, shortLabel: "On leave", icon: "IoCalendarOutline", isLeave: true }
+        : holidayName
         ? { label: holidayName, shortLabel: "Public holiday", icon: "IoSparklesOutline" }
         : isWeekend
             ? { label: "Weekend", shortLabel: "Weekend", icon: "IoCafeOutline" }
@@ -119,12 +122,12 @@ const AttendanceDayCell = ({
                         name={dayType.icon}
                         library="io5"
                         size={14}
-                        className={holidayName ? "text-emerald-600" : "text-amber-600"}
+                        className={leaveName ? "text-indigo-600" : holidayName ? "text-emerald-600" : "text-amber-600"}
                     />
                     <span className="text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:text-[10px]">
                         {dayType.shortLabel}
                     </span>
-                    {holidayName && (
+                    {(holidayName || leaveName) && (
                         <span className="line-clamp-2 text-[8px] leading-tight text-[var(--muted-foreground)] sm:text-[9px]" title={dayType.label}>
                             {dayType.label}
                         </span>

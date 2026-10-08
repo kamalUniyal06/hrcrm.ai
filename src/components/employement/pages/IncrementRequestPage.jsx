@@ -119,7 +119,7 @@ export default function IncrementRequestPage() {
     setBusy(true);
     setError("");
     try {
-      const created = await createIncrement({ currentSalary, expectedSalary });
+      const created = await createIncrement({ email, expectedSalary });
       rememberIncrementId(email, created.id);
       setIncrementId(created.id);
       const loadedQuestions = await fetchIncrementQuestions();

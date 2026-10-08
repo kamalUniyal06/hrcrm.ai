@@ -82,6 +82,18 @@ export const getPublicHolidays = () =>
 
     });
 
+export const getEmployeeLeaves = ({ employeeId, email }) =>
+    http({
+        method: "POST",
+        body: {
+            action: "fetch",
+            module: "hrc_leaves",
+            filters: employeeId ? { employee_id: employeeId } : { email },
+            page: 1,
+            per_page: 100,
+        },
+    });
+
 // Admin dashboard feed: intentionally omit employee filters so all leave
 // records are returned. The component gates access to administrators.
 export const getAllLeaves = async ({ from, to } = {}) => {

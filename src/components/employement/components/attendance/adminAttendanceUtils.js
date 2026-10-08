@@ -52,7 +52,9 @@ export function sessionSummary(record) {
     lunchOut,
     breakMinutes,
     inOffice: gross,
-    worked: gross !== null && breakMinutes !== null ? gross - breakMinutes : null,
+    // Effective time is the complete login-to-logout duration. Lunch is
+    // reported separately and is intentionally not deducted.
+    worked: gross,
   };
 }
 
@@ -110,11 +112,11 @@ export function buildAttendanceRows(employees, activity) {
   return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function daySummary(records = [], day, today) {
+export function daySummary(records = [], day, today, onLeave = false) {
   const sessions = records.map(sessionSummary);
   const logins = sessions.map(session => session.login).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
   const first = logins[0];
-  const status = first ? first.minutes > 600 ? "late" : "onTime" : records.length ? "incomplete" : day > today ? "upcoming" : "missing";
+  const status = first ? first.minutes > 600 ? "late" : "onTime" : records.length ? "incomplete" : onLeave ? "leave" : day > today ? "upcoming" : "missing";
   const complete = sessions.length > 0 && sessions.every(session => session.worked !== null);
   const allSessionsHaveOfficeTime = sessions.length > 0 && sessions.every(session => session.inOffice !== null);
   return {

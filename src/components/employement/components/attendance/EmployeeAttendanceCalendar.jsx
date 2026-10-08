@@ -8,7 +8,7 @@ import AttendanceDayCell from "./AttendanceDayCell";
 
 import { useAttendanceContext } from "../../context/AttendanceContext";
 import { useAttendanceCalendar } from "../../hooks/useAttendance";
-import { usePublicHolidays } from "../../queries/leaves.queries";
+import { useEmployeeLeaves, usePublicHolidays } from "../../queries/leaves.queries";
 import { useAttendanceLimits } from "../../attendanceLimits";
 
 const MotionButton = motion.button;
@@ -97,6 +97,14 @@ const parseHolidayDateKey = (value) => {
 
     const [, month, day, year] = match;
     return `${year}-${month}-${day}`;
+};
+
+const parseLeaveDate = (value) => {
+    const text = String(value || "").trim();
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    const crm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return crm ? `${crm[3]}-${crm[1].padStart(2, "0")}-${crm[2].padStart(2, "0")}` : null;
 };
 
 /**
@@ -323,6 +331,7 @@ const transformAttendanceRecords = (
 
 const EmployeeAttendanceCalendar = ({
     email,
+    employeeId,
 }) => {
     const {
         currentDate,
@@ -346,6 +355,7 @@ const EmployeeAttendanceCalendar = ({
         month,
     });
     const publicHolidays = usePublicHolidays();
+    const employeeLeaves = useEmployeeLeaves({ employeeId, email });
     const limits = useAttendanceLimits();
     const configuredLoginMinutes = timeToMinutes(limits.actualLoginTime);
     const lateAfterMinutes = (configuredLoginMinutes ?? 570) + limits.loginDelayMinutes;
@@ -392,11 +402,29 @@ const EmployeeAttendanceCalendar = ({
         }, {});
     }, [publicHolidays.data]);
 
+    const leaveMap = useMemo(() => {
+        const records = employeeLeaves.data?.records || employeeLeaves.data?.data?.records || [];
+        return records.reduce((leaves, record) => {
+            if (String(record?.status).toLowerCase() !== "accepted") return leaves;
+            const from = parseLeaveDate(record?.leave_from);
+            const to = parseLeaveDate(record?.leave_to) || from;
+            if (!from || !to) return leaves;
+            const cursor = new Date(`${from}T00:00:00`);
+            const end = new Date(`${to}T00:00:00`);
+            while (cursor <= end) {
+                leaves[formatDate(cursor)] = record?.type_of_leave || record?.leave_type || "Approved leave";
+                cursor.setDate(cursor.getDate() + 1);
+            }
+            return leaves;
+        }, {});
+    }, [employeeLeaves.data]);
+
     const today = new Date();
 
     const selectedAttendance = selectedDate
         ? attendanceMap[formatDate(selectedDate)]
         : null;
+    const selectedLeave = selectedDate ? leaveMap[formatDate(selectedDate)] : null;
 
     useEffect(() => {
         if (!selectedDate) return undefined;
@@ -586,6 +614,7 @@ const EmployeeAttendanceCalendar = ({
                                                         }
                                                         isWeekend={isWeekend}
                                                         holidayName={holidayMap[dateKey]}
+                                                        leaveName={!attendance ? leaveMap[dateKey] : undefined}
                                                         lateAfterMinutes={lateAfterMinutes}
                                                         onClick={
                                                             isCurrentMonth
@@ -614,6 +643,7 @@ const EmployeeAttendanceCalendar = ({
                     <AttendanceDayDrawer
                         date={selectedDate}
                         attendance={selectedAttendance}
+                        leaveName={selectedLeave}
                         email={email}
                         lateAfterMinutes={lateAfterMinutes}
                         onClose={() => selectDate(null)}
@@ -624,7 +654,7 @@ const EmployeeAttendanceCalendar = ({
     );
 };
 
-const AttendanceDayDrawer = ({ date, attendance, email, lateAfterMinutes, onClose }) => {
+const AttendanceDayDrawer = ({ date, attendance, leaveName, email, lateAfterMinutes, onClose }) => {
     const [currentMinutes, setCurrentMinutes] = useState(getCurrentIndiaMinutes);
 
     useEffect(() => {
@@ -738,7 +768,7 @@ const AttendanceDayDrawer = ({ date, attendance, email, lateAfterMinutes, onClos
                             <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-8 text-center">
                                 <Icon name="IoCalendarClearOutline" library="io5" size={30} className="mx-auto mb-3 text-[var(--muted-foreground)]" />
                                 <p className="text-sm font-semibold">No activity recorded</p>
-                                <p className="mt-1 text-xs text-[var(--muted-foreground)]">There is no attendance report for this day.</p>
+                                <p className="mt-1 text-xs text-[var(--muted-foreground)]">{leaveName ? `On leave — ${leaveName}` : "There is no attendance report for this day."}</p>
                             </div>
                         </section>
                     ) : (

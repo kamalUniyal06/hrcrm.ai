@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import DashboardHeader from "../components/DashboardHeader";
 import TodayAttendanceCard from "../components/TodayAttendanceCard";
 import MetricCard from "../components/MetricCard";
-import TeamTable from "../components/TeamTable";
 import WorkingHistory from "../components/WorkingHistory";
 import AttendanceSummary from "../components/AttendanceSummary";
 import SystemAlertCarousel from "../components/SystemAlertCarousel";
@@ -12,10 +11,6 @@ import SystemAlertCarousel from "../components/SystemAlertCarousel";
 export default function EmployeHomePage() {
     const employeeId = useSelector((state) => state.user.userInfo?.id);
     const email = useSelector((state) => state.user.user?.email);
-    const isAdmin = useSelector(
-        (state) => state.user.userInfo?.status === "admin"
-    );
-    console.log("EMPLOYEE", employeeId)
 
     return (
         <main className="min-h-full w-full bg-background px-3 py-4 sm:px-5 lg:px-6">
@@ -64,22 +59,10 @@ export default function EmployeHomePage() {
                 </div>
 
                 {/* Tables */}
-                <div
-                    className={`mt-5 grid grid-cols-1 gap-4 ${!isAdmin
-                        ? "xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]"
-                        : ""
-                        }`}
-                >
-                    {/* Team */}
-                    {!isAdmin && (
-                        <div className="min-w-0">
-                            <TeamTable />
-                        </div>
-                    )}
-
+                <div className="mt-5 grid grid-cols-1 gap-4">
                     {/* Working History */}
                     <div className="min-w-0">
-                        <WorkingHistory />
+                        <WorkingHistory email={email} />
                     </div>
                 </div>
             </div>

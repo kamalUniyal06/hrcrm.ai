@@ -105,7 +105,10 @@ export const fetchCurrentSalary = async (employeeId) => {
   };
 };
 
-export const createIncrement = async ({ currentSalary, expectedSalary }) => {
+export const createIncrement = async ({ email, expectedSalary }) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) throw new Error("Your employee email is required.");
+
   const response = assertSuccess(
     await http({
       method: "POST",
@@ -113,7 +116,7 @@ export const createIncrement = async ({ currentSalary, expectedSalary }) => {
         action: "create",
         module: INCREMENT_MODULE,
         data: {
-          name: String(currentSalary),
+          name: normalizedEmail,
           description: String(expectedSalary),
         },
       },
