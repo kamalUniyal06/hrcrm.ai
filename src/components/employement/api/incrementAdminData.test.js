@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  answerProgress, groupAnswers, loadAll, loadPage, requestedAnnualSalary,
-  requestIdentity, requireReplyLinks, saveRecord,
+  answerProgress, filterRequestRows, groupAnswers, loadAll, loadPage, loadRequestCollection, requestedAnnualSalary,
+  requestIdentity, requestOverview, requireReplyLinks, saveRecord,
 } from "./incrementAdminData.js";
 
 test("stored increment name is email and description is the requested annual salary", () => {
@@ -80,4 +80,57 @@ test("a transformed or unconfirmed write is surfaced and never automatically rep
   }, "hrc_increment_questions", null, { description: "Intended value" }), /saved a different result/);
   assert.equal(writes, 1);
   await assert.rejects(saveRecord(async () => ({ success: true, id: "wrong-id" }), "hrc_increment_questions", "question-1", { name: "Impact" }), /did not confirm/);
+});
+
+test("completion cards count and filter all requests before table pagination", () => {
+  const records = Array.from({ length: 25 }, (_, index) => ({ id: `request-${index}` }));
+  const replies = [
+    { increment_id: "request-24", question_id: "q1", description: "Answer on the second page" },
+    { increment_id: "request-24", question_id: "q1", description: "Duplicate response" },
+    { increment_id: "unrelated", question_id: "q1", description: "Another request" },
+    { increment_id: "request-0", question_id: "q1", description: " " },
+    { increment_id: "request-1", question_id: "archived", description: "Old answer" },
+  ];
+  const overview = requestOverview(records, [{ id: "q1" }], replies);
+  assert.equal(overview.total, 25);
+  assert.equal(overview.complete, 1);
+  assert.equal(overview.awaiting, 24);
+  assert.deepEqual(filterRequestRows(overview.rows, "complete").map((row) => row.record.id), ["request-24"]);
+  assert.equal(filterRequestRows(overview.rows, "awaiting").length, 24);
+  assert.equal(filterRequestRows(overview.rows, "all").length, 25);
+  assert.equal(requestOverview(records, [], replies).complete, 0);
+});
+
+test("collection loading fetches every page and batches reply IDs within the active email and dates", async () => {
+  const calls = [];
+  const allRecords = Array.from({ length: 201 }, (_, index) => ({ id: `request-${index}` }));
+  const data = await loadRequestCollection(async (body) => {
+    calls.push(body);
+    if (body.module === "hrc_increment") return {
+      success: true, total_pages: 2, total: 201,
+      records: body.page === 1 ? allRecords.slice(0, 200) : allRecords.slice(200),
+    };
+    return { success: true, total_pages: 1, records: [
+      { increment_id: body.filters.increment_id.in[0], question_id: "q1", description: "Answer" },
+      { increment_id: "outside-filter", question_id: "q1", description: "Exclude this" },
+    ] };
+  }, { search: "employee", from: "2026-10-01", to: "2026-10-08" });
+  const requestCalls = calls.filter((body) => body.module === "hrc_increment");
+  const replyCalls = calls.filter((body) => body.module === "hrc_increment_replies");
+  assert.equal(data.records.length, 201);
+  assert.deepEqual(requestCalls.map((body) => body.page), [1, 2]);
+  assert.ok(requestCalls.every((body) => body.search === "employee" && body.date_from === "2026-10-01" && body.date_to === "2026-10-08"));
+  assert.deepEqual(replyCalls.map((body) => body.filters.increment_id.in.length), [200, 1]);
+  assert.deepEqual(data.replies.map((reply) => reply.increment_id), ["request-0", "request-200"]);
+});
+
+test("an empty request result never issues an unbounded reply query", async () => {
+  const calls = [];
+  const data = await loadRequestCollection(async (body) => {
+    calls.push(body);
+    return { success: true, total_pages: 1, total: 0, records: [] };
+  });
+  assert.deepEqual(data, { records: [], replies: [] });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].module, "hrc_increment");
 });

@@ -1,5 +1,5 @@
 import { http } from "@/services/api";
-import { INCREMENT_MODULES, loadAll, loadFields, loadPage, requireReplyLinks, saveRecord } from "./incrementAdminData";
+import { INCREMENT_MODULES, loadAll, loadFields, loadPage, loadRequestCollection, requireReplyLinks, saveRecord } from "./incrementAdminData";
 
 const request = (body) => http({ method: "POST", body });
 
@@ -12,20 +12,7 @@ export async function fetchIncrementSchema() {
 
 export const fetchAdminQuestions = () => loadAll(request, INCREMENT_MODULES.questions, { order_dir: "ASC" });
 
-export async function fetchAdminRequests({ page, search, from, to }) {
-  const response = await loadPage(request, INCREMENT_MODULES.requests, {
-    page,
-    ...(search ? { search, search_fields: ["name"] } : {}),
-    ...(from || to ? { date_range: "custom", date_field: "date_entered", date_from: from, date_to: to } : {}),
-  });
-  const ids = response.records.map((record) => record.id).filter(Boolean);
-  // An empty IN filter is ignored by the gateway, so do not send it.
-  const replies = ids.length ? await loadAll(request, INCREMENT_MODULES.replies, {
-    filters: { increment_id: { in: ids } },
-    fields: ["id", "increment_id", "question_id", "description"],
-  }) : [];
-  return { ...response, replies: replies.filter((reply) => ids.includes(reply.increment_id)) };
-}
+export const fetchAdminRequests = (options) => loadRequestCollection(request, options);
 
 export const fetchAdminReplies = (id) => {
   if (!id) throw new Error("Select an increment request first.");

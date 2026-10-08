@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, ArrowRight, BadgeIndianRupee, CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight,
   CircleAlert, ClipboardList, Clock3, FileQuestion, Hourglass, Inbox, ListChecks, Loader2, MessageSquareText,
-  Pencil, Plus, RefreshCw, Search, Sparkles, TrendingUp, X,
+  Pencil, Plus, RefreshCw, Search, Sparkles, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
@@ -12,8 +12,8 @@ import {
   fetchIncrementSchema, saveAdminQuestion,
 } from "../api/incrementAdmin.api";
 import {
-  answerProgress, clean, gatewayError, groupAnswers, questionText,
-  requestIdentity, requestedAnnualSalary,
+  answerProgress, clean, filterRequestRows, gatewayError, groupAnswers, questionText,
+  requestIdentity, requestOverview, requestedAnnualSalary,
 } from "../api/incrementAdminData";
 
 const ROOT_KEY = ["increment-admin"];
@@ -121,24 +121,25 @@ const STAT_TONES = {
   neutral: "bg-muted text-muted-foreground",
 };
 
-function StatTile({ icon, label, value, hint, tone = "neutral" }) {
+function StatTile({ icon, label, value, hint, tone = "neutral", onClick, selected, disabled }) {
   const Icon = icon;
-  return <div className="flex items-center gap-4 rounded-xl border border-border/70 bg-card p-4 shadow-xs transition-shadow hover:shadow-sm">
+  return <button type="button" onClick={onClick} aria-pressed={selected} disabled={disabled} className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left shadow-xs transition-[border-color,background-color,box-shadow] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50 ${selected ? "border-primary bg-primary/5 ring-1 ring-primary/15" : "border-border/70 bg-card hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"}`}>
     <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${STAT_TONES[tone]}`}><Icon size={20} aria-hidden="true" /></span>
     <div className="min-w-0"><p className="truncate text-xs font-medium text-muted-foreground">{label}</p><p className="mt-0.5 text-2xl font-semibold tracking-tight tabular-nums text-foreground">{value}</p>{hint && <p className="truncate text-[11px] text-muted-foreground">{hint}</p>}</div>
-  </div>;
+  </button>;
 }
 
 function SectionCard({ children, label, className = "" }) {
   return <section aria-label={label} className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm shadow-black/[0.03] ${className}`}>{children}</section>;
 }
 
-function RequestList({ questions, onSelect }) {
+function RequestList({ questions, onSelect, onQuestions }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
+  const [completion, setCompletion] = useState("all");
   const invalidRange = from && to && from > to;
 
   useEffect(() => {
@@ -147,45 +148,40 @@ function RequestList({ questions, onSelect }) {
   }, [search]);
 
   const query = useQuery({
-    queryKey: [...ROOT_KEY, "requests", { page, search: debouncedSearch, from, to }],
-    queryFn: () => fetchAdminRequests({ page, search: debouncedSearch, from, to }),
+    queryKey: [...ROOT_KEY, "request-collection", { search: debouncedSearch, from, to }],
+    queryFn: () => fetchAdminRequests({ search: debouncedSearch, from, to }),
     enabled: !invalidRange,
   });
-  const records = query.data?.records || [];
-  const replies = query.data?.replies || [];
-  const total = query.data?.total || 0;
-  const pages = query.data?.total_pages || 1;
-  const ready = records.filter((record) => answerProgress(questions, replies, record.id).complete).length;
-  const hasFilters = Boolean(search || from || to);
-  const hasData = Boolean(query.data) && !invalidRange;
-  const clearFilters = () => { setSearch(""); setDebouncedSearch(""); setFrom(""); setTo(""); setPage(1); };
-
-  useEffect(() => {
-    if (query.data && page > query.data.total_pages) setPage(query.data.total_pages);
-  }, [query.data, page]);
+  const overview = useMemo(() => requestOverview(query.data?.records || [], questions, query.data?.replies || []), [query.data, questions]);
+  const visibleRows = filterRequestRows(overview.rows, completion);
+  const total = visibleRows.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, pages);
+  const rows = visibleRows.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const hasSearchFilters = Boolean(search || from || to);
+  const hasFilters = hasSearchFilters || completion !== "all";
+  const hasData = Boolean(query.data) && !invalidRange && !query.isError;
+  const clearFilters = () => { setSearch(""); setDebouncedSearch(""); setFrom(""); setTo(""); setCompletion("all"); setPage(1); };
+  const selectCompletion = (value) => { setCompletion((current) => current === value ? "all" : value); setPage(1); };
+  const countHint = hasSearchFilters ? "Matching email and dates" : "Across all requests";
 
   return <div className="space-y-5">
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <StatTile icon={Inbox} tone="primary" label={hasFilters ? "Matching requests" : "Total requests"} value={hasData ? total.toLocaleString() : "—"} hint="Across all pages" />
-      <StatTile icon={CheckCircle2} tone="green" label="Fully answered" value={hasData ? ready : "—"} hint="On this page" />
-      <StatTile icon={Hourglass} tone="orange" label="Awaiting answers" value={hasData ? records.length - ready : "—"} hint="On this page" />
-      <StatTile icon={ListChecks} label="Questionnaire" value={questions.length} hint={questions.length === 1 ? "question configured" : "questions configured"} />
+    <div role="group" aria-label="Filter requests by questionnaire completion" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <StatTile icon={Inbox} tone="primary" label={hasSearchFilters ? "Matching Requests" : "Total Requests"} value={hasData ? overview.total.toLocaleString() : "—"} hint={countHint} selected={completion === "all"} disabled={!hasData} onClick={() => selectCompletion("all")} />
+      <StatTile icon={CheckCircle2} tone="green" label="Fully Answered" value={hasData ? overview.complete : "—"} hint={countHint} selected={completion === "complete"} disabled={!hasData} onClick={() => selectCompletion("complete")} />
+      <StatTile icon={Hourglass} tone="orange" label="Awaiting Answers" value={hasData ? overview.awaiting : "—"} hint={countHint} selected={completion === "awaiting"} disabled={!hasData} onClick={() => selectCompletion("awaiting")} />
+      <StatTile icon={ListChecks} label="Questionnaire" value={questions.length} hint="View and edit questions" onClick={onQuestions} />
     </div>
 
     <SectionCard label="Increment requests">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><ClipboardList size={19} aria-hidden="true" /></span>
-          <div><h2 className="font-semibold text-foreground">Employee requests</h2><p className="mt-0.5 text-sm text-muted-foreground">Review salary expectations and the context behind each request.</p></div>
-        </div>
-        <Button variant="outline" className="h-10 rounded-xl bg-card px-3.5" disabled={query.isFetching || Boolean(invalidRange)} onClick={() => query.refetch()}><RefreshCw size={15} className={query.isFetching ? "motion-safe:animate-spin" : ""} aria-hidden="true" />Refresh</Button>
-      </div>
-
-      <div className="border-b border-border bg-muted/30 p-4 sm:px-6">
+      <h2 className="sr-only">Increment requests</h2>
+      <div className="border-b border-border bg-muted/20 p-4 sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="block min-w-56 flex-1"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Employee email</span><span className="relative block"><Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email…" className={`${inputClass} pl-10`} /></span></label>
-          <label className="block min-w-40 flex-1 sm:flex-none"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Submitted from</span><input type="date" value={from} max={to || undefined} onChange={(event) => { setFrom(event.target.value); setPage(1); }} className={inputClass} /></label>
-          <label className="block min-w-40 flex-1 sm:flex-none"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Submitted to</span><input type="date" value={to} min={from || undefined} onChange={(event) => { setTo(event.target.value); setPage(1); }} className={inputClass} /></label>
+          <label className="block min-w-0 basis-full sm:min-w-56 sm:flex-1 sm:basis-auto"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Employee Email</span><span className="relative block"><Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by email…" className={`${inputClass} pl-10`} /></span></label>
+          <label className="block min-w-0 flex-1 sm:w-40 sm:flex-none"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Submitted From</span><input type="date" value={from} max={to || undefined} onChange={(event) => { setFrom(event.target.value); setPage(1); }} className={inputClass} /></label>
+          <label className="block min-w-0 flex-1 sm:w-40 sm:flex-none"><span className="mb-1.5 block text-xs font-medium text-muted-foreground">Submitted To</span><input type="date" value={to} min={from || undefined} onChange={(event) => { setTo(event.target.value); setPage(1); }} className={inputClass} /></label>
+          <Button variant="outline" className="h-11 shrink-0 rounded-xl bg-card px-4" disabled={query.isFetching || Boolean(invalidRange)} onClick={() => query.refetch()}><RefreshCw size={15} className={query.isFetching ? "motion-safe:animate-spin" : ""} aria-hidden="true" />Refresh</Button>
+          {completion !== "all" && <Button variant="secondary" className="h-11 rounded-xl" aria-label="Remove questionnaire completion filter" onClick={() => selectCompletion(completion)}>{completion === "complete" ? "Fully Answered" : "Awaiting Answers"}<X size={14} aria-hidden="true" /></Button>}
           {hasFilters && <Button variant="ghost" className="h-11 rounded-xl text-muted-foreground" onClick={clearFilters}><X size={15} aria-hidden="true" />Clear</Button>}
         </div>
       </div>
@@ -193,16 +189,15 @@ function RequestList({ questions, onSelect }) {
       {invalidRange && <div className="p-5"><ErrorMessage error={new Error("The end date must be on or after the start date.")} /></div>}
       {query.isError && <div className="p-5"><ErrorMessage error={query.error} onRetry={() => query.refetch()} /></div>}
       {!invalidRange && !query.isError && <>
-        {query.isPending ? <Skeleton /> : records.length ? <>
+        {query.isPending ? <Skeleton /> : rows.length ? <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
               <caption className="sr-only">Employee increment requests with annual salary expectations and questionnaire completion.</caption>
-              <thead className="border-b border-border bg-muted/40 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><tr>{["Employee", "Requested annual salary", "Questionnaire", "Submitted", ""].map((label, index) => <th key={index} scope="col" className="whitespace-nowrap px-5 py-3 first:pl-6">{label || <span className="sr-only">Review request</span>}</th>)}</tr></thead>
-              <tbody className="divide-y divide-border">{records.map((record) => {
+              <thead className="border-b border-border bg-muted/50 text-xs font-semibold text-foreground"><tr>{["Employee", "Requested Annual Salary", "Questionnaire", "Submitted", "Action"].map((label, index) => <th key={index} scope="col" className="whitespace-nowrap px-5 py-4 first:pl-6 last:pr-6 last:text-right">{label}</th>)}</tr></thead>
+              <tbody className="divide-y divide-border/70">{rows.map(({ record, progress }) => {
                 const identity = requestIdentity(record);
                 const salary = requestedAnnualSalary(record);
-                const progress = answerProgress(questions, replies, record.id);
-                return <tr key={record.id} className="group transition-colors hover:bg-primary/[0.035]">
+                return <tr key={record.id} className="group transition-colors even:bg-muted/15 hover:bg-primary/5 focus-within:bg-primary/5">
                   <td className="max-w-80 py-4 pl-6 pr-5">
                     <div className="flex items-center gap-3">
                       <Avatar identity={identity} />
@@ -215,15 +210,15 @@ function RequestList({ questions, onSelect }) {
                   <td className="whitespace-nowrap px-5 py-4 tabular-nums">{salary === null ? <span className="text-xs text-muted-foreground">Not recorded</span> : <><span className="text-base font-semibold tracking-tight text-foreground">{money(salary)}</span><span className="ml-1.5 text-[11px] text-muted-foreground">/ year</span></>}</td>
                   <td className="whitespace-nowrap px-5 py-4"><ProgressMeter progress={progress} /></td>
                   <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1.5"><CalendarDays size={14} className="text-muted-foreground/70" aria-hidden="true" />{dateText(record.date_entered)}</span></td>
-                  <td className="px-5 py-4 text-right"><Button variant="ghost" className="h-9 rounded-full border border-transparent px-3.5 text-primary transition-all group-hover:border-primary/20 group-hover:bg-primary/8" onClick={() => onSelect(record.id)} aria-label={`Review increment request for ${identity.name}`}>Review<ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" /></Button></td>
+                  <td className="py-4 pl-5 pr-6 text-right"><Button variant="ghost" className="h-10 rounded-lg px-3.5 text-primary hover:bg-primary/10" onClick={() => onSelect(record.id)} aria-label={`Review increment request for ${identity.name}`}>Review<ArrowRight size={14} aria-hidden="true" /></Button></td>
                 </tr>;
               })}</tbody>
             </table>
           </div>
-        </> : <EmptyState icon={ClipboardList} title={hasFilters ? "No matching requests" : "No increment requests yet"} action={hasFilters && <Button variant="outline" className="h-10 rounded-xl" onClick={clearFilters}>Clear filters</Button>}>{hasFilters ? "Try a different email or widen the submission dates." : "Employee increment requests will appear here when submitted. You can prepare the questionnaire in the Questions tab."}</EmptyState>}
+        </> : <EmptyState icon={ClipboardList} title={hasFilters ? "No matching requests" : "No increment requests yet"} action={hasFilters && <Button variant="outline" className="h-10 rounded-xl" onClick={clearFilters}>Clear filters</Button>}>{completion !== "all" ? `No ${completion === "complete" ? "fully answered requests" : "requests awaiting answers"} match the current email and dates. Select Total Requests to view every matching request.` : hasFilters ? "Try a different email or widen the submission dates." : "Employee increment requests will appear here when submitted. You can prepare the questionnaire in the Questions tab."}</EmptyState>}
         {!query.isPending && <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/20 px-5 py-3.5 text-xs text-muted-foreground sm:px-6">
-          <span>{total ? (page - 1) * PAGE_SIZE + 1 : 0}–{Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()} requests</span>
-          <div className="flex items-center gap-2"><Button variant="outline" size="icon" className="size-9 rounded-full bg-card" disabled={page <= 1 || query.isFetching} onClick={() => setPage((value) => value - 1)} aria-label="Previous page"><ChevronLeft size={16} /></Button><span className="min-w-20 text-center font-medium text-foreground">Page {page} of {pages}</span><Button variant="outline" size="icon" className="size-9 rounded-full bg-card" disabled={page >= pages || query.isFetching} onClick={() => setPage((value) => value + 1)} aria-label="Next page"><ChevronRight size={16} /></Button></div>
+          <span aria-live="polite">{total ? (currentPage - 1) * PAGE_SIZE + 1 : 0}–{Math.min(currentPage * PAGE_SIZE, total)} of {total.toLocaleString()} requests</span>
+          <div className="flex items-center gap-2"><Button variant="outline" size="icon" className="size-10 rounded-lg bg-card" disabled={currentPage <= 1 || query.isFetching} onClick={() => setPage(currentPage - 1)} aria-label="Previous page"><ChevronLeft size={16} /></Button><span className="min-w-20 text-center font-medium text-foreground">Page {currentPage} of {pages}</span><Button variant="outline" size="icon" className="size-10 rounded-lg bg-card" disabled={currentPage >= pages || query.isFetching} onClick={() => setPage(currentPage + 1)} aria-label="Next page"><ChevronRight size={16} /></Button></div>
         </footer>}
       </>}
     </SectionCard>
@@ -374,6 +369,7 @@ export default function IncrementManagementPage() {
   const [tab, setTab] = useState("requests");
   const [selectedId, setSelectedId] = useState(null);
   const requestsButton = useRef(null);
+  const questionsButton = useRef(null);
   const schema = useQuery({ queryKey: [...ROOT_KEY, "schema"], queryFn: fetchIncrementSchema, staleTime: 5 * 60 * 1000 });
   const questions = useQuery({ queryKey: [...ROOT_KEY, "questions"], queryFn: fetchAdminQuestions, enabled: schema.isSuccess });
   const error = schema.error || questions.error;
@@ -386,7 +382,6 @@ export default function IncrementManagementPage() {
       <div aria-hidden="true" className="pointer-events-none absolute -bottom-28 right-56 size-60 rounded-full bg-(--employee-green)/15 blur-3xl" />
       <div className="relative flex flex-wrap items-start justify-between gap-5">
         <div className="flex min-w-0 items-start gap-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30"><TrendingUp size={22} aria-hidden="true" /></span>
           <div className="min-w-0">
             <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">People operations<span aria-hidden="true" className="text-muted-foreground/50">/</span>Compensation</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Increment management</h1>
@@ -399,7 +394,7 @@ export default function IncrementManagementPage() {
         {TABS.map(({ key, label, icon }) => {
           const Icon = icon;
           const active = tab === key;
-          return <button ref={key === "requests" ? requestsButton : undefined} key={key} type="button" aria-pressed={active} onClick={() => { setTab(key); setSelectedId(null); }} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${active ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}>
+          return <button ref={key === "requests" ? requestsButton : questionsButton} key={key} type="button" aria-pressed={active} onClick={() => { setTab(key); setSelectedId(null); }} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${active ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}>
             <Icon size={16} className={active ? "text-primary" : ""} aria-hidden="true" />{label}
             {key === "questions" && questions.data && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${active ? "bg-primary/10 text-primary" : "bg-muted-foreground/10 text-muted-foreground"}`}>{questions.data.length}</span>}
           </button>;
@@ -408,7 +403,7 @@ export default function IncrementManagementPage() {
     </header>
     {error ? <ErrorMessage error={error} onRetry={() => { schema.refetch(); questions.refetch(); }} /> : loading ? <SectionCard label="Loading"><Skeleton /></SectionCard> : <>
       <div hidden={tab !== "questions"}><QuestionList questions={questions.data} schema={schema.data} /></div>
-      <div hidden={tab !== "requests" || Boolean(selectedId)}><RequestList questions={questions.data} onSelect={setSelectedId} /></div>
+      <div hidden={tab !== "requests" || Boolean(selectedId)}><RequestList questions={questions.data} onSelect={setSelectedId} onQuestions={() => { setTab("questions"); setSelectedId(null); questionsButton.current?.focus(); }} /></div>
       {tab === "requests" && selectedId && <RequestDetail key={selectedId} id={selectedId} questions={questions.data} onBack={() => { setSelectedId(null); requestsButton.current?.focus(); }} />}
     </>}
   </div>;

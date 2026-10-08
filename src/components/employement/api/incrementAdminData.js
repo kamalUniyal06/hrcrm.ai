@@ -50,6 +50,26 @@ export async function loadAll(request, module, options = {}) {
   return records;
 }
 
+export async function loadRequestCollection(request, { search, from, to } = {}) {
+  const records = await loadAll(request, INCREMENT_MODULES.requests, {
+    ...(search ? { search, search_fields: ["name"] } : {}),
+    ...(from || to ? { date_range: "custom", date_field: "date_entered", date_from: from, date_to: to } : {}),
+  });
+  const ids = records.map((record) => clean(record.id)).filter(Boolean);
+  const requestIds = new Set(ids);
+  const replies = [];
+  // Bounded ID batches keep the completion filters accurate across pages.
+  // Never send an empty IN filter: the gateway ignores it.
+  for (let offset = 0; offset < ids.length; offset += 200) {
+    const batch = await loadAll(request, INCREMENT_MODULES.replies, {
+      filters: { increment_id: { in: ids.slice(offset, offset + 200) } },
+      fields: ["id", "increment_id", "question_id", "description"],
+    });
+    replies.push(...batch.filter((reply) => requestIds.has(clean(reply.increment_id))));
+  }
+  return { records, replies };
+}
+
 export function requireReplyLinks(fields) {
   for (const name of ["increment_id", "question_id", "description"]) {
     if (!fields.some((field) => field.name === name)) {
@@ -82,6 +102,29 @@ export function answerProgress(questions, replies, incrementId) {
   const answered = new Set(replies.filter((reply) => clean(reply.increment_id) === clean(incrementId) && clean(reply.description) && questionIds.has(clean(reply.question_id)))
     .map((reply) => clean(reply.question_id))).size;
   return { answered, total: questionIds.size, complete: questionIds.size > 0 && answered === questionIds.size };
+}
+
+export function requestOverview(records, questions, replies) {
+  const questionIds = new Set(questions.map((question) => clean(question.id)));
+  const answersByRequest = new Map();
+  for (const reply of replies) {
+    if (!clean(reply.description) || !questionIds.has(clean(reply.question_id))) continue;
+    const id = clean(reply.increment_id);
+    if (!answersByRequest.has(id)) answersByRequest.set(id, new Set());
+    answersByRequest.get(id).add(clean(reply.question_id));
+  }
+  const rows = records.map((record) => {
+    const answered = answersByRequest.get(clean(record.id))?.size || 0;
+    return { record, progress: { answered, total: questionIds.size, complete: questionIds.size > 0 && answered === questionIds.size } };
+  });
+  const complete = rows.filter((row) => row.progress.complete).length;
+  return { rows, total: rows.length, complete, awaiting: rows.length - complete };
+}
+
+export function filterRequestRows(rows, completion) {
+  if (completion === "complete") return rows.filter((row) => row.progress.complete);
+  if (completion === "awaiting") return rows.filter((row) => !row.progress.complete);
+  return rows;
 }
 
 export function groupAnswers(questions, replies, incrementId) {
