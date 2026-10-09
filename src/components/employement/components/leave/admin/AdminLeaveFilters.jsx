@@ -2,8 +2,8 @@ import { CalendarCheck, CalendarDays, Clock3, Search } from "lucide-react";
 import { DateRangeFilter } from "../../../../DateRangeFilter";
 
 const DATE_MODES = [
-  { id: "leave", label: "Leave dates" },
   { id: "applied", label: "Applied date" },
+  { id: "leave", label: "Leave dates" },
   { id: "approved", label: "Approval date" },
 ];
 

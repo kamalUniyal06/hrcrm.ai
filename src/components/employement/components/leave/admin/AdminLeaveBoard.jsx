@@ -11,9 +11,6 @@ import LeaveKanban from "./LeaveKanban";
 import {
   ADMIN_LEAVE_QUERY_KEY,
   clean,
-  employeeDisplayName,
-  employeeFor,
-  isRecordInRange,
   statusOf,
 } from "./leaveAdminUtils";
 
@@ -32,6 +29,16 @@ const SUMMARY_CARDS = [
   { id: "Rejected", label: "Rejected" },
 ];
 
+const DATE_FIELDS = {
+  leave: "leave_from",
+  applied: "date_entered",
+  approved: "date_modified",
+};
+
+function employeeName(employee) {
+  return clean(employee.name) || [employee.first_name, employee.last_name].map(clean).filter(Boolean).join(" ");
+}
+
 function SummaryIcon({ status }) {
   if (status === "Applied") return <Clock3 size={19} />;
   if (status === "Accepted") return <Check size={19} />;
@@ -45,41 +52,65 @@ export default function AdminLeaveBoard() {
   const queryClient = useQueryClient();
   const defaultRange = useMemo(currentMonthRange, []);
   const [range, setRange] = useState(defaultRange);
-  const [dateMode, setDateMode] = useState("leave");
+  const [dateMode, setDateMode] = useState("applied");
   const [statusFilter, setStatusFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const closeDetails = useCallback(() => setSelectedRequest(null), []);
 
-  const leaves = useQuery({ queryKey: ADMIN_LEAVE_QUERY_KEY, queryFn: () => getAllLeaves(), enabled: isAdmin });
   const employees = useQuery({ queryKey: ["employees", "list"], queryFn: () => fetchAllRecords("hrc_employees"), enabled: isAdmin });
+  const searchedEmployee = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return null;
+    return (employees.data || []).find((employee) => {
+      const name = employeeName(employee).toLowerCase();
+      const email = clean(employee.email1 || employee.email).toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+  }, [employees.data, search]);
+  const searchedEmail = clean(searchedEmployee?.email1 || searchedEmployee?.email);
+  const hasEmployeeMatch = !search.trim() || Boolean(searchedEmail);
+  const leaveRequest = useMemo(() => ({
+    from: `${range.fromDate} ${range.fromTime || "00:00"}:00`,
+    to: `${range.toDate} ${range.toTime || "23:59"}:59`,
+    dateField: DATE_FIELDS[dateMode],
+    email: searchedEmail || undefined,
+  }), [range, dateMode, searchedEmail]);
+  const leaveQueryKey = [...ADMIN_LEAVE_QUERY_KEY, leaveRequest];
+  const leaves = useQuery({
+    queryKey: leaveQueryKey,
+    queryFn: () => getAllLeaves(leaveRequest),
+    enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
+  });
   const mutation = useMutation({
     mutationFn: ({ id, status }) => updateLeaveStatus(id, status),
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: ADMIN_LEAVE_QUERY_KEY });
-      const previous = queryClient.getQueryData(ADMIN_LEAVE_QUERY_KEY);
-      queryClient.setQueryData(ADMIN_LEAVE_QUERY_KEY, (current) => current ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, date_modified: new Date().toISOString() } : record) } : current);
+      await queryClient.cancelQueries({ queryKey: leaveQueryKey });
+      const previous = queryClient.getQueryData(leaveQueryKey);
+      queryClient.setQueryData(leaveQueryKey, (current) => current ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, date_modified: new Date().toISOString() } : record) } : current);
       return { previous };
     },
-    onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(ADMIN_LEAVE_QUERY_KEY, context.previous),
+    onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(leaveQueryKey, context.previous),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ADMIN_LEAVE_QUERY_KEY }),
   });
 
   const employeeMap = useMemo(() => new Map((employees.data || []).map((employee) => [employee.id, employee])), [employees.data]);
-  const rangeRecords = useMemo(() => (leaves.data?.records || []).filter((record) => isRecordInRange(record, range.fromDate, range.toDate, dateMode)), [leaves.data, range, dateMode]);
+  const rangeRecords = useMemo(() => {
+    const records = leaves.data?.records || [];
+    return dateMode === "approved"
+      ? records.filter((record) => statusOf(record) === "Accepted")
+      : records;
+  }, [leaves.data, dateMode]);
   const counts = useMemo(() => ({
     All: rangeRecords.length,
     ...Object.fromEntries(["Applied", "Accepted", "Rejected"].map((status) => [status, rangeRecords.filter((record) => statusOf(record) === status).length])),
   }), [rangeRecords]);
-  const visible = useMemo(() => rangeRecords.filter((record) => {
-    if (statusFilter !== "All" && statusOf(record) !== statusFilter) return false;
-    const employee = employeeFor(record, employeeMap);
-    const text = [employeeDisplayName(record, employee), employee?.email1, record.type_of_leave, record.description].map(clean).join(" ").toLowerCase();
-    return text.includes(search.trim().toLowerCase());
-  }), [rangeRecords, statusFilter, employeeMap, search]);
+  const visible = useMemo(() => rangeRecords.filter((record) =>
+    statusFilter === "All" || statusOf(record) === statusFilter
+  ), [rangeRecords, statusFilter]);
 
   if (!isAdmin) return null;
-  const loading = leaves.isPending || employees.isPending;
+  const loading = employees.isPending || (hasEmployeeMatch && leaves.isPending);
   const failed = leaves.isError || employees.isError;
   const refresh = () => { leaves.refetch(); employees.refetch(); };
 
@@ -100,7 +131,7 @@ export default function AdminLeaveBoard() {
       <AdminLeaveFilters dateMode={dateMode} onDateModeChange={setDateMode} range={range} defaultRange={defaultRange} onRangeChange={setRange} search={search} onSearchChange={setSearch} />
       {mutation.isError && <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{mutation.error.message}</p>}
 
-      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : <LeaveKanban records={visible} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} />}
+      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : !hasEmployeeMatch ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="text-sm text-muted-foreground">No employee with that name or email was found.</p></div> : <LeaveKanban records={visible} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} />}
 
       <LeaveDetailPanel record={selectedRequest} employeeMap={employeeMap} mutation={mutation} onClose={closeDetails} />
     </section>

@@ -94,9 +94,9 @@ export const getEmployeeLeaves = ({ employeeId, email }) =>
         },
     });
 
-// Admin dashboard feed: intentionally omit employee filters so all leave
-// records are returned. The component gates access to administrators.
-export const getAllLeaves = async ({ from, to } = {}) => {
+// Admin dashboard feed. Date and employee filtering are performed by
+// SmartGateway so the browser only receives the records it needs.
+export const getAllLeaves = async ({ from, to, dateField = "leave_from", email } = {}) => {
     const records = [];
     let page = 1;
     let totalPages = 1;
@@ -107,12 +107,12 @@ export const getAllLeaves = async ({ from, to } = {}) => {
             body: {
                 action: "fetch",
                 module: "hrc_leaves",
-                filters: {},
+                filters: email ? { name: email } : {},
                 ...(from && to ? {
                     date_range: "custom",
-                    date_field: "leave_from",
-                    date_from: `${from} 00:00:00`,
-                    date_to: `${to} 23:59:59`,
+                    date_field: dateField,
+                    date_from: from,
+                    date_to: to,
                 } : {}),
                 page,
                 per_page: 100,
