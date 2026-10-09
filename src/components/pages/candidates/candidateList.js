@@ -6,6 +6,7 @@ export function buildCandidateListRequest({
   orderBy = "date_entered",
   orderDir = "DESC",
   shortlistedOnly = false,
+  dateRange = null,
 } = {}) {
   return {
     action: "fetch",
@@ -21,6 +22,12 @@ export function buildCandidateListRequest({
     },
     order_by: orderBy,
     order_dir: orderDir,
+    ...(dateRange?.fromDate && dateRange?.toDate ? {
+      date_range: "custom",
+      date_field: "date_entered",
+      date_from: `${dateRange.fromDate} ${dateRange.fromTime || "00:00"}:00`,
+      date_to: `${dateRange.toDate} ${dateRange.toTime || "23:59"}:59`,
+    } : {}),
     page,
     per_page: candidatePageSize,
   };
@@ -46,12 +53,12 @@ export async function loadCandidatePage(request, options) {
 }
 
 /** Request the same server-filtered shortlist for the list and assessment selectors. */
-export async function loadShortlistSource(request) {
+export async function loadShortlistSource(request, { dateRange = null } = {}) {
   const records = [];
   let page = 1;
   let pages = 1;
   do {
-    const result = await loadCandidatePage(request, { page, shortlistedOnly: true });
+    const result = await loadCandidatePage(request, { page, shortlistedOnly: true, dateRange });
     const active = result.records.filter((record) => String(record.deleted) !== "1");
     if (active.some((record) =>
       !(record.employee === false || String(record.employee ?? "").trim() === "0") ||

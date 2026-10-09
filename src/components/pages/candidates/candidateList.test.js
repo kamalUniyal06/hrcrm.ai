@@ -41,6 +41,43 @@ test("the final page retains the server total rather than counting or slicing it
   assert.deepEqual(result.records, records);
 });
 
+test("created-date filtering keeps exact time bounds, workflow eligibility and server pagination", async () => {
+  const dateRange = { fromDate: "2026-09-10", fromTime: "09:30", toDate: "2026-10-09", toTime: "16:45" };
+  const records = [{ id: "last-matching-candidate" }];
+  const result = await loadCandidatePage(async (body) => {
+    assert.deepEqual(body.filters, assignedDirectoryFilters);
+    assert.equal(body.date_field, "date_entered");
+    assert.equal(body.date_range, "custom");
+    assert.equal(body.date_from, "2026-09-10 09:30:00");
+    assert.equal(body.date_to, "2026-10-09 16:45:59");
+    assert.equal(body.page, 2);
+    return { success: true, records, total: 21, page: 2, per_page: 20, total_pages: 2 };
+  }, { dateRange, page: 2 });
+  assert.equal(result.total, 21);
+  assert.equal(result.pages, 2);
+  assert.deepEqual(result.records, records);
+});
+
+test("date-only shortlist ranges cover the full day on every page without filtering assessment sources by default", async () => {
+  const dateRange = { fromDate: "2026-10-01", toDate: "2026-10-31" };
+  const records = await loadShortlistSource(async (body) => {
+    assert.equal(body.date_from, "2026-10-01 00:00:00");
+    assert.equal(body.date_to, "2026-10-31 23:59:59");
+    assert.deepEqual(body.filters, { employee: 0, hrc_stages_id_c_name: "Shortlisted" });
+    return {
+      success: true,
+      records: [{ id: `candidate-${body.page}`, employee: 0, hrc_stages_id_c_name: "Shortlisted" }],
+      total: 21, page: body.page, total_pages: 2,
+    };
+  }, { dateRange });
+  assert.deepEqual(records.map((record) => record.id), ["candidate-1", "candidate-2"]);
+  await loadShortlistSource(async (body) => {
+    assert.equal(Object.hasOwn(body, "date_range"), false);
+    assert.equal(Object.hasOwn(body, "date_from"), false);
+    return { success: true, records: [], total: 0 };
+  });
+});
+
 test("callers cannot override required directory filters with search or workflow filters", async () => {
   const result = await loadCandidatePage(async (body) => {
     assert.deepEqual(body.filters, assignedDirectoryFilters);

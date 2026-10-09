@@ -15,7 +15,8 @@ export function readResumeSections(description = "") {
     const data = JSON.parse(description);
     if (data?.content?.candidate && typeof data.content.candidate === "object" && !Array.isArray(data.content.candidate)) {
       for (const key of sectionKeys) sections[key] = normalizeResumeItems(data.content[key]);
-      const about = data.content.candidate.description || data.content.candidate.summary;
+      const about = typeof data.content.candidate.description === "string"
+        ? data.content.candidate.description : data.content.candidate.summary;
       return { about: typeof about === "string" ? about : "", sections, parsedResume: data };
     }
     if (data && typeof data === "object" && !Array.isArray(data) &&
@@ -53,4 +54,23 @@ export function writeResumeSections(about, sections) {
     about: about || "",
     ...Object.fromEntries(sectionKeys.map(key => [key, normalizeResumeItems(sections?.[key])])),
   }, null, 2);
+}
+
+// Change the readable introduction while retaining existing resume data.
+export function updateResumeAbout(description, about) {
+  try {
+    const data = JSON.parse(description);
+    if (data?.content?.candidate && typeof data.content.candidate === "object" && !Array.isArray(data.content.candidate)) {
+      data.content.candidate.description = about;
+      return JSON.stringify(data, null, 2);
+    }
+    if (data && typeof data === "object" && !Array.isArray(data) &&
+      (sectionKeys.some((key) => Array.isArray(data[key])) || typeof data.about === "string")) {
+      return JSON.stringify({ ...data, about }, null, 2);
+    }
+  } catch {
+    // Preserve section records in the older text format as well.
+  }
+  const { sections } = readResumeSections(description);
+  return sectionKeys.some((key) => sections[key].length) ? writeResumeSections(about, sections) : about;
 }

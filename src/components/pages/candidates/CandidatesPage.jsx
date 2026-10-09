@@ -19,6 +19,7 @@ import ScheduleInterviewDialog from "./ScheduleInterviewDialog";
 import CandidateInterviewsDialog from "../interviews/CandidateInterviewsDialog";
 import CandidateDetails from "./CandidateDetails";
 import CandidateAvatar from "./CandidateAvatar";
+import { DateRangeFilter } from "../../DateRangeFilter";
 import RecruitmentPanel from "../recruitment/RecruitmentPanel";
 import {
   candidateName,
@@ -34,6 +35,15 @@ import {
 } from "./candidatesApi";
 
 const kinds = Object.keys(workflowModules);
+const columnLabels = { date_entered: "Date", name: "Name", email: "Email", stage: "Stage", phase: "Phase", status: "Status" };
+
+function currentMonthRange() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const lastDay = String(new Date(year, now.getMonth() + 1, 0).getDate()).padStart(2, "0");
+  return { fromDate: `${year}-${month}-01`, fromTime: "00:00", toDate: `${year}-${month}-${lastDay}`, toTime: "23:59" };
+}
 
 export default function CandidatesPage({ shortlistedOnly = false }) {
   const isAdmin = useSelector(selectIsAdmin);
@@ -44,6 +54,8 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
   const [busyId, setBusyId] = useState(null);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ stage: "", phase: "", status: "" });
+  const [defaultRange] = useState(currentMonthRange);
+  const [dateRange, setDateRange] = useState(defaultRange);
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
   const [sort, setSort] = useState(() => shortlistedOnly
@@ -56,14 +68,15 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
       : sort.key === "email" ? "email1"
         : workflowFields[sort.key] || sort.key,
     orderDir: sort.direction === 1 ? "ASC" : "DESC",
+    dateRange,
   };
-  // Share the filtered shortlist with assessment selectors; directory pages keep their own cache.
+  // Date-filtered pages use separate cache entries from assessment selectors.
   const candidatesKey = shortlistedOnly
-    ? shortlistedCandidatesKey
+    ? [...shortlistedCandidatesKey, { dateRange }]
     : ["candidates", "list", "page", "assigned-workflow", request];
   const candidates = useQuery({
     queryKey: candidatesKey,
-    queryFn: shortlistedOnly ? fetchShortlistSource : () => fetchCandidatePage(request),
+    queryFn: shortlistedOnly ? () => fetchShortlistSource({ dateRange }) : () => fetchCandidatePage(request),
     placeholderData: shortlistedOnly ? undefined : keepPreviousData,
   });
   const results = useQueries({
@@ -127,7 +140,10 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
     ) && kinds.every((kind) => !filters[kind] || value(record, kind) === filters[kind]),
   );
   if (shortlistedOnly) {
-    visible.sort((left, right) => String(value(left, sort.key)).localeCompare(
+    visible.sort((left, right) => sort.key === "date_entered"
+      ? ((Date.parse(left.date_entered_uni_format || left.date_entered) || 0)
+        - (Date.parse(right.date_entered_uni_format || right.date_entered) || 0)) * sort.direction
+      : String(value(left, sort.key)).localeCompare(
       String(value(right, sort.key)), undefined, { numeric: true, sensitivity: "base" },
     ) * sort.direction);
   }
@@ -143,6 +159,16 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
     : visible;
   const workflowFilterActive = kinds.some((kind) => filters[kind]);
   const filterActive = searchTerm || workflowFilterActive;
+
+  function applyDateRange(range) {
+    if (!range.fromDate || !range.toDate ||
+      `${range.fromDate} ${range.fromTime || "00:00"}` > `${range.toDate} ${range.toTime || "23:59"}`) {
+      toast.error("Choose a valid date range with the start before the end.");
+      return;
+    }
+    setDateRange(range);
+    setPage(1);
+  }
 
   useEffect(() => {
     if (candidates.isSuccess && !candidates.isPlaceholderData && page > pages) setPage(pages);
@@ -192,7 +218,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
       </header>
       {isAdmin && assessment && <RecruitmentPanel key={assessment.id || "select-candidate"} initialCandidate={assessment.id ? assessment : null} onClose={() => setAssessment(null)} />}
       <section
-        className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+        className="rounded-2xl border border-slate-200 bg-white shadow-sm"
         aria-label="Candidate directory"
         aria-busy={candidates.isFetching}
       >
@@ -222,7 +248,18 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
           </button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-3 p-5">
+        <div className="relative z-20 flex flex-wrap items-center gap-3 p-5">
+          <div className="w-full">
+            <p className="mb-2 text-xs font-medium text-slate-500">Created date</p>
+            <div className="w-fit max-w-full">
+              <DateRangeFilter
+                {...dateRange}
+                filterActive
+                onApply={applyDateRange}
+                onReset={() => applyDateRange(defaultRange)}
+              />
+            </div>
+          </div>
           <label className="flex min-w-52 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-indigo-500">
             <Search size={17} className="text-slate-400" />
             <input
@@ -342,9 +379,9 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="border-y border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-y border-slate-100 bg-slate-50 text-xs tracking-wide text-slate-500">
                 <tr>
-                  {["name", "email", ...kinds].map((key) => (
+                  {["date_entered", "name", "email", ...kinds].map((key) => (
                     <th
                       key={key}
                       scope="col"
@@ -366,9 +403,9 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                           }));
                           setPage(1);
                         }}
-                        className="font-semibold uppercase"
+                        className="font-semibold"
                       >
-                        {key}
+                        {columnLabels[key]}
                         {sort.key === key
                           ? sort.direction === 1
                             ? " ↑"
@@ -389,6 +426,9 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                     onClick={() => record.id && setSelected(record.id)}
                     className="group cursor-pointer transition hover:bg-indigo-50/50"
                   >
+                    <td className="whitespace-nowrap px-5 py-4 text-slate-600">
+                      {record.date_entered_uni_format || record.date_entered || "—"}
+                    </td>
                     <td className="px-5 py-4">
                       <button
                         disabled={!record.id}

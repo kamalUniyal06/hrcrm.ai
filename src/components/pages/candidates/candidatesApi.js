@@ -5,8 +5,8 @@ export { shortlistedCandidatesKey } from "./candidateList.js";
 export const fetchCandidatePage = (options) =>
   loadCandidatePage((body) => http({ method: "POST", body }), options);
 
-export const fetchShortlistSource = () =>
-  loadShortlistSource((body) => http({ method: "POST", body }));
+export const fetchShortlistSource = (options) =>
+  loadShortlistSource((body) => http({ method: "POST", body }), options);
 
 export const workflowModules = {
   stage: "hrc_stages",

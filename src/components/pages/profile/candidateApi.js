@@ -1,11 +1,7 @@
 import { http } from "../../../services/api";
-import { readResumeSections, normalizeResumeItems } from "./resumeSections";
-
-export const candidateRelatedModules = {
-  skills: "hrc_skills",
-  experiences: "hrc_experience",
-  education: "hrc_education",
-};
+import { readResumeSections } from "./resumeSections";
+import { candidateRelatedModules, loadCandidateRelated } from "./candidateRelated.js";
+export { candidateRelatedModules } from "./candidateRelated.js";
 
 export const relatedFields = {
   education: ["name", "qualification", "institution", "university", "school", "board", "specialization", "percentage", "from_time", "to_time", "status", "description"],
@@ -37,23 +33,7 @@ export async function saveCandidateRelated(section, item, original) {
 }
 
 export async function fetchCandidateRelated(id, section) {
-  const related_module = candidateRelatedModules[section];
-  if (!id || !related_module) throw new Error("A saved candidate is required to load this section.");
-  const records = [];
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const response = await http({ method: "POST", body: {
-      action: "fetch_related", module: "hrc_candidates", id, related_module, page, per_page: 20,
-    } });
-    if (response?.success !== true || !Array.isArray(response.records)) {
-      throw new Error(response?.message || "Could not load this section. Please retry.");
-    }
-    records.push(...response.records);
-    totalPages = Number(response.total_pages) || Math.ceil(Number(response.total) / (Number(response.per_page) || 20)) || 1;
-    page += 1;
-  } while (page <= totalPages);
-  return normalizeResumeItems(records);
+  return loadCandidateRelated((body) => http({ method: "POST", body }), id, section);
 }
 
 export const candidateFields = {
