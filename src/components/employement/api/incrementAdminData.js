@@ -4,6 +4,13 @@ export const INCREMENT_MODULES = {
   replies: "hrc_increment_replies",
 };
 
+// Fixed field contract confirmed by the increment, question and reply responses.
+export const INCREMENT_FIELDS = {
+  requests: { employeeEmail: "name", annualSalary: "description" },
+  questions: { title: "name", text: "description" },
+  replies: { incrementId: "increment_id", questionId: "question_id", answer: "description" },
+};
+
 export const clean = (value) => String(value ?? "").trim();
 
 export function gatewayError(error) {
@@ -14,13 +21,6 @@ export function gatewayError(error) {
 function assertResponse(response, message) {
   if (response?.success !== true) throw new Error(response?.error || response?.message || message);
   return response;
-}
-
-export async function loadFields(request, module) {
-  const response = assertResponse(await request({ action: "get_module_fields", module }), "Could not load field metadata.");
-  const fields = Array.isArray(response.fields) ? response.fields : Object.values(response.fields || {});
-  if (!fields.length || fields.some((field) => !field?.name)) throw new Error("Field metadata is incomplete. Refresh to try again.");
-  return fields;
 }
 
 export async function loadPage(request, module, options = {}) {
@@ -52,7 +52,7 @@ export async function loadAll(request, module, options = {}) {
 
 export async function loadRequestCollection(request, { search, from, to } = {}) {
   const records = await loadAll(request, INCREMENT_MODULES.requests, {
-    ...(search ? { search, search_fields: ["name"] } : {}),
+    ...(search ? { search, search_fields: [INCREMENT_FIELDS.requests.employeeEmail] } : {}),
     ...(from || to ? { date_range: "custom", date_field: "date_entered", date_from: from, date_to: to } : {}),
   });
   const ids = records.map((record) => clean(record.id)).filter(Boolean);
@@ -62,20 +62,12 @@ export async function loadRequestCollection(request, { search, from, to } = {}) 
   // Never send an empty IN filter: the gateway ignores it.
   for (let offset = 0; offset < ids.length; offset += 200) {
     const batch = await loadAll(request, INCREMENT_MODULES.replies, {
-      filters: { increment_id: { in: ids.slice(offset, offset + 200) } },
-      fields: ["id", "increment_id", "question_id", "description"],
+      filters: { [INCREMENT_FIELDS.replies.incrementId]: { in: ids.slice(offset, offset + 200) } },
+      fields: ["id", ...Object.values(INCREMENT_FIELDS.replies)],
     });
     replies.push(...batch.filter((reply) => requestIds.has(clean(reply.increment_id))));
   }
   return { records, replies };
-}
-
-export function requireReplyLinks(fields) {
-  for (const name of ["increment_id", "question_id", "description"]) {
-    if (!fields.some((field) => field.name === name)) {
-      throw new Error(`The reply module does not expose ${name}. Its relationship mapping must be checked before loading answers.`);
-    }
-  }
 }
 
 export function numericAmount(value) {
@@ -87,15 +79,15 @@ export function numericAmount(value) {
 
 // Confirmed stored contract: name is employee email; description is requested
 // annual salary. Current salary and approval status are not persisted here.
-export const requestedAnnualSalary = (record) => numericAmount(record.description);
+export const requestedAnnualSalary = (record) => numericAmount(record[INCREMENT_FIELDS.requests.annualSalary]);
 
 export function requestIdentity(record) {
-  const email = clean(record.name);
+  const email = clean(record[INCREMENT_FIELDS.requests.employeeEmail]);
   const displayName = [record.first_name, record.last_name].map(clean).filter(Boolean).join(" ");
   return { email: email.includes("@") ? email : "", name: displayName || (email.includes("@") ? email : "Employee email unavailable") };
 }
 
-export const questionText = (question) => clean(question.description) || clean(question.name) || "Untitled question";
+export const questionText = (question) => clean(question[INCREMENT_FIELDS.questions.text]) || clean(question[INCREMENT_FIELDS.questions.title]) || "Untitled question";
 
 export function answerProgress(questions, replies, incrementId) {
   const questionIds = new Set(questions.map((question) => clean(question.id)));

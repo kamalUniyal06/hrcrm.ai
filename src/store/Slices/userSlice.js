@@ -1,6 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { AUTH_URL } from "../constants";
-import { showConsole } from "../../assets/assets";
 import { apiRequest } from "../../services/api";
 import { clearCrmToken } from "../../services/crmAuth";
 import { ensureSystemAlertsAnswered } from "../../components/employement/api/systemAlerts.api";
@@ -14,6 +13,7 @@ const initialState = {
   // HRCRM user information
   userInfo: {
     id: null,
+    subject_type: null,
     stage: null,
     phase: null,
     status: null,
@@ -38,6 +38,7 @@ const userSlice = createSlice({
 
       state.userInfo = {
         id: null,
+        subject_type: null,
         stage: null,
         phase: null,
         status: null,
@@ -57,6 +58,7 @@ const userSlice = createSlice({
 
       state.userInfo = {
         id: userInfo?.id ?? null,
+        subject_type: userInfo?.subject_type ?? null,
         stage: userInfo?.stage ?? null,
         phase: userInfo?.phase ?? null,
         status: userInfo?.status ?? null,
@@ -74,6 +76,7 @@ const userSlice = createSlice({
 
       state.userInfo = {
         id: null,
+        subject_type: null,
         stage: null,
         phase: null,
         status: null,
@@ -94,6 +97,7 @@ const userSlice = createSlice({
 
       state.userInfo = {
         id: null,
+        subject_type: null,
         stage: null,
         phase: null,
         status: null,
@@ -119,7 +123,9 @@ const userSlice = createSlice({
 // ============================================================
 
 export const getUser = () => {
-  return async (dispatch) => {
+  return async (dispatch, getState) => {
+    // Capture the session before loadUserRequest resets authentication state.
+    const hadSession = getState().user.isAuthenticated === true;
     dispatch(userSlice.actions.loadUserRequest());
 
     try {
@@ -130,8 +136,6 @@ export const getUser = () => {
         },
         withCredentials: true,
       });
-
-      showConsole && console.log("user", data);
 
       /*
         Backend response:
@@ -161,11 +165,14 @@ export const getUser = () => {
         }
       */
 
-      const userInfo = data.userInfo || {
-        id: data.id ?? null,
-        stage: data.stage ?? null,
-        phase: data.phase ?? null,
-        status: data.status ?? null,
+      const userInfo = {
+        ...(data.userInfo || {
+          id: data.id ?? null,
+          stage: data.stage ?? null,
+          phase: data.phase ?? null,
+          status: data.status ?? null,
+        }),
+        subject_type: data.subject_type ?? data.userInfo?.subject_type ?? null,
       };
 
       dispatch(
@@ -195,19 +202,7 @@ export const getUser = () => {
             break;
 
           case 401:
-            if (backendError.includes("Invalid token")) {
-              message = "Your session expired. Please login again.";
-            } else if (backendError.includes("Unauthorized user")) {
-              message = "You don’t have permission to access this area.";
-            } else if (
-              backendError.includes("email missing") ||
-              backendError.includes("Token and email both missing")
-            ) {
-              message = "Please login again.";
-            } else {
-              message = "Authentication failed.";
-            }
-
+            message = hadSession ? "Your session expired. Please login again." : null;
             break;
 
           case 400:

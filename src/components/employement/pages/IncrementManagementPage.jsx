@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 import { Button } from "@/components/ui/button";
 import {
   fetchAdminQuestions, fetchAdminReplies, fetchAdminRequest, fetchAdminRequests,
-  fetchIncrementSchema, saveAdminQuestion,
+  saveAdminQuestion,
 } from "../api/incrementAdmin.api";
 import {
   answerProgress, clean, filterRequestRows, gatewayError, groupAnswers, questionText,
@@ -336,10 +336,9 @@ function QuestionForm({ question, onClose }) {
   </form>;
 }
 
-function QuestionList({ questions, schema }) {
+function QuestionList({ questions }) {
   const [editing, setEditing] = useState(null);
   const heading = useRef(null);
-  const canEdit = ["name", "description"].every((name) => schema.questions.some((field) => field.name === name));
   const closeEditor = () => { setEditing(null); heading.current?.focus(); };
   return <SectionCard label="Increment questionnaire">
     <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-5 sm:p-6">
@@ -347,14 +346,13 @@ function QuestionList({ questions, schema }) {
         <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><FileQuestion size={19} aria-hidden="true" /></span>
         <div><h2 ref={heading} tabIndex={-1} className="font-semibold outline-none">Review questionnaire <span className="ml-1.5 inline-flex min-w-6 items-center justify-center rounded-full bg-muted px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{questions.length}</span></h2><p className="mt-0.5 max-w-2xl text-sm leading-6 text-muted-foreground">Questions employees answer to support their increment request.</p></div>
       </div>
-      <Button className="h-10 rounded-xl px-4 shadow-md shadow-primary/20" disabled={editing !== null || !canEdit} onClick={() => setEditing({})}><Plus size={16} />Add question</Button>
+      <Button className="h-10 rounded-xl px-4 shadow-md shadow-primary/20" disabled={editing !== null} onClick={() => setEditing({})}><Plus size={16} />Add question</Button>
     </div>
-    {!canEdit && <div className="p-5"><ErrorMessage error={new Error("Question editing is unavailable: the module must expose name and description fields.")} /></div>}
     {editing !== null && <QuestionForm key={editing.id || "new"} question={editing} onClose={closeEditor} />}
     {questions.length ? <ol className="divide-y divide-border">{questions.map((question, index) => <li key={question.id} className={`group flex items-start gap-4 p-5 transition-colors hover:bg-primary/[0.03] sm:gap-5 sm:p-6 ${editing?.id === question.id ? "bg-primary/[0.04]" : ""}`}>
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-primary/15 to-primary/5 text-xs font-semibold tabular-nums text-primary ring-1 ring-inset ring-primary/10">{String(index + 1).padStart(2, "0")}</span>
       <div className="min-w-0 flex-1"><h3 className="break-words text-sm font-semibold leading-6">{clean(question.name) || "Untitled question"}</h3><p className="mt-1 max-w-3xl whitespace-pre-wrap break-words text-sm leading-7 text-muted-foreground">{clean(question.description) || questionText(question)}</p></div>
-      <Button variant="outline" className="h-9 shrink-0 rounded-full bg-card px-3.5 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:text-primary" disabled={editing !== null || !canEdit} onClick={() => setEditing(question)} aria-label={`Edit question ${index + 1}`}><Pencil size={14} /><span className="hidden sm:inline">Edit</span></Button>
+      <Button variant="outline" className="h-9 shrink-0 rounded-full bg-card px-3.5 text-muted-foreground transition-colors group-hover:border-primary/30 group-hover:text-primary" disabled={editing !== null} onClick={() => setEditing(question)} aria-label={`Edit question ${index + 1}`}><Pencil size={14} /><span className="hidden sm:inline">Edit</span></Button>
     </li>)}</ol> : editing === null && <EmptyState icon={FileQuestion} title="Build your review questionnaire">Add questions about contributions, responsibilities, and salary expectations to give reviewers useful context.</EmptyState>}
     {questions.length > 0 && <p className="flex items-start gap-2 border-t border-border bg-muted/30 px-5 py-4 text-xs leading-5 text-muted-foreground sm:px-6"><CircleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />All configured questions are part of the employee questionnaire. Adding a question may change the completion count for earlier requests.</p>}
   </SectionCard>;
@@ -370,10 +368,9 @@ export default function IncrementManagementPage() {
   const [selectedId, setSelectedId] = useState(null);
   const requestsButton = useRef(null);
   const questionsButton = useRef(null);
-  const schema = useQuery({ queryKey: [...ROOT_KEY, "schema"], queryFn: fetchIncrementSchema, staleTime: 5 * 60 * 1000 });
-  const questions = useQuery({ queryKey: [...ROOT_KEY, "questions"], queryFn: fetchAdminQuestions, enabled: schema.isSuccess });
-  const error = schema.error || questions.error;
-  const loading = schema.isPending || questions.isPending;
+  const questions = useQuery({ queryKey: [...ROOT_KEY, "questions"], queryFn: fetchAdminQuestions });
+  const error = questions.error;
+  const loading = questions.isPending;
 
   return <div className="mx-auto w-full max-w-[1600px] px-1 py-3 text-foreground sm:px-3 sm:py-5">
     <header className="relative mb-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm shadow-black/[0.03] sm:p-7">
@@ -401,8 +398,8 @@ export default function IncrementManagementPage() {
         })}
       </nav>
     </header>
-    {error ? <ErrorMessage error={error} onRetry={() => { schema.refetch(); questions.refetch(); }} /> : loading ? <SectionCard label="Loading"><Skeleton /></SectionCard> : <>
-      <div hidden={tab !== "questions"}><QuestionList questions={questions.data} schema={schema.data} /></div>
+    {error ? <ErrorMessage error={error} onRetry={() => questions.refetch()} /> : loading ? <SectionCard label="Loading"><Skeleton /></SectionCard> : <>
+      <div hidden={tab !== "questions"}><QuestionList questions={questions.data} /></div>
       <div hidden={tab !== "requests" || Boolean(selectedId)}><RequestList questions={questions.data} onSelect={setSelectedId} onQuestions={() => { setTab("questions"); setSelectedId(null); questionsButton.current?.focus(); }} /></div>
       {tab === "requests" && selectedId && <RequestDetail key={selectedId} id={selectedId} questions={questions.data} onBack={() => { setSelectedId(null); requestsButton.current?.focus(); }} />}
     </>}

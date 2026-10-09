@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  answerProgress, filterRequestRows, groupAnswers, loadAll, loadPage, loadRequestCollection, requestedAnnualSalary,
-  requestIdentity, requestOverview, requireReplyLinks, saveRecord,
+  answerProgress, filterRequestRows, groupAnswers, loadAll, loadPage, loadRequestCollection, questionText, requestedAnnualSalary,
+  requestIdentity, requestOverview, saveRecord,
 } from "./incrementAdminData.js";
 
 test("stored increment name is email and description is the requested annual salary", () => {
@@ -39,9 +39,24 @@ test("answers join through scalar IDs even when SuiteCRM relationship fields are
   ]);
 });
 
-test("missing reply foreign keys fail before a broadening filter can be sent", () => {
-  assert.throws(() => requireReplyLinks([{ name: "question_id" }, { name: "description" }]), /increment_id/);
-  assert.doesNotThrow(() => requireReplyLinks(["increment_id", "question_id", "description"].map((name) => ({ name }))));
+test("the supplied record shapes load salaries and link answers without a metadata request", async () => {
+  const questions = [{ id: "q1", name: "", description: "What have you learned?" }];
+  const calls = [];
+  const data = await loadRequestCollection(async (body) => {
+    calls.push(body);
+    assert.equal(body.action, "fetch");
+    if (body.module === "hrc_increment") {
+      return { success: true, total: 1, total_pages: 1, records: [{ id: "r1", name: "employee@example.org", description: "360000" }] };
+    }
+    assert.deepEqual(body.filters, { increment_id: { in: ["r1"] } });
+    assert.deepEqual(body.fields, ["id", "increment_id", "question_id", "description"]);
+    return { success: true, total: 1, total_pages: 1, records: [{ id: "reply-1", name: "", increment_id: "r1", question_id: "q1", description: "New skills" }] };
+  });
+  assert.equal(calls.length, 2);
+  assert.equal(requestIdentity(data.records[0]).email, "employee@example.org");
+  assert.equal(requestedAnnualSalary(data.records[0]), 360000);
+  assert.equal(questionText(questions[0]), "What have you learned?");
+  assert.equal(requestOverview(data.records, questions, data.replies).complete, 1);
 });
 
 test("all-page reads preserve ordering and filters while excluding deleted records", async () => {

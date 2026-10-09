@@ -1,6 +1,7 @@
 import { TopNav } from "./components/TopNav";
 import { Sidebar } from "./components/Sidebar";
 import { useContext, useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
@@ -20,6 +21,8 @@ const RootLayout = () => {
     useContext(PageContext);
   const location = useLocation().pathname.split("/")[2];
   const pathname = useLocation().pathname;
+  const subjectType = useSelector((state) => state.user.userInfo?.subject_type);
+  const showFooter = subjectType !== "candidate";
   const mainRef = useRef(null);
   const {
     data: candidate,
@@ -117,7 +120,7 @@ const RootLayout = () => {
           <TopNav sidebarAvailable={hasCandidate} />
         </div>
 
-        {/* The page scrolls above the footer, which reserves its own space in the shell. */}
+        {/* The page fills the remaining shell space; visible footers reserve their own height. */}
         <main
           ref={mainRef}
           className="hide-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"
@@ -130,7 +133,7 @@ const RootLayout = () => {
             </div>
           </div>
         </main>
-        <Footer />
+        {showFooter && <Footer />}
       </div>
     </div>
   );
