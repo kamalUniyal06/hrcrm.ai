@@ -2,7 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCandidatePage, loadShortlistSource } from "./candidateList.js";
 
-test("candidate directory fetches one server page with the required employee filter and default order", async () => {
+const assignedDirectoryFilters = {
+  employee: 0,
+  hrc_stages_id_c: { nin: ["", "Unassigned"] },
+  hrc_phase_id: { nin: ["", "Unassigned"] },
+  hrc_status_id_c: { nin: ["", "Unassigned"] },
+};
+
+test("candidate directory requires an assigned stage, phase and status before server pagination", async () => {
   const calls = [];
   const records = Array.from({ length: 20 }, (_, index) => ({ id: String(index) }));
   const result = await loadCandidatePage(async (body) => {
@@ -11,7 +18,7 @@ test("candidate directory fetches one server page with the required employee fil
   });
 
   assert.deepEqual(calls, [{
-    action: "fetch", module: "hrc_candidates", filters: { employee: 0 },
+    action: "fetch", module: "hrc_candidates", filters: assignedDirectoryFilters,
     order_by: "date_entered", order_dir: "DESC", page: 1, per_page: 20,
   }]);
   assert.equal(result.total, 45);
@@ -24,6 +31,7 @@ test("the final page retains the server total rather than counting or slicing it
   const result = await loadCandidatePage(async (body) => {
     assert.equal(body.page, 3);
     assert.equal(body.per_page, 20);
+    assert.deepEqual(body.filters, assignedDirectoryFilters);
     return { success: true, records, total: 45, page: 3, per_page: 20 };
   }, { page: 3 });
 
@@ -33,9 +41,9 @@ test("the final page retains the server total rather than counting or slicing it
   assert.deepEqual(result.records, records);
 });
 
-test("only the employee filter reaches the server, even if callers supply search or workflow filters", async () => {
+test("callers cannot override required directory filters with search or workflow filters", async () => {
   const result = await loadCandidatePage(async (body) => {
-    assert.deepEqual(body.filters, { employee: 0 });
+    assert.deepEqual(body.filters, assignedDirectoryFilters);
     assert.equal(Object.hasOwn(body, "search"), false);
     assert.equal(Object.hasOwn(body, "search_fields"), false);
     assert.equal(body.order_by, "email1");

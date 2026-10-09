@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import ScheduleInterviewDialog from "./ScheduleInterviewDialog";
 import CandidateInterviewsDialog from "../interviews/CandidateInterviewsDialog";
 import CandidateDetails from "./CandidateDetails";
+import CandidateAvatar from "./CandidateAvatar";
 import RecruitmentPanel from "../recruitment/RecruitmentPanel";
 import {
   candidateName,
@@ -59,7 +60,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
   // Share the filtered shortlist with assessment selectors; directory pages keep their own cache.
   const candidatesKey = shortlistedOnly
     ? shortlistedCandidatesKey
-    : ["candidates", "list", "page", request];
+    : ["candidates", "list", "page", "assigned-workflow", request];
   const candidates = useQuery({
     queryKey: candidatesKey,
     queryFn: shortlistedOnly ? fetchShortlistSource : () => fetchCandidatePage(request),
@@ -257,9 +258,10 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                 ...new Set([
                   ...records.map((record) => value(record, kind)),
                   ...(lookups[kind].data || []).map((option) => option.name),
-                  "Unassigned",
+                  ...(shortlistedOnly ? ["Unassigned"] : []),
                 ]),
               ]
+                .filter((name) => shortlistedOnly || (name.trim() && name.trim().toLowerCase() !== "unassigned"))
                 .sort()
                 .map((name) => (
                   <option key={name} value={name}>
@@ -327,14 +329,14 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                   ? "No matching candidates"
                   : shortlistedOnly
                     ? "Your shortlist starts here"
-                    : "No candidates yet"}
+                    : "No assigned candidates"}
             </h3>
             <p className="mt-2 text-sm text-slate-500">
               {filterActive
                 ? "Try a different search or clear your filters."
                 : shortlistedOnly
                   ? "Use the shortlist icon in Candidates to add talent here."
-                  : "Candidate records will appear here when available."}
+                  : "Candidates appear here once their stage, phase and status are assigned."}
             </p>
           </div>
         ) : (
@@ -396,9 +398,10 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
                         }}
                         className="flex items-center gap-3 text-left font-semibold text-slate-900 focus-visible:outline-indigo-500"
                       >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                          {candidateName(record).slice(0, 1).toUpperCase()}
-                        </span>
+                        <CandidateAvatar
+                          record={record}
+                          className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600"
+                        />
                         <span>
                           {candidateName(record)}
                           <span className="mt-1 block text-xs font-normal text-slate-500">

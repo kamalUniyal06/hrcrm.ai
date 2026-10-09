@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { Loader2, Pencil, Save, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { candidateFields } from "../profile/candidateApi";
+import CandidateAvatar from "./CandidateAvatar";
 import {
   candidateName,
   fetchCandidateRecord,
@@ -205,9 +206,10 @@ function CandidateForm({ record, lookups, setDirty, setBusy }) {
     <form onSubmit={save} className="flex min-h-0 flex-1 flex-col">
       <div className="flex-1 space-y-7 overflow-y-auto p-6">
         <div className="flex items-center gap-4 rounded-2xl bg-slate-50 p-5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-indigo-100 text-xl font-semibold text-indigo-700">
-            {candidateName(draft).slice(0, 1).toUpperCase()}
-          </div>
+          <CandidateAvatar
+            record={draft}
+            className="h-14 w-14 rounded-2xl bg-indigo-100 text-xl font-semibold text-indigo-700"
+          />
           <div className="min-w-0">
             <h2 className="break-words text-xl font-semibold text-slate-900">
               {candidateName(draft)}
