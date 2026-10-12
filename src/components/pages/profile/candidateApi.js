@@ -1,6 +1,7 @@
 import { http } from "../../../services/api";
 import { readResumeSections } from "./resumeSections";
 import { candidateRelatedModules, loadCandidateRelated } from "./candidateRelated.js";
+import { normalizeProfileUrl } from "./onboardingValidation.js";
 export { candidateRelatedModules } from "./candidateRelated.js";
 
 export const relatedFields = {
@@ -58,7 +59,9 @@ export function normalizeCandidate(record = {}, email) {
   draft.description ||= record.summary || "";
   const history = readResumeSections(draft.description);
   draft.description = history.about;
-  for (const key of ["linkedin_url", "github_url"]) if (/^https?:\/\/$/i.test(draft[key])) draft[key] = "";
+  for (const key of ["linkedin_url", "github_url"]) {
+    draft[key] = /^https?:\/\/$/i.test(draft[key]) ? "" : normalizeProfileUrl(draft[key]);
+  }
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(draft.dob)) {
     const [month, day, year] = draft.dob.split("/");
     draft.dob = `${year}-${month}-${day}`;

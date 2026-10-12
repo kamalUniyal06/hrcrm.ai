@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, Upload } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../../store/constants";
 import { crmFetch } from "../../../services/crmClient";
+import { toast } from "react-hot-toast";
 
 export default function CandidatePhotoUpload({
   initialEmail = "",
   lockedEmail = false,
   disabled = false,
+  embedded = false,
   onUploaded,
   onBusyChange,
 }) {
@@ -16,7 +18,7 @@ export default function CandidatePhotoUpload({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
+  const setError = message => { if (message) toast.error(message); };
   const [uploaded, setUploaded] = useState(null);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
@@ -164,6 +166,7 @@ export default function CandidatePhotoUpload({
         );
       onUploaded?.(imageUrl, photo);
       setUploaded(json);
+      toast.success("Photo uploaded. Complete registration or save your profile to apply it.");
     } catch (err) {
       setError(
         err.name === "AbortError"
@@ -179,20 +182,19 @@ export default function CandidatePhotoUpload({
   };
 
   const buttonClass =
-    "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--ob-line)] px-4 py-2 text-sm font-medium hover:bg-[var(--ob-soft)] disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-lg font-semibold text-slate-900">
+    <section className={embedded ? "" : "ob-surface p-6"}>
+      {!embedded && <><h2 className="text-lg font-semibold">
         Add your profile photo
       </h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Upload a photo or take one with your camera, then save your profile to
-        apply it.
-      </p>
+      <p className="ob-muted mt-1 text-sm">
+        Choose a photo or take one with your camera, then upload it.
+      </p></>}
       <form
         onSubmit={uploadPhoto}
-        className="mt-5 space-y-5"
+        className={embedded ? "space-y-5" : "mt-5 space-y-5"}
         aria-busy={uploading}
       >
         <fieldset disabled={disabled} className="space-y-5">
@@ -215,7 +217,7 @@ export default function CandidatePhotoUpload({
                 setUploaded(null);
               }}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="ob-input"
             />
             <p className="mt-2 text-xs text-slate-500">
               Use the email associated with your candidate profile.
@@ -233,7 +235,7 @@ export default function CandidatePhotoUpload({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               disabled={uploading}
-              className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-100 file:px-4 file:py-2 file:text-indigo-700"
+              className="ob-input block file:mr-3 file:rounded-md file:border-0 file:bg-[var(--ob-soft)] file:px-3 file:py-2 file:text-[var(--ob-accent)]"
               onChange={(event) => {
                 selectPhoto(event.target.files?.[0]);
                 event.target.value = "";
@@ -295,14 +297,6 @@ export default function CandidatePhotoUpload({
               <p className="break-all text-sm text-slate-500">{photo.name}</p>
             </div>
           )}
-          {error && (
-            <p
-              role="alert"
-              className="rounded-lg bg-red-50 p-3 text-sm text-red-700"
-            >
-              {error}
-            </p>
-          )}
           <button
             type="submit"
             disabled={
@@ -312,7 +306,7 @@ export default function CandidatePhotoUpload({
               cameraOpen ||
               Boolean(uploaded)
             }
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-sidebar-primary to-sidebar-secondary px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="ob-primary"
           >
             {uploading ? (
               <Loader2 size={17} className="animate-spin" />
@@ -325,9 +319,6 @@ export default function CandidatePhotoUpload({
                 ? "Photo uploaded"
                 : "Upload photo"}
           </button>
-          <p role="status" className="text-sm text-green-700">
-            {uploaded ? "Photo uploaded. Save your profile to apply it." : ""}
-          </p>
         </fieldset>
       </form>
     </section>

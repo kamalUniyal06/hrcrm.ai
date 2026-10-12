@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { toast } from "react-hot-toast";
+import { resetPageScroll } from "../../utils/resetPageScroll";
+import { candidateSources, governmentIdError, normalizeGovernmentId, validatePersonalDetails } from "./profile/onboardingValidation";
+import "./profile/onboarding.css";
 import { useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
   BriefcaseBusiness,
   Camera,
   Check,
-  CheckCircle2,
   GraduationCap,
   Loader2,
   Mail,
@@ -66,6 +69,7 @@ export default function Profile({ standalone = false, onComplete }) {
 }
 
 function CandidateProfile({ email, jobId, standalone, onComplete }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const cachedCandidate = queryClient.getQueryData(candidateKey(email));
   const userPhase = useSelector((state) => state.user.userInfo?.phase);
@@ -98,11 +102,18 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     setLocalPhoto({ file: photoFile, url });
     return () => URL.revokeObjectURL(url);
   }, [photoFile]);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [error, setErrorState] = useState("");
+  const setError = (message) => {
+    setErrorState(message);
+    if (message) toast.error(message);
+  };
   const [file, setFile] = useState(null);
-  const [panNumber, setPanNumber] = useState("");
-  const [stage, setStage] = useState("New Candidate -> Direct");
+  const [governmentIdType, setGovernmentIdType] = useState("pan");
+  const [governmentIdNumber, setGovernmentIdNumber] = useState("");
+  const [stage, setStage] = useState("");
+  const pageRef = useRef(null);
+  const uploadProcessing = phase === "upload" && busy;
+  useLayoutEffect(() => { resetPageScroll(pageRef.current); }, [phase, section, uploadProcessing]);
   const [related, setRelated] = useState({});
   const [relatedRetry, setRelatedRetry] = useState(0);
   const relatedCache = useRef({});
@@ -205,8 +216,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     event.preventDefault();
     if (!file || !email || requestRef.current) return;
     setError("");
-    if (!/^[A-Z0-9]{10}$/.test(panNumber.trim())) {
-      setError("Please enter a PAN number with exactly 10 letters or numbers.");
+    const idError = governmentIdError(governmentIdType, governmentIdNumber);
+    if (idError) {
+      setError(idError);
+      document.getElementById("resume-id-number")?.focus();
+      return;
+    }
+    if (!candidateSources.some(source => source.value === stage)) {
+      setError("Select how you found us.");
       return;
     }
     setBusy(true);
@@ -224,7 +241,10 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       body.append("file", file, file.name);
       body.append("primary_email", email);
       body.append("stage", stage);
-      body.append("pan_card_number", panNumber.trim().toUpperCase());
+      const idNumber = normalizeGovernmentId(governmentIdType, governmentIdNumber);
+      body.append("government_id_type", governmentIdType);
+      body.append("government_id_number", idNumber);
+      if (governmentIdType === "pan") body.append("pan_card_number", idNumber);
       if (jobId) body.append("job_record_id", jobId);
       const response = await crmFetch(
         "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing",
@@ -257,7 +277,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       setSection("personal");
       setDraft(parsed);
       setPhase("builder");
-      setNotice(
+      toast.success(
         "Resume parsed. Review and edit your details, then save your profile.",
       );
     } catch (err) {
@@ -277,15 +297,16 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const save = async (event) => {
     event.preventDefault();
     if (saveLock.current || photoBusy) return;
-    if (!draft.last_name.trim()) {
+    const personalErrors = validatePersonalDetails(draft);
+    if (Object.keys(personalErrors).length) {
       setSection("personal");
-      setError("Please add your last name in Personal info before saving.");
+      setError(Object.values(personalErrors)[0]);
+      requestAnimationFrame(() => document.getElementById(`profile-${Object.keys(personalErrors)[0]}`)?.focus());
       return;
     }
     saveLock.current = true;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       // Recheck before creating, including after an uncertain previous save response.
       const existing = record || (await findCandidate(email));
@@ -317,11 +338,11 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       setRecord({ ...existing, ...saved });
       setDraft(normalizeCandidate(saved, email));
       setPhase("view");
-      setNotice("Your candidate profile has been saved.");
+      toast.success("Your candidate profile has been saved.");
       rememberOnboardingComplete(saved);
       queryClient.setQueryData(candidateKey(email), { ...existing, ...saved });
       onComplete?.({ ...existing, ...saved });
-      window.location.replace("/profile");
+      if (!standalone) navigate("/profile", { replace: true });
     } catch (err) {
       if (alive.current)
         setError(err.message || "Unable to save your profile.");
@@ -339,7 +360,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const editing = phase === "edit";
   const name =
     [draft?.first_name, draft?.last_name].filter(Boolean).join(" ") ||
-    "Your career, beautifully told.";
+    "Candidate profile";
   const completed = draft
     ? [
       "first_name",
@@ -357,14 +378,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       id: "personal",
       label: "Personal info",
       icon: UserRound,
-      subtitle: "The person behind the profile",
+      subtitle: "Personal details",
       description: "Your introduction, contact details and professional links.",
     },
     {
       id: "education",
       label: "Education",
       icon: GraduationCap,
-      subtitle: "Where your journey began",
+      subtitle: "Education details",
       description:
         "Your qualifications, institutions and academic achievements.",
     },
@@ -372,14 +393,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       id: "experiences",
       label: "Experience",
       icon: BriefcaseBusiness,
-      subtitle: "The work that shaped you",
+      subtitle: "Work experience",
       description: "Your roles, responsibilities and career milestones.",
     },
     {
       id: "skills",
       label: "Skills",
       icon: Sparkles,
-      subtitle: "What you bring to the table",
+      subtitle: "Professional skills",
       description: "Highlight your strengths and the tools you know best.",
     },
     ...(record?.id
@@ -388,7 +409,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           id: "photo",
           label: "Profile photo",
           icon: Camera,
-          subtitle: "Put a face to your story",
+          subtitle: "Profile photograph",
           description: "Personalize your saved profile with a photo.",
         },
       ]
@@ -413,14 +434,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     setPhase(record ? "view" : "upload");
     setSection("personal");
     setError("");
-    setNotice("");
   };
   return (
     <main
+      ref={pageRef}
       className={
         standalone
-          ? "min-h-dvh bg-[#faf9f6] bg-[radial-gradient(ellipse_at_50%_22%,#eeebfb66,transparent_52%)] px-[18px] pb-[30px] text-[#24222b] sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
-          : "min-h-full bg-slate-50/70 px-4 py-6 sm:px-8 sm:py-8"
+          ? "candidate-onboarding min-h-dvh bg-[var(--ob-page)] px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
+          : "candidate-onboarding min-h-full bg-slate-50/70 px-4 py-6 sm:px-8 sm:py-8"
       }
     >
 
@@ -433,7 +454,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
-                Career space
+                Candidate profile
               </p>
               <h1 className="mt-1 text-xl font-semibold tracking-tight text-slate-900">
                 My profile
@@ -443,48 +464,11 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
               <ShieldCheck size={14} className="text-emerald-500" />
               {record?.id
                 ? "Profile saved"
-                : "Your next opportunity starts here"}
+                : "Complete your profile"}
             </span>
           </div>
         )}
-        {error && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-          >
-            {error}
-            {phase === "error" && (
-              <button
-                onClick={() => setRetry((value) => value + 1)}
-                className="ml-4 font-semibold underline"
-              >
-                Retry lookup
-              </button>
-            )}
-          </div>
-        )}
-        {notice && (
-          <div
-            role="status"
-            className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-          >
-            <CheckCircle2 size={17} className="shrink-0" />
-            <span className="flex-1">{notice}</span>
-            {record?.id && !draft?.profile_image && !editing && (
-              <button
-                onClick={() => {
-                  setPhase("edit");
-                  setSection("photo");
-                  setNotice("");
-                }}
-                className="inline-flex items-center gap-1 font-semibold"
-              >
-                Add photo
-                <ArrowRight size={15} />
-              </button>
-            )}
-          </div>
-        )}
+        {phase === "error" && error && <div className="ob-surface p-6 text-center"><p className="ob-muted text-sm">Your profile could not be loaded.</p><button onClick={() => setRetry(value => value + 1)} className="ob-primary mt-4">Retry lookup</button></div>}
         {phase === "loading" && (
           <LoadingPage />
         )}
@@ -514,11 +498,11 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
               setRelated({});
               setSection("personal");
               setPhase("view");
-              setNotice(
+              toast.success(
                 "Your profile is ready. You can update your details anytime.",
               );
               onComplete?.(saved);
-              window.location.replace("/profile");
+              if (!standalone) navigate("/profile", { replace: true });
             }}
           />
         )}
@@ -536,9 +520,11 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
             <ResumeUpload
               email={email}
               file={file}
-              panNumber={panNumber}
+              governmentIdType={governmentIdType}
+              governmentIdNumber={governmentIdNumber}
               stage={stage}
-              onPanChange={setPanNumber}
+              onIdTypeChange={type => { setGovernmentIdType(type); setGovernmentIdNumber(""); }}
+              onIdNumberChange={setGovernmentIdNumber}
               onStageChange={setStage}
               onFileChange={selectResume}
               onBack={() => { setError(""); setPhase("welcome"); }}
@@ -552,7 +538,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                 <div className="absolute -right-10 -top-44 h-96 w-96 rounded-full border-[48px] border-white/5" />
                 <div className="absolute right-52 top-8 h-56 w-56 rounded-full border border-white/10" />
                 <span className="absolute left-6 top-6 text-[10px] font-medium uppercase tracking-[0.25em] text-white/70 sm:left-8">
-                  Your story. Your next chapter.
+                  Candidate profile
                 </span>
               </div>
               <div className="relative px-6 pb-6 sm:px-8">
@@ -579,7 +565,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                         {name}
                       </h2>
                       <p className="mt-1 text-sm text-slate-500">
-                        {draft.current_designation || "Ready for what's next"}
+                        {draft.current_designation || "Professional title not added"}
                       </p>
                     </div>
                   </div>
@@ -588,7 +574,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                       className={secondaryButton}
                       onClick={() => {
                         setPhase("edit");
-                        setNotice("");
                       }}
                     >
                       <span className="flex items-center gap-2">
@@ -719,9 +704,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                         onUploaded={(url, uploadedFile) => {
                           setPhotoFile(uploadedFile);
                           setDraft((prev) => ({ ...prev, profile_image: url }));
-                          setNotice(
-                            "Photo uploaded. Save your profile to apply it.",
-                          );
                         }}
                       />
                     ) : (

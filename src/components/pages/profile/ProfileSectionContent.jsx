@@ -1,11 +1,12 @@
 import { BriefcaseBusiness, GraduationCap, Sparkles } from "lucide-react";
 import { candidateFields, relatedFields } from "./candidateApi";
+import { ABOUT_MIN_LENGTH, localToday, normalizeProfileUrl, requiredPersonalFields } from "./onboardingValidation";
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-50 read-only:text-slate-500";
 const personalGroups = [
   {
-    title: "The essentials",
+    title: "Personal information",
     keys: [
       "first_name",
       "last_name",
@@ -16,7 +17,7 @@ const personalGroups = [
     ],
   },
   {
-    title: "Where you're based",
+    title: "Address",
     keys: [
       "primary_address_street",
       "primary_address_city",
@@ -26,7 +27,7 @@ const personalGroups = [
     ],
   },
   {
-    title: "Your professional introduction",
+    title: "Professional information",
     keys: [
       "title",
       "current_designation",
@@ -72,7 +73,7 @@ export default function ProfileSectionContent({
                       className="mb-2 block text-xs font-medium text-slate-500"
                     >
                       {candidateFields[key]}
-                      {editing && key === "last_name" && (
+                      {editing && Object.hasOwn(requiredPersonalFields, key) && (
                         <span className="text-indigo-500"> *</span>
                       )}
                     </label>
@@ -81,7 +82,10 @@ export default function ProfileSectionContent({
                         <textarea
                           id={`profile-${key}`}
                           rows={4}
-                          placeholder="A few words about your experience, strengths and ambitions."
+                          required
+                          minLength={ABOUT_MIN_LENGTH}
+                          aria-describedby="profile-description-hint"
+                          placeholder="Describe your professional background, key skills, and career interests."
                           value={draft[key]}
                           onChange={(event) =>
                             setDraft((prev) => ({
@@ -105,8 +109,10 @@ export default function ProfileSectionContent({
                                     ? "tel"
                                     : "text"
                           }
-                          required={key === "last_name" || key === "email1"}
+                          required={Object.hasOwn(requiredPersonalFields, key)}
+                          max={key === "dob" ? localToday() : undefined}
                           readOnly={key === "email1"}
+                          inputMode={key.endsWith("_url") ? "url" : undefined}
                           value={draft[key]}
                           onChange={(event) =>
                             setDraft((prev) => ({
@@ -114,6 +120,10 @@ export default function ProfileSectionContent({
                               [key]: event.target.value,
                             }))
                           }
+                          onBlur={key.endsWith("_url") ? (event) => {
+                            const value = normalizeProfileUrl(event.target.value);
+                            setDraft(prev => ({ ...prev, [key]: value }));
+                          } : undefined}
                           className={inputClass}
                         />
                       )
@@ -124,6 +134,7 @@ export default function ProfileSectionContent({
                         )}
                       </p>
                     )}
+                    {editing && key === "description" && <p id="profile-description-hint" className="mt-2 text-xs text-slate-500">Minimum {ABOUT_MIN_LENGTH} characters. {draft.description.trim().length} characters entered.</p>}
                   </div>
                 ))}
             </div>

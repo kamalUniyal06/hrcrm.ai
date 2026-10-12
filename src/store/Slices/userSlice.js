@@ -202,7 +202,9 @@ export const getUser = () => {
             break;
 
           case 401:
-            message = hadSession ? "Your session expired. Please login again." : null;
+            message = hadSession
+              ? "Your session expired. Please login again."
+              : null;
             break;
 
           case 400:
@@ -241,7 +243,6 @@ export const getUser = () => {
 export const logout = () => {
   return async (dispatch, getState) => {
     try {
-      await ensureSystemAlertsAnswered(getState().user.userInfo?.id);
       dispatch(userSlice.actions.logoutRequest());
       const data = await apiRequest({
         endpoint: `${AUTH_URL}?controller=auth`,
@@ -269,8 +270,9 @@ export const logout = () => {
       dispatch(
         userSlice.actions.logoutFailed(
           error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message || "Logout Failed",
+            error?.response?.data?.error ||
+            error?.message ||
+            "Logout Failed",
         ),
       );
     }
@@ -316,7 +318,3 @@ export const selectUserPhase = (state) => state.user.userInfo?.phase;
 export const selectUserStatus = (state) => state.user.userInfo?.status;
 
 export default userSlice.reducer;
-
-
-
-

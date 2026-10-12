@@ -1,6 +1,6 @@
 import { TopNav } from "./components/TopNav";
 import { Sidebar } from "./components/Sidebar";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import DisplayIntro from "./components/DisplayIntro";
@@ -15,12 +15,13 @@ import {
   rememberOnboardingStarted,
 } from "./components/pages/profile/onboardingState";
 import IncrementReminder from "./components/employement/components/IncrementReminder";
+import { resetPageScroll } from "./utils/resetPageScroll";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
     useContext(PageContext);
-  const location = useLocation().pathname.split("/")[2];
-  const pathname = useLocation().pathname;
+  const route = useLocation();
+  const location = route.pathname.split("/")[2];
   const subjectType = useSelector((state) => state.user.userInfo?.subject_type);
   const showFooter = subjectType !== "candidate";
   const mainRef = useRef(null);
@@ -52,15 +53,14 @@ const RootLayout = () => {
   }, [candidate, isPending, isError, onboarding]);
   const hasCandidate = Boolean(candidate?.id);
   useEffect(() => {
-    if (mainRef.current) {
-      mainRef.current.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: "smooth",
-      });
-      mainRef.current.scrollLeft = 0;
-    }
-  }, [pathname]);
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
+    return () => { window.history.scrollRestoration = previous; };
+  }, []);
+  useLayoutEffect(() => {
+    resetPageScroll(mainRef.current);
+    mainRef.current?.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [route.key, onboarding, displayIntro]);
 
   useEffect(() => {
     setActivePage(location);
