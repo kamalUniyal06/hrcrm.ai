@@ -156,6 +156,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     const status = daySummary(records, dateKey(anchor), today, isOnLeave(row, dateKey(anchor))).status;
     if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
     if (overviewFilter === "late") return status === "late";
+    if (overviewFilter === "leave") return status === "leave";
     return true;
   });
   const attendanceDate = dateKey(anchor);
@@ -197,12 +198,14 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       ["On-time days", totals.onTime, Clock3, "text-emerald-700 bg-emerald-50", "all"],
       ["Late days", totals.late, Clock3, "text-amber-600 bg-amber-50", "all"],
       ["No record", totals.missing, Users, "text-slate-600 bg-slate-100", "all"],
+      ["On leave", totals.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "all"],
     ]
     : [
       ["Employees shown", matchingRows.length, Users, "text-indigo-600 bg-indigo-50", "all"],
       ["Checked in", totals.onTime + totals.late, CalendarDays, "text-emerald-700 bg-emerald-50", "checkedIn"],
       ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
       ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
+      ["On leave", totals.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
     ];
 
   function moveWeek(direction) {
@@ -265,8 +268,8 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       </header>
 
       <section
-        aria-label="Weekly attendance overview"
-        className="grid gap-3 sm:grid-cols-4"
+        aria-label="Attendance overview"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
       >
         {overviewItems.map((item) => {
           const [label, count, Icon, color, filter] = item;
