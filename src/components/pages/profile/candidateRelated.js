@@ -1,4 +1,5 @@
 import { normalizeResumeItems } from "./resumeSections.js";
+import { experienceDateForInput } from "./experienceDates.js";
 
 export const candidateRelatedModules = {
   skills: "hrc_skills",
@@ -25,5 +26,12 @@ export async function loadCandidateRelated(request, id, section) {
       || Math.ceil(Number(response.total ?? pagination.total) / (Number(response.per_page ?? pagination.per_page) || 20)) || 1;
     page += 1;
   } while (page <= totalPages);
-  return normalizeResumeItems(records);
+  const items = normalizeResumeItems(records);
+  if (section !== "experiences") return items;
+  return items.map((item) => ({
+    ...item,
+    ...Object.fromEntries(["joining_date", "leaving_date"]
+      .filter((key) => Object.hasOwn(item, key))
+      .map((key) => [key, experienceDateForInput(item[key])])),
+  }));
 }

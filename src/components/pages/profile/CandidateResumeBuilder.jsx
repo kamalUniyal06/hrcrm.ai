@@ -28,18 +28,23 @@ import {
   validateRelatedEntries,
 } from "./onboardingValidation.js";
 import { resetPageScroll } from "../../../utils/resetPageScroll";
+import { educationForOnboarding } from "./educationEntries.js";
 
-const steps = ["Personal details", "Skills", "Experience", "Photo"];
+const steps = ["Personal details", "Skills", "Experience", "Education", "Photo"];
+const stepSections = [null, "skills", "experiences", "education", null];
+const photoStep = steps.length - 1;
 const titles = [
   "Personal details",
   "Skills and proficiency",
   "Work experience",
+  "Education",
   "Profile photograph",
 ];
 const hints = [
   "Review your information and complete all required fields.",
   "Add your skills. You can include how long you have used each one.",
   "Add employment dates for each role, or confirm that you have no work experience yet.",
+  "Review education from your resume, or add your qualifications manually.",
   "Upload a photograph, or complete registration and add one later.",
 ];
 const personalGroups = [
@@ -95,6 +100,35 @@ const relatedFields = {
     leaving_date: "End date",
     description: "Responsibilities and achievements",
   },
+  education: {
+    name: "Education title",
+    qualification: "Degree / qualification",
+    institution: "Institution",
+    university: "University",
+    school: "School / college",
+    board: "Board",
+    specialization: "Field of study / specialization",
+    percentage: "Percentage / grade",
+    from_time: "Start year / date",
+    to_time: "End year / date",
+    status: "Completion status",
+    description: "Academic achievements and details",
+  },
+};
+const entryLabels = {
+  skills: "skill",
+  experiences: "experience",
+  education: "education",
+};
+const emptyTitles = {
+  skills: "No skills added",
+  experiences: "No work experience added",
+  education: "No education added",
+};
+const emptyHints = {
+  skills: "Add a skill below, or continue if you have none to add.",
+  experiences: "Add a role below, or confirm that you have no work experience yet.",
+  education: "Add your education below, or continue if you have none to add.",
 };
 
 export default function CandidateResumeBuilder({
@@ -108,7 +142,12 @@ export default function CandidateResumeBuilder({
     normalizeCandidate(candidate || {}, email),
   );
   const [step, setStep] = useState(0);
-  const [items, setItems] = useState({ skills: [], experiences: [] });
+  const [items, setItems] = useState({
+    skills: [],
+    experiences: [],
+    education: [],
+  });
+  const resumeDescription = useRef(candidate?.description || "");
   const [noExperience, setNoExperience] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
   const [entryError, setEntryError] = useState(null);
@@ -123,7 +162,7 @@ export default function CandidateResumeBuilder({
     resetPageScroll(page.current);
     heading.current?.focus({ preventScroll: true });
   }, [step]);
-  const section = step === 1 ? "skills" : "experiences";
+  const section = stepSections[step];
   const updateEntry = (index, key, value) => {
     setEntryError(null);
     setItems((prev) => ({
@@ -134,13 +173,19 @@ export default function CandidateResumeBuilder({
     }));
   };
   const loadStep = async (next, id) => {
-    const key = next === 1 ? "skills" : next === 2 ? "experiences" : null;
+    const key = stepSections[next];
     if (key && !loaded.current[key]) {
       const rows = await fetchCandidateRelated(id, key);
       rows.forEach((row) => {
         originals.current[row.id] = { ...row };
       });
-      setItems((prev) => ({ ...prev, [key]: rows }));
+      setItems((prev) => ({
+        ...prev,
+        [key]:
+          key === "education"
+            ? educationForOnboarding(rows, resumeDescription.current)
+            : rows,
+      }));
       loaded.current[key] = true;
     }
     setFieldErrors({});
@@ -157,7 +202,7 @@ export default function CandidateResumeBuilder({
   const saveStep = async (event) => {
     event.preventDefault();
     if (lock.current || photoBusy) return;
-    if (step === 0 || step === 3) {
+    if (step === 0 || step === photoStep) {
       const errors = validatePersonalDetails(draft);
       if (Object.keys(errors).length) {
         setFieldErrors(errors);
@@ -189,7 +234,7 @@ export default function CandidateResumeBuilder({
     setBusy(true);
     try {
       let current = record;
-      if (step === 0 || step === 3) {
+      if (step === 0 || step === photoStep) {
         current ||= await findCandidate(email);
         const saved = await saveCandidate(
           current?.id,
@@ -229,7 +274,7 @@ export default function CandidateResumeBuilder({
           }));
         }
       }
-      if (step === 3) onComplete(current);
+      if (step === photoStep) onComplete(current);
       else {
         await loadStep(step + 1, current.id);
         toast.success(`${steps[step]} saved.`);
@@ -339,21 +384,23 @@ export default function CandidateResumeBuilder({
   return (
     <section ref={page} className="mx-auto max-w-3xl pb-6 pt-5 sm:pt-8">
       <div className="mb-5 flex items-center justify-between gap-4">
-        <button
-          type="button"
-          disabled={busy || photoBusy}
-          onClick={onBack}
-          className="ob-muted flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium"
-        >
-          <ArrowLeft size={16} /> Back to options
-        </button>
-        <span className="ob-muted text-sm">
+        {onBack && (
+          <button
+            type="button"
+            disabled={busy || photoBusy}
+            onClick={onBack}
+            className="ob-muted flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium"
+          >
+            <ArrowLeft size={16} /> Back to options
+          </button>
+        )}
+        <span className="ob-muted ml-auto text-sm">
           Step {step + 1} of {steps.length}
         </span>
       </div>
       <ol
         aria-label="Profile setup steps"
-        className="mb-7 grid grid-cols-4 gap-2 sm:gap-4"
+        className="mb-7 grid grid-cols-5 gap-2 sm:gap-4"
       >
         {steps.map((label, index) => (
           <li key={label} aria-current={step === index ? "step" : undefined}>
@@ -361,10 +408,10 @@ export default function CandidateResumeBuilder({
               className={`mb-2 h-1 rounded-full ${index <= step ? "bg-[var(--ob-accent)]" : "bg-[var(--ob-line)]"}`}
             />
             <span
-              className={`flex items-center gap-1 text-xs leading-5 ${step === index ? "font-semibold text-[var(--ob-accent)]" : "ob-muted"}`}
+              className={`flex items-center gap-1 text-[10px] leading-4 sm:text-xs sm:leading-5 ${step === index ? "font-semibold text-[var(--ob-accent)]" : "ob-muted"}`}
             >
               {index < step && (
-                <Check size={13} className="shrink-0" aria-label="Completed" />
+                <Check size={13} className="hidden shrink-0 sm:block" aria-label="Completed" />
               )}
               {label}
             </span>
@@ -381,13 +428,13 @@ export default function CandidateResumeBuilder({
             {titles[step]}
           </h1>
           <p className="ob-muted mt-2 text-sm leading-6">{hints[step]}</p>
-          {step !== 3 && (
+          {step !== photoStep && (
             <p className="ob-muted mt-3 text-xs">
               Fields marked <span className="ob-required">*</span> are required.
             </p>
           )}
         </header>
-        {step === 3 && (
+        {step === photoStep && (
           <CandidatePhotoUpload
             embedded
             initialEmail={email}
@@ -435,19 +482,15 @@ export default function CandidateResumeBuilder({
                 ))}
               </>
             )}
-            {(step === 1 || step === 2) && (
+            {section && (
               <div className="space-y-4">
                 {!items[section].length && (
                   <div className="rounded-xl bg-[var(--ob-page)] p-5">
                     <h2 className="text-sm font-semibold">
-                      {step === 1
-                        ? "No skills added"
-                        : "No work experience added"}
+                      {emptyTitles[section]}
                     </h2>
                     <p className="ob-help">
-                      {step === 1
-                        ? "Add a skill below, or continue if you have none to add."
-                        : "Add a role below, or confirm that you have no work experience yet."}
+                      {emptyHints[section]}
                     </p>
                   </div>
                 )}
@@ -479,20 +522,25 @@ export default function CandidateResumeBuilder({
                       <span className="min-w-0 flex-1">
                         <span className="block break-words text-sm font-semibold">
                           {row.name ||
-                            (step === 1 ? "New skill" : "New experience")}
+                            `New ${entryLabels[section]}`}
                         </span>
                         <span className="ob-muted mt-1 block text-xs">
-                          {step === 1
-                            ? row.total_years_total_months ||
-                              "Duration not provided"
-                            : [
-                                row.company_name,
-                                row.joining_date &&
-                                  `${row.joining_date} to ${row.currentlyWorking ? "present" : row.leaving_date || "end date required"}`,
-                              ]
-                                .filter(Boolean)
-                                .join(" / ") ||
-                              "Add role details and employment dates"}
+                          {section === "education"
+                            ? [
+                                row.qualification,
+                                row.institution || row.university || row.school,
+                                [row.from_time, row.to_time].filter(Boolean).join(" to "),
+                              ].filter(Boolean).join(" / ") || "Add your qualification and institution"
+                            : step === 1
+                              ? row.total_years_total_months || "Duration not provided"
+                              : [
+                                  row.company_name,
+                                  row.joining_date &&
+                                    `${row.joining_date} to ${row.currentlyWorking ? "present" : row.leaving_date || "end date required"}`,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" / ") ||
+                                "Add role details and employment dates"}
                         </span>
                       </span>
                       <ChevronDown
@@ -566,7 +614,7 @@ export default function CandidateResumeBuilder({
                                     min={
                                       key === "leaving_date"
                                         ? row.joining_date || undefined
-                                        : undefined
+                                            : undefined
                                     }
                                     max={
                                       key.endsWith("_date")
@@ -576,6 +624,10 @@ export default function CandidateResumeBuilder({
                                     placeholder={
                                       key === "total_years_total_months"
                                         ? "For example, 2 years 6 months"
+                                        : key === "from_time"
+                                          ? "For example, 2018"
+                                          : key === "to_time"
+                                            ? "For example, 2022 or Present"
                                         : undefined
                                     }
                                     className="ob-input disabled:opacity-50"
@@ -664,7 +716,7 @@ export default function CandidateResumeBuilder({
                     }));
                   }}
                 >
-                  <Plus size={16} /> Add {step === 1 ? "skill" : "experience"}
+                  <Plus size={16} /> Add {entryLabels[section]}
                 </button>
               </div>
             )}
@@ -685,7 +737,7 @@ export default function CandidateResumeBuilder({
         </button>
         <div className="flex flex-wrap items-center gap-3">
           <span className="ob-muted hidden text-xs sm:block">
-            {step === 3
+            {step === photoStep
               ? "Photo is optional"
               : "Changes save when you continue"}
           </span>
@@ -705,7 +757,7 @@ export default function CandidateResumeBuilder({
               </>
             ) : (
               <>
-                {step === 3 ? "Complete registration" : "Save and continue"}
+                {step === photoStep ? "Complete registration" : "Save and continue"}
                 <ArrowRight size={16} />
               </>
             )}

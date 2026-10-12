@@ -39,6 +39,12 @@ Retain historical `New Candidate -> Direct` records. The new form no longer offe
 
 ## Validation rules
 
+Both manual registration and resume review use five steps: Personal details, Skills, Experience, Education, and Photo. Education loads the candidate's `hrc_education` relationship for review and editing. If there are no linked education records, it falls back to the education section embedded in the candidate's resume description. Linked records take precedence to avoid duplicating parsed education. New education entries are created using the existing candidate relationship field; existing entries are updated by ID.
+
+After a successful resume parse, Personal details becomes the starting point. The form hides Back to options and records a candidate-specific `resume-pending` UI preference, so reloading opens the form directly until registration is completed. Intermediate saves retain this preference. Candidates can still move back between form steps to review their details.
+
+Each added education entry requires an education title. A parsed qualification supplies the title when the name is empty. Degree / qualification, institution, university, school / college, board, specialization, percentage / grade, start and end year / date (`from_time` / `to_time`), status, and description remain editable and optional. Education dates accept the existing text format, including years and Present. Candidates can continue without adding education. No new backend fields are introduced.
+
 Personal details require first name, last name, account email, phone, date of birth, gender, professional title, street address, city, state, postal code, country, and About you. LinkedIn and GitHub URLs remain optional. Profile addresses without a protocol automatically receive `https://` when leaving the field and before saving. About you requires at least 50 characters after trimming whitespace.
 
 Each added skill requires a name; `total_years_total_months` is optional and may be omitted or left blank. Each work experience requires `joining_date` and `leaving_date`, unless the candidate explicitly selects Currently working here. Current employment uses an empty `leaving_date`, preserving the existing API schema; the UI-only checkbox is not sent as a CRM field. Dates cannot be in the future, and the end date cannot precede the start date. Candidates with no roles must explicitly confirm that they have no work experience. This confirmation does not introduce a new CRM field.

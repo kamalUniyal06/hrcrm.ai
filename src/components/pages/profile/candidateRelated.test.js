@@ -2,6 +2,31 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCandidateRelated } from "./candidateRelated.js";
 import { readResumeSections, updateResumeAbout } from "./resumeSections.js";
+import { validateRelatedEntries } from "./onboardingValidation.js";
+
+test("backend experience dates populate date inputs and pass onboarding validation", async () => {
+  const records = [
+    { id: "experience-1", name: "Expelee", joining_date: "01/01/2024", leaving_date: "01/03/2025" },
+    { id: "experience-2", name: "Internship", joining_date: "01/08/2023", leaving_date: "01/12/2023" },
+  ];
+  const result = await loadCandidateRelated(async () => ({ success: true, records }), "candidate-a", "experiences");
+  assert.deepEqual(result, [
+    { ...records[0], joining_date: "2024-01-01", leaving_date: "2025-03-01" },
+    { ...records[1], joining_date: "2023-08-01", leaving_date: "2023-12-01" },
+  ]);
+  assert.equal(validateRelatedEntries("experiences", result), null);
+  assert.equal(records[0].leaving_date, "01/03/2025");
+});
+
+test("blank end dates remain blank and other sections keep their original date text", async () => {
+  const records = [{ id: "experience-current", name: "Developer", joining_date: "01/03/2025", leaving_date: "" }];
+  const request = async () => ({ success: true, records });
+  const result = await loadCandidateRelated(request, "candidate-a", "experiences");
+  assert.equal(result[0].joining_date, "2025-03-01");
+  assert.equal(result[0].leaving_date, "");
+  assert.equal(validateRelatedEntries("experiences", [{ ...result[0], currentlyWorking: true }]), null);
+  assert.deepEqual(await loadCandidateRelated(request, "candidate-a", "education"), records);
+});
 
 test("each profile section fetches only the selected candidate's CRM relationship", async () => {
   for (const [section, module] of [["skills", "hrc_skills"], ["experiences", "hrc_experience"], ["education", "hrc_education"]]) {

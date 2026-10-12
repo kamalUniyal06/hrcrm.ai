@@ -9,7 +9,7 @@ export default function CandidateWelcome({ onUpload, onCreate }) {
           Create your candidate profile
         </h1>
         <p className="ob-muted mt-4 text-sm leading-7">
-          Add your contact details, skills, and work experience so our
+          Add your contact details, skills, work experience, and education so our
           recruitment team can review your application.
         </p>
       </header>
@@ -57,7 +57,7 @@ export default function CandidateWelcome({ onUpload, onCreate }) {
             Create profile <ArrowRight size={16} aria-hidden="true" />
           </span>
           <span className="ob-muted mt-3 text-xs">
-            Personal details, skills, experience, and photo
+            Personal details, skills, experience, education, and photo
           </span>
         </button>
       </div>

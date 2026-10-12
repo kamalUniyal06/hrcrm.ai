@@ -131,7 +131,7 @@ export function validateRelatedEntries(section, rows, noExperience = false) {
       return {
         index,
         field: "name",
-        message: `Enter a ${section === "skills" ? "skill" : "role / job title"} for entry ${index + 1}.`,
+        message: `Enter ${section === "education" ? "an education title" : section === "skills" ? "a skill" : "a role / job title"} for entry ${index + 1}.`,
       };
     if (section === "experiences") {
       if (!row.joining_date)

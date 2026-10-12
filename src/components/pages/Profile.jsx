@@ -27,9 +27,10 @@ import CandidatePhotoUpload from "./profile/CandidatePhotoUpload";
 import CandidateWelcome from "./profile/CandidateWelcome";
 import CandidateResumeBuilder from "./profile/CandidateResumeBuilder";
 import {
-  needsOnboarding,
+  candidateProfileStartPhase,
+  hasParsedResume,
   rememberOnboardingComplete,
-  rememberOnboardingStarted,
+  rememberResumeParsed,
 } from "./profile/onboardingState";
 import {
   candidateRelatedModules,
@@ -74,20 +75,14 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const cachedCandidate = queryClient.getQueryData(candidateKey(email));
   const userPhase = useSelector((state) => state.user.userInfo?.phase);
   const [section, setSection] = useState("personal");
-  const cancelled = useRef(false);
   const [record, setRecord] = useState(cachedCandidate ?? null);
   const [draft, setDraft] = useState(
     cachedCandidate ? normalizeCandidate(cachedCandidate, email) : null,
   );
-  const [phase, setPhase] = useState(
-    cachedCandidate
-      ? needsOnboarding(cachedCandidate)
-        ? "welcome"
-        : jobId
-          ? "upload"
-          : "view"
-      : "loading",
-  );
+  const [phase, setPhase] = useState(() => cachedCandidate
+    ? candidateProfileStartPhase(cachedCandidate, jobId)
+    : "loading");
+  const [resumeReview, setResumeReview] = useState(() => hasParsedResume(cachedCandidate));
   const [busy, setBusy] = useState(false);
   const [parsingPhase, setParsingPhase] = useState("processing");
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -154,7 +149,8 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (cached !== undefined) {
       setRecord(cached);
       setDraft(cached ? normalizeCandidate(cached, email) : null);
-      setPhase(needsOnboarding(cached) ? "welcome" : jobId ? "upload" : "view");
+      setResumeReview(hasParsedResume(cached));
+      setPhase(candidateProfileStartPhase(cached, jobId));
       setError("");
       return () => {
         active = false;
@@ -169,8 +165,8 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         if (!active) return;
         setRecord(candidate);
         setDraft(candidate ? normalizeCandidate(candidate, email) : null);
-        const isNew = needsOnboarding(candidate);
-        setPhase(isNew ? "welcome" : jobId ? "upload" : "view");
+        setResumeReview(hasParsedResume(candidate));
+        setPhase(candidateProfileStartPhase(candidate, jobId));
       })
       .catch((err) => {
         if (active) {
@@ -227,7 +223,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       return;
     }
     setBusy(true);
-    cancelled.current = false;
     setParsingPhase("processing");
     const controller = new AbortController();
     requestRef.current = controller;
@@ -261,16 +256,17 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           json?.message ||
           "Unable to parse this resume. Please try another file.",
         );
-      if (!cancelled.current && alive.current) setParsingPhase("fetching");
+      if (!controller.signal.aborted && alive.current) setParsingPhase("fetching");
       const candidate = await findCandidate(email);
       if (!candidate)
         throw new Error(
           "Resume parsed, but your candidate profile is not available yet. Reload your profile to retry the lookup.",
         );
       if (!alive.current) return;
-      if (cancelled.current || controller.signal.aborted) return;
+      if (controller.signal.aborted) return;
       const parsed = normalizeCandidate(candidate, email);
-      if (standalone) rememberOnboardingStarted(candidate);
+      rememberResumeParsed(candidate);
+      setResumeReview(true);
       setRecord(candidate);
       relatedCache.current = {};
       setRelated({});
@@ -281,7 +277,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         "Resume parsed. Review and edit your details, then save your profile.",
       );
     } catch (err) {
-      if (alive.current && !cancelled.current)
+      if (alive.current)
         setError(
           err.name === "AbortError"
             ? "Resume parsing timed out. Please try again."
@@ -488,7 +484,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           <CandidateResumeBuilder
             email={email}
             candidate={record}
-            onBack={() => setPhase("welcome")}
+            onBack={resumeReview ? undefined : () => setPhase("welcome")}
             onComplete={(saved) => {
               rememberOnboardingComplete(saved);
               queryClient.setQueryData(candidateKey(email), saved);
@@ -511,10 +507,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
             <ResumeLoading
               filename={file?.name}
               phase={parsingPhase}
-              onCancel={() => {
-                cancelled.current = true;
-                requestRef.current?.abort();
-              }}
             />
           ) : (
             <ResumeUpload
