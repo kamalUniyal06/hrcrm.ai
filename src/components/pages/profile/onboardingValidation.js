@@ -177,3 +177,10 @@ export function validateRelatedEntries(section, rows, noExperience = false) {
   }
   return null;
 }
+
+export function validateProfilePhoto(draft) {
+  if (!/^https?:\/\/.+/i.test(String(draft?.profile_image || "").trim()))
+    return "Upload or take a profile photo before completing registration.";
+  return "";
+}
+

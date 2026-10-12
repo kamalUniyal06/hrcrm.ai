@@ -1,25 +1,137 @@
 import { useEffect, useRef, useState } from "react";
-import { Camera, Loader2, Upload } from "lucide-react";
+import { AnimatePresence, motion as Motion, useReducedMotion } from "framer-motion";
+import { Camera, Check, ImagePlus, Loader2, Mail, Upload } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../../store/constants";
 import { crmFetch } from "../../../services/crmClient";
 import { toast } from "react-hot-toast";
 
+function PhotoUploadIllustration({ active = false, reducedMotion = false }) {
+  const float = (delay = 0) =>
+    reducedMotion
+      ? undefined
+      : {
+          y: [0, -5, 0],
+          transition: {
+            duration: 3.8,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay,
+          },
+        };
+
+  return (
+    <svg
+      viewBox="0 0 200 120"
+      fill="none"
+      aria-hidden="true"
+      focusable="false"
+      className="mx-auto w-full max-w-[170px] overflow-visible select-none"
+    >
+      <ellipse
+        cx="100"
+        cy="108"
+        rx="50"
+        ry="7"
+        fill="var(--ob-line)"
+        opacity=".35"
+      />
+      <Motion.g
+        animate={
+          reducedMotion
+            ? undefined
+            : active
+              ? { y: -4, scale: 1.04 }
+              : float(0)
+        }
+        transition={{ duration: 0.2 }}
+      >
+        <rect
+          x="56"
+          y="14"
+          width="74"
+          height="78"
+          rx="14"
+          fill="var(--ob-soft)"
+          stroke={active ? "var(--ob-accent)" : "var(--ob-line)"}
+          strokeWidth="1.5"
+          strokeDasharray="3 3"
+        />
+        <rect
+          x="64"
+          y="10"
+          width="74"
+          height="78"
+          rx="14"
+          fill="var(--ob-surface)"
+          stroke="var(--ob-accent)"
+          strokeOpacity={active ? ".85" : ".45"}
+          strokeWidth="1.6"
+        />
+        <circle cx="101" cy="40" r="13" fill="var(--ob-soft)" />
+        <circle cx="101" cy="37" r="5" fill="var(--ob-accent)" opacity=".85" />
+        <path
+          d="M89 51c0-8 24-8 24 0"
+          fill="var(--ob-accent)"
+          opacity=".55"
+        />
+        <path
+          d="M82 66h38M88 73h26"
+          stroke="var(--ob-line)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
+      </Motion.g>
+      <Motion.g animate={float(0.8)}>
+        <rect
+          x="130"
+          y="58"
+          width="32"
+          height="26"
+          rx="8"
+          fill="var(--ob-accent)"
+        />
+        <circle
+          cx="146"
+          cy="71"
+          r="5"
+          stroke="var(--ob-surface)"
+          strokeWidth="2"
+        />
+        <path
+          d="M141 62h10"
+          stroke="var(--ob-surface)"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </Motion.g>
+    </svg>
+  );
+}
+
 export default function CandidatePhotoUpload({
   initialEmail = "",
+  initialPhotoUrl = "",
   lockedEmail = false,
   disabled = false,
   embedded = false,
   onUploaded,
   onBusyChange,
 }) {
+  const reducedMotion = useReducedMotion();
+  const fileInputRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
   const [email, setEmail] = useState(initialEmail);
   const [photo, setPhoto] = useState(null);
-  const [preview, setPreview] = useState("");
+  const [preview, setPreview] = useState(initialPhotoUrl);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const setError = message => { if (message) toast.error(message); };
-  const [uploaded, setUploaded] = useState(null);
+  const setError = (message) => {
+    if (message) toast.error(message);
+  };
+  const [uploaded, setUploaded] = useState(() =>
+    initialPhotoUrl ? { image_url: initialPhotoUrl } : null,
+  );
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const previewRef = useRef("");
@@ -166,7 +278,9 @@ export default function CandidatePhotoUpload({
         );
       onUploaded?.(imageUrl, photo);
       setUploaded(json);
-      toast.success("Photo uploaded. Complete registration or save your profile to apply it.");
+      toast.success(
+        "Photo uploaded. Complete registration or save your profile to apply it.",
+      );
     } catch (err) {
       setError(
         err.name === "AbortError"
@@ -182,29 +296,35 @@ export default function CandidatePhotoUpload({
   };
 
   const buttonClass =
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--ob-line)] px-4 py-2 text-sm font-medium hover:bg-[var(--ob-soft)] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--ob-line)] bg-[var(--ob-surface)] px-3.5 py-2 text-sm font-semibold transition-colors hover:border-[var(--ob-accent)] hover:bg-[var(--ob-soft)] disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <section className={embedded ? "" : "ob-surface p-6"}>
-      {!embedded && <><h2 className="text-lg font-semibold">
-        Add your profile photo
-      </h2>
-      <p className="ob-muted mt-1 text-sm">
-        Choose a photo or take one with your camera, then upload it.
-      </p></>}
+    <section className={embedded ? "" : "ob-surface p-5"}>
+      {!embedded && (
+        <>
+          <h2 className="text-lg font-semibold">Add your profile photo</h2>
+          <p className="ob-muted mt-1 text-sm">
+            Choose a photo or take one with your camera, then upload it.
+          </p>
+        </>
+      )}
       <form
         onSubmit={uploadPhoto}
-        className={embedded ? "space-y-5" : "mt-5 space-y-5"}
+        className={embedded ? "space-y-4" : "mt-4 space-y-4"}
         aria-busy={uploading}
       >
-        <fieldset disabled={disabled} className="space-y-5">
-          <div className="max-w-md">
-            <label
-              htmlFor="candidate-photo-email"
-              className="mb-2 block text-sm font-medium text-slate-700"
-            >
-              Candidate email
-            </label>
+        <fieldset disabled={disabled} className="space-y-4">
+          <div className="rounded-xl border border-[var(--ob-line)] bg-[var(--ob-page)] p-3.5">
+            <div className="flex items-center gap-2">
+              <Mail
+                size={14}
+                className="text-[var(--ob-accent)]"
+                aria-hidden="true"
+              />
+              <label htmlFor="candidate-photo-email" className="ob-label">
+                Candidate email <span className="ob-required">*</span>
+              </label>
+            </div>
             <input
               id="candidate-photo-email"
               type="email"
@@ -217,86 +337,195 @@ export default function CandidatePhotoUpload({
                 setUploaded(null);
               }}
               placeholder="you@example.com"
-              className="ob-input"
+              className="ob-input !bg-[var(--ob-surface)]"
             />
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="ob-help">
               Use the email associated with your candidate profile.
             </p>
           </div>
-          <div>
-            <label
-              htmlFor="candidate-photo"
-              className="mb-2 block text-sm font-medium text-slate-700"
-            >
-              Choose a photo (JPG, PNG, or WebP)
-            </label>
-            <input
-              id="candidate-photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              disabled={uploading}
-              className="ob-input block file:mr-3 file:rounded-md file:border-0 file:bg-[var(--ob-soft)] file:px-3 file:py-2 file:text-[var(--ob-accent)]"
-              onChange={(event) => {
-                selectPhoto(event.target.files?.[0]);
-                event.target.value = "";
-              }}
-            />
-          </div>
-          {!cameraOpen && (
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={startCamera}
-              className={buttonClass}
-            >
-              <Camera size={17} />
-              Take a photo
-            </button>
-          )}
-          {cameraOpen && (
-            <div className="max-w-md space-y-3">
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="aspect-video w-full rounded-xl bg-slate-900 object-cover"
-                aria-label="Camera preview"
-              />
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={takePhoto}
-                  disabled={!cameraReady}
-                  className={buttonClass}
+
+          <input
+            ref={fileInputRef}
+            id="candidate-photo"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            disabled={uploading}
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(event) => {
+              selectPhoto(event.target.files?.[0]);
+              event.target.value = "";
+            }}
+          />
+
+          <AnimatePresence mode="wait" initial={false}>
+            {cameraOpen ? (
+              <Motion.div
+                key="camera"
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.16 }}
+                className="rounded-xl border border-[var(--ob-line)] bg-[var(--ob-page)] p-4"
+              >
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="mx-auto aspect-video w-full max-w-md rounded-xl border border-[var(--ob-line)] bg-slate-900 object-cover"
+                  aria-label="Camera preview"
+                />
+                <div className="mt-3 flex flex-wrap justify-center gap-2.5">
+                  <button
+                    type="button"
+                    onClick={takePhoto}
+                    disabled={!cameraReady}
+                    className="ob-primary"
+                  >
+                    <Camera size={16} />
+                    Capture photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className={buttonClass}
+                  >
+                    Cancel camera
+                  </button>
+                </div>
+              </Motion.div>
+            ) : preview ? (
+              <Motion.div
+                key="preview"
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.16 }}
+                className="flex flex-col items-center gap-4 rounded-xl border border-[var(--ob-line)] bg-[var(--ob-page)] p-4 sm:flex-row"
+              >
+                <div className="relative shrink-0">
+                  <img
+                    key={preview}
+                    src={preview}
+                    alt={
+                      uploaded
+                        ? "Uploaded candidate photo"
+                        : "Selected candidate photo preview"
+                    }
+                    className="h-24 w-24 rounded-2xl border-2 border-[var(--ob-accent)] object-cover shadow-xs"
+                  />
+                  {uploaded && (
+                    <span className="absolute -bottom-1.5 -right-1.5 grid size-6 place-items-center rounded-full bg-[var(--ob-accent)] text-[var(--ob-surface)] shadow-xs">
+                      <Check size={13} />
+                    </span>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1 text-center sm:text-left">
+                  <p className="break-all text-sm font-semibold text-[var(--ob-accent)]">
+                    {photo?.name || "Profile photo"}
+                  </p>
+                  <p className="ob-muted mt-0.5 text-xs">
+                    {uploaded
+                      ? "Photo uploaded and linked to your profile."
+                      : "Ready to upload. Click Upload photo below to apply it."}
+                  </p>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={buttonClass}
+                    >
+                      <ImagePlus size={15} />
+                      Change photo
+                    </button>
+                    <button
+                      type="button"
+                      disabled={uploading}
+                      onClick={startCamera}
+                      className={buttonClass}
+                    >
+                      <Camera size={15} />
+                      Take a photo
+                    </button>
+                  </div>
+                </div>
+              </Motion.div>
+            ) : (
+              <Motion.div
+                key="dropzone"
+                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.16 }}
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (!dragging) setDragging(true);
+                }}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setDragging(false);
+                  }
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  selectPhoto(event.dataTransfer.files?.[0]);
+                }}
+                className={`ob-choice flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-6 text-center ${
+                  dragging
+                    ? "border-[var(--ob-accent)] bg-[var(--ob-soft)]"
+                    : "border-[var(--ob-line)] bg-[var(--ob-page)]"
+                }`}
+              >
+                <PhotoUploadIllustration
+                  active={dragging}
+                  reducedMotion={reducedMotion}
+                />
+                <label
+                  htmlFor="candidate-photo"
+                  onClick={(event) => event.stopPropagation()}
+                  className="mt-1.5 cursor-pointer text-sm font-medium"
                 >
-                  Capture photo
-                </button>
-                <button
-                  type="button"
-                  onClick={stopCamera}
-                  className={buttonClass}
-                >
-                  Cancel camera
-                </button>
-              </div>
-            </div>
-          )}
-          {preview && !cameraOpen && (
-            <div className="flex items-center gap-4">
-              <img
-                key={preview}
-                src={preview}
-                alt={
-                  uploaded
-                    ? "Uploaded candidate photo"
-                    : "Selected candidate photo preview"
-                }
-                className="h-28 w-28 rounded-xl border border-slate-200 object-cover"
-              />
-              <p className="break-all text-sm text-slate-500">{photo.name}</p>
-            </div>
-          )}
+                  Choose a photo (JPG, PNG, or WebP){" "}
+                  <span className="ob-required">*</span>
+                </label>
+                <p className="ob-help">
+                  Drag and drop an image here, or use one of the options below.
+                </p>
+                <div className="mt-3.5 flex flex-wrap items-center justify-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
+                    className={buttonClass}
+                  >
+                    <ImagePlus size={16} />
+                    Choose from device
+                  </button>
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      startCamera();
+                    }}
+                    className={buttonClass}
+                  >
+                    <Camera size={16} />
+                    Take a photo
+                  </button>
+                </div>
+              </Motion.div>
+            )}
+          </AnimatePresence>
+
           <button
             type="submit"
             disabled={
@@ -324,3 +553,4 @@ export default function CandidatePhotoUpload({
     </section>
   );
 }
+

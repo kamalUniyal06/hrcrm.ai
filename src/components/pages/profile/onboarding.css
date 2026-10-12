@@ -23,9 +23,9 @@
 }
 .candidate-onboarding .ob-input {
   width: 100%;
-  min-height: 44px;
-  margin-top: 8px;
-  padding: 10px 12px;
+  min-height: 40px;
+  margin-top: 5px;
+  padding: 8px 12px;
   border: 1px solid var(--ob-line);
   border-radius: 8px;
   background: var(--ob-surface);
@@ -53,12 +53,12 @@
 }
 .candidate-onboarding .ob-primary {
   display: inline-flex;
-  min-height: 44px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
   gap: 8px;
   border-radius: 8px;
-  padding: 12px 20px;
+  padding: 9px 18px;
   background: var(--ob-accent);
   color: var(--ob-surface);
   font-size: 0.875rem;
@@ -81,10 +81,10 @@
   color: var(--ob-accent);
 }
 .candidate-onboarding .ob-help {
-  margin-top: 8px;
+  margin-top: 4px;
   color: var(--ob-muted);
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  font-size: 0.78125rem;
+  line-height: 1.4;
 }
 .candidate-onboarding .ob-choice {
   transition:
