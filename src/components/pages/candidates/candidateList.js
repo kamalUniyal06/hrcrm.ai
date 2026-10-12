@@ -12,7 +12,12 @@ export function buildCandidateListRequest({
     module: "hrc_candidates",
     filters: {
       employee: 0,
-      ...(shortlistedOnly ? { hrc_stages_id_c_name: "Shortlisted" } : {}),
+      ...(shortlistedOnly ? { hrc_stages_id_c_name: "Shortlisted" } : {
+        // Filter before pagination so totals only include assigned candidates.
+        hrc_stages_id_c: { nin: ["", "Unassigned"] },
+        hrc_phase_id: { nin: ["", "Unassigned"] },
+        hrc_status_id_c: { nin: ["", "Unassigned"] },
+      }),
     },
     order_by: orderBy,
     order_dir: orderDir,
