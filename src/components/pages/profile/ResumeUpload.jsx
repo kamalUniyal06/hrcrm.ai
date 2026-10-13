@@ -1,5 +1,6 @@
 ﻿import { useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, FileText, UploadCloud, X } from "lucide-react";
+import GovernmentDocumentUpload from "./GovernmentDocumentUpload";
 import {
   candidateSources,
   governmentIdError,
@@ -11,6 +12,13 @@ export default function ResumeUpload({
   file,
   governmentIdType,
   governmentIdNumber,
+  governmentDocumentFile,
+  documentScanBusy,
+  documentScanned,
+  documentMatches,
+  documentScanError,
+  onDocumentFileChange,
+  onDocumentScan,
   stage,
   onIdTypeChange,
   onIdNumberChange,
@@ -195,6 +203,16 @@ export default function ResumeUpload({
                 </p>
               </div>
             </div>
+            <GovernmentDocumentUpload
+              label={selectedId.label}
+              file={governmentDocumentFile}
+              scanning={documentScanBusy}
+              scanned={documentScanned}
+              matches={documentMatches}
+              error={documentScanError}
+              onFileChange={onDocumentFileChange}
+              onScan={onDocumentScan}
+            />
             <label htmlFor="resume-source" className="ob-label mt-5">
               How did you find us? <span className="ob-required">*</span>
               <select
@@ -219,7 +237,7 @@ export default function ResumeUpload({
         <div className="mt-7 border-t border-[var(--ob-line)] pt-6">
           <button
             type="submit"
-            disabled={!file || !email}
+            disabled={!file || !email || documentScanBusy || !documentMatches || !!idError}
             className="ob-primary w-full sm:w-auto"
           >
             Upload and review details <ArrowRight size={16} />
@@ -227,6 +245,8 @@ export default function ResumeUpload({
           <p className="ob-help">
             {!file
               ? "Choose a resume to continue."
+              : !documentMatches
+                ? "Scan your government ID and match its number to continue."
               : "You will review your profile before completing registration."}
           </p>
         </div>

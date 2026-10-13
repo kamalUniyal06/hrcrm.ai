@@ -25,6 +25,8 @@ import { FETCH_GPC_X_API_KEY } from "../../store/constants";
 import { crmFetch } from "../../services/crmClient";
 import CandidatePhotoUpload from "./profile/CandidatePhotoUpload";
 import CandidateWelcome from "./profile/CandidateWelcome";
+import OnboardingWelcome from "./profile/OnboardingWelcome";
+import { governmentDocumentFileError, governmentDocumentNumbersMatch, scanGovernmentDocument } from "./profile/governmentDocument.js";
 import CandidateResumeBuilder from "./profile/CandidateResumeBuilder";
 import {
   candidateProfileStartPhase,
@@ -75,6 +77,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const cachedCandidate = queryClient.getQueryData(candidateKey(email));
   const userPhase = useSelector((state) => state.user.userInfo?.phase);
   const [section, setSection] = useState("personal");
+  const [candidateFlowStarted, setCandidateFlowStarted] = useState(false);
   const [record, setRecord] = useState(cachedCandidate ?? null);
   const [draft, setDraft] = useState(
     cachedCandidate ? normalizeCandidate(cachedCandidate, email) : null,
@@ -105,10 +108,71 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const [file, setFile] = useState(null);
   const [governmentIdType, setGovernmentIdType] = useState("pan");
   const [governmentIdNumber, setGovernmentIdNumber] = useState("");
+  const [governmentDocumentFile, setGovernmentDocumentFile] = useState(null);
+  const [documentScan, setDocumentScan] = useState(null);
+  const [documentScanBusy, setDocumentScanBusy] = useState(false);
+  const [documentScanError, setDocumentScanError] = useState("");
+  const documentRequestRef = useRef(null);
+  const documentMatches = Boolean(
+    documentScan?.file === governmentDocumentFile &&
+    documentScan?.type === governmentIdType &&
+    governmentDocumentNumbersMatch(governmentIdType, governmentIdNumber, documentScan?.number),
+  );
+  useEffect(() => () => {
+    documentRequestRef.current?.abort();
+    documentRequestRef.current = null;
+  }, []);
+  const resetDocumentScan = () => {
+    documentRequestRef.current?.abort();
+    documentRequestRef.current = null;
+    setDocumentScanBusy(false);
+    setDocumentScan(null);
+    setDocumentScanError("");
+  };
+  const selectGovernmentDocument = (selected) => {
+    resetDocumentScan();
+    setGovernmentDocumentFile(null);
+    if (!selected) return;
+    const fileError = governmentDocumentFileError(selected);
+    if (fileError) { setDocumentScanError(fileError); return; }
+    setGovernmentDocumentFile(selected);
+  };
+  const scanDocument = async () => {
+    if (documentRequestRef.current) return;
+    const idError = governmentIdError(governmentIdType, governmentIdNumber);
+    if (idError) {
+      setDocumentScanError(idError);
+      document.getElementById("resume-id-number")?.focus();
+      return;
+    }
+    const controller = new AbortController();
+    documentRequestRef.current = controller;
+    setDocumentScanBusy(true);
+    setDocumentScan(null);
+    setDocumentScanError("");
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    try {
+      const number = await scanGovernmentDocument({
+        file: governmentDocumentFile, type: governmentIdType,
+        request: crmFetch, signal: controller.signal, apiKey: FETCH_GPC_X_API_KEY,
+      });
+      if (documentRequestRef.current === controller && !controller.signal.aborted)
+        setDocumentScan({ file: governmentDocumentFile, type: governmentIdType, number });
+    } catch (err) {
+      if (documentRequestRef.current === controller)
+        setDocumentScanError(err.name === "AbortError" ? "Document scanning timed out. Please try again." : err.message);
+    } finally {
+      clearTimeout(timeout);
+      if (documentRequestRef.current === controller) {
+        documentRequestRef.current = null;
+        setDocumentScanBusy(false);
+      }
+    }
+  };
   const [stage, setStage] = useState("");
   const pageRef = useRef(null);
   const uploadProcessing = phase === "upload" && busy;
-  useLayoutEffect(() => { resetPageScroll(pageRef.current); }, [phase, section, uploadProcessing]);
+  useLayoutEffect(() => { resetPageScroll(pageRef.current); }, [phase, section, uploadProcessing, candidateFlowStarted]);
   const [related, setRelated] = useState({});
   const [relatedRetry, setRelatedRetry] = useState(0);
   const relatedCache = useRef({});
@@ -216,6 +280,11 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (idError) {
       setError(idError);
       document.getElementById("resume-id-number")?.focus();
+      return;
+    }
+    if (documentScanBusy || !documentMatches) {
+      setError("Scan your government ID and match its number before uploading your resume.");
+      document.getElementById("government-document-file")?.focus();
       return;
     }
     if (!candidateSources.some(source => source.value === stage)) {
@@ -468,8 +537,12 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         {phase === "loading" && (
           <LoadingPage />
         )}
-        {phase === "welcome" && (
+        {phase === "welcome" && !candidateFlowStarted && (
+          <OnboardingWelcome onCandidate={() => setCandidateFlowStarted(true)} />
+        )}
+        {phase === "welcome" && candidateFlowStarted && (
           <CandidateWelcome
+            onBack={() => setCandidateFlowStarted(false)}
             onUpload={() => {
               setError("");
               setPhase("upload");
@@ -514,12 +587,19 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
               file={file}
               governmentIdType={governmentIdType}
               governmentIdNumber={governmentIdNumber}
+              governmentDocumentFile={governmentDocumentFile}
+              documentScanBusy={documentScanBusy}
+              documentScanned={Boolean(documentScan)}
+              documentMatches={documentMatches}
+              documentScanError={documentScanError}
+              onDocumentFileChange={selectGovernmentDocument}
+              onDocumentScan={scanDocument}
               stage={stage}
-              onIdTypeChange={type => { setGovernmentIdType(type); setGovernmentIdNumber(""); }}
-              onIdNumberChange={setGovernmentIdNumber}
+              onIdTypeChange={type => { resetDocumentScan(); setGovernmentDocumentFile(null); setGovernmentIdType(type); setGovernmentIdNumber(""); }}
+              onIdNumberChange={number => { setGovernmentIdNumber(number); setDocumentScanError(""); }}
               onStageChange={setStage}
               onFileChange={selectResume}
-              onBack={() => { setError(""); setPhase("welcome"); }}
+              onBack={() => { resetDocumentScan(); setError(""); setPhase("welcome"); }}
               onSubmit={parseResume}
             />
           ))}

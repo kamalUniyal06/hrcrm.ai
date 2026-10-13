@@ -1,8 +1,17 @@
-import { ArrowRight, FileText, PencilLine } from "lucide-react";
+import { ArrowLeft, ArrowRight, FileText, PencilLine } from "lucide-react";
 
-export default function CandidateWelcome({ onUpload, onCreate }) {
+export default function CandidateWelcome({ onUpload, onCreate, onBack }) {
   return (
     <section className="mx-auto max-w-3xl py-10 sm:py-16">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="ob-muted mb-6 inline-flex min-h-11 items-center gap-2 text-sm font-medium"
+        >
+          <ArrowLeft size={16} aria-hidden="true" /> Back to getting started
+        </button>
+      )}
       <header className="mb-8 max-w-xl">
         <p className="ob-muted text-sm font-medium">Candidate registration</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
