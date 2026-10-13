@@ -1,3 +1,5 @@
+import { cn } from "@/lib/utils";
+import { onboardingStyles as styles } from "./onboardingStyles";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Loader2, Upload } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../../store/constants";
@@ -182,14 +184,14 @@ export default function CandidatePhotoUpload({
   };
 
   const buttonClass =
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[var(--ob-line)] px-4 py-2 text-sm font-medium hover:bg-[var(--ob-soft)] disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
-    <section className={embedded ? "" : "ob-surface p-6"}>
+    <section className={embedded ? "" : cn(styles.surface, "p-6")}>
       {!embedded && <><h2 className="text-lg font-semibold">
         Add your profile photo
       </h2>
-      <p className="ob-muted mt-1 text-sm">
+      <p className="text-muted-foreground mt-1 text-sm">
         Choose a photo or take one with your camera, then upload it.
       </p></>}
       <form
@@ -217,7 +219,7 @@ export default function CandidatePhotoUpload({
                 setUploaded(null);
               }}
               placeholder="you@example.com"
-              className="ob-input"
+              className={styles.input}
             />
             <p className="mt-2 text-xs text-slate-500">
               Use the email associated with your candidate profile.
@@ -235,7 +237,7 @@ export default function CandidatePhotoUpload({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               disabled={uploading}
-              className="ob-input block file:mr-3 file:rounded-md file:border-0 file:bg-[var(--ob-soft)] file:px-3 file:py-2 file:text-[var(--ob-accent)]"
+              className={cn(styles.input, `block file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-2 file:text-primary`)}
               onChange={(event) => {
                 selectPhoto(event.target.files?.[0]);
                 event.target.value = "";
@@ -306,7 +308,7 @@ export default function CandidatePhotoUpload({
               cameraOpen ||
               Boolean(uploaded)
             }
-            className="ob-primary"
+            className={styles.primary}
           >
             {uploading ? (
               <Loader2 size={17} className="animate-spin" />

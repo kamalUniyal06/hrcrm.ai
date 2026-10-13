@@ -1,4 +1,5 @@
 import { useState } from "react";
+import he from "he";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -309,7 +310,7 @@ function CandidateForm({ record, lookups, setDirty, setBusy }) {
                                     options,
                                   )}
                                 >
-                                  {option.name}
+                                  {he.decode(String(option.name))}
                                 </option>
                               ))}
                             </select>

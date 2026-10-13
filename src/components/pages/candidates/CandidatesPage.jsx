@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import he from "he";
 import { useSelector } from "react-redux";
 import { selectIsAdmin } from "../../../utils/pageAccess";
 import { Link } from "react-router-dom";
@@ -294,7 +295,7 @@ export default function CandidatesPage({ shortlistedOnly = false }) {
               {[
                 ...new Set([
                   ...records.map((record) => value(record, kind)),
-                  ...(lookups[kind].data || []).map((option) => option.name),
+                  ...(lookups[kind].data || []).map((option) => he.decode(String(option.name))),
                   ...(shortlistedOnly ? ["Unassigned"] : []),
                 ]),
               ]

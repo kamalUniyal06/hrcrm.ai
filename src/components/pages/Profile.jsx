@@ -1,8 +1,9 @@
+import { cn } from "@/lib/utils";
+import { onboardingStyles as styles } from "./profile/onboardingStyles";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { resetPageScroll } from "../../utils/resetPageScroll";
 import { candidateSources, governmentIdError, normalizeGovernmentId, validatePersonalDetails } from "./profile/onboardingValidation";
-import "./profile/onboarding.css";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -283,7 +284,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       return;
     }
     if (documentScanBusy || !documentMatches) {
-      setError("Scan your government ID and match its number before uploading your resume.");
+      setError("Verify your government ID before uploading your resume.");
       document.getElementById("government-document-file")?.focus();
       return;
     }
@@ -505,8 +506,8 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       ref={pageRef}
       className={
         standalone
-          ? "candidate-onboarding min-h-dvh bg-[var(--ob-page)] px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
-          : "candidate-onboarding min-h-full bg-slate-50/70 px-4 py-6 sm:px-8 sm:py-8"
+          ? "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary  min-h-dvh bg-background px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
+          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8"
       }
     >
 
@@ -533,7 +534,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
             </span>
           </div>
         )}
-        {phase === "error" && error && <div className="ob-surface p-6 text-center"><p className="ob-muted text-sm">Your profile could not be loaded.</p><button onClick={() => setRetry(value => value + 1)} className="ob-primary mt-4">Retry lookup</button></div>}
+        {phase === "error" && error && <div className={cn(styles.surface, `p-6 text-center`)}><p className="text-muted-foreground text-sm">Your profile could not be loaded.</p><button onClick={() => setRetry(value => value + 1)} className={cn(styles.primary, `mt-4`)}>Retry lookup</button></div>}
         {phase === "loading" && (
           <LoadingPage />
         )}
@@ -809,7 +810,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                             Loading {activeTab.label.toLowerCase()}...
                           </p>
                         ) : related[activeTab.id]?.error ? (
-                          <div role="alert" className="text-sm text-red-700">
+                          <div role="alert" className="text-sm text-destructive">
                             {related[activeTab.id].error}
                             <button
                               type="button"
