@@ -2,7 +2,7 @@ import { http } from "../../../services/api";
 import { readResumeSections } from "./resumeSections";
 import { candidateRelatedModules, loadCandidateRelated } from "./candidateRelated.js";
 import { normalizeProfileUrl } from "./onboardingValidation.js";
-export { candidateRelatedModules } from "./candidateRelated.js";
+export { candidateRelatedModules, isCandidateRelatedRecordEmpty } from "./candidateRelated.js";
 
 export const relatedFields = {
   education: ["name", "qualification", "institution", "university", "school", "board", "specialization", "percentage", "from_time", "to_time", "status", "description"],
@@ -31,6 +31,19 @@ export async function saveCandidateRelated(section, item, original) {
   if (!Object.keys(data).length) return;
   const response = await http({ method: "POST", body: { action: "update", module, id: item.id, data } });
   if (response?.success !== true) throw new Error(response?.message || `Could not save ${section}. Please retry. Earlier successful changes have been kept.`);
+}
+
+export async function deleteCandidateRelated(section, id) {
+  const module = candidateRelatedModules[section];
+  if (!module || !id) return;
+  try {
+    const res = await http({ method: "POST", body: { action: "update", module, id, data: { deleted: 1 } } });
+    if (res?.success !== true) {
+      await http({ method: "POST", body: { action: "delete", module, id } }).catch(() => {});
+    }
+  } catch {
+    await http({ method: "POST", body: { action: "delete", module, id } }).catch(() => {});
+  }
 }
 
 export async function fetchCandidateRelated(id, section) {
