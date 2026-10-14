@@ -1,13 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  MotionConfig,
-  motion as Motion,
-  useMotionTemplate,
-  useMotionValue,
-  useReducedMotion,
-} from "framer-motion";
+import { useRef } from "react";
+import { MotionConfig, motion as Motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "./onboardingStyles";
+import { marker, rise, slideIn, stagger, useCardSpotlight, usePointerField } from "./onboardingMotion";
 import OnboardingBackdrop from "./OnboardingBackdrop";
 import OnboardingJourneyPreview from "./OnboardingJourneyPreview";
 import {
@@ -52,75 +47,19 @@ const candidatePerks = [
   "Review your details before you finish",
 ];
 
-const EASE = [0.22, 1, 0.36, 1];
-const stagger = (delayChildren, staggerChildren) => ({
-  hidden: {},
-  show: { transition: { delayChildren, staggerChildren } },
-});
-const rise = {
-  hidden: { opacity: 0, y: 18 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
-};
-const slideIn = {
-  hidden: { opacity: 0, x: 18 },
-  show: { opacity: 1, x: 0, transition: { duration: 0.55, ease: EASE } },
-};
-const marker = {
-  hidden: { scaleX: 0 },
-  show: { scaleX: 1, transition: { delay: 0.55, duration: 0.7, ease: EASE } },
-};
-
-// Tracks the pointer across the page for the backdrop spotlight and the
-// preview parallax. Off for touch devices and reduced-motion users.
-function usePointerField(containerRef) {
-  const reduceMotion = useReducedMotion();
-  const [finePointer] = useState(
-    () => typeof window !== "undefined" && Boolean(window.matchMedia?.("(hover: hover) and (pointer: fine)").matches),
-  );
-  const enabled = finePointer && !reduceMotion;
-  const x = useMotionValue(-9999);
-  const y = useMotionValue(-9999);
-  const nx = useMotionValue(0);
-  const ny = useMotionValue(0);
-
-  useEffect(() => {
-    if (!enabled) return undefined;
-    const onMove = (event) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (rect) {
-        x.set(event.clientX - rect.left);
-        y.set(event.clientY - rect.top);
-      }
-      nx.set(event.clientX / window.innerWidth - 0.5);
-      ny.set(event.clientY / window.innerHeight - 0.5);
-    };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
-  }, [enabled, containerRef, x, y, nx, ny]);
-
-  return { x, y, nx, ny, enabled };
-}
-
 function CandidateCard({ onCandidate }) {
-  const spotX = useMotionValue(0);
-  const spotY = useMotionValue(0);
-  const spotlight = useMotionTemplate`radial-gradient(380px circle at ${spotX}px ${spotY}px, color-mix(in srgb, var(--highlight) 26%, transparent), transparent 70%)`;
-  const trackSpotlight = (event) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    spotX.set(event.clientX - rect.left);
-    spotY.set(event.clientY - rect.top);
-  };
+  const spotlight = useCardSpotlight();
 
   return (
     <Motion.article
       variants={rise}
-      onPointerMove={trackSpotlight}
+      {...spotlight.handlers}
       className="group relative isolate flex flex-col overflow-hidden lg:flex-1 rounded-3xl border border-primary/25 bg-linear-to-br from-card to-accent p-5 shadow-sm transition-[translate,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-primary/45 hover:shadow-[0_28px_60px_-28px_color-mix(in_srgb,var(--primary)_55%,transparent)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 min-[400px]:p-6 md:p-[30px] lg:p-[26px]"
     >
       <Motion.div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ backgroundImage: spotlight }}
+        style={{ backgroundImage: spotlight.backgroundImage }}
       />
       <div
         aria-hidden="true"
@@ -170,10 +109,7 @@ function CandidateCard({ onCandidate }) {
         whileTap={{ scale: 0.98 }}
         className={cn(styles.primary, "group/cta relative mt-auto min-h-12 w-full overflow-hidden shadow-[0_14px_30px_-16px_color-mix(in_srgb,var(--primary)_80%,transparent)] [&>svg]:ml-auto")}
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 left-0 w-1/4 -translate-x-full -skew-x-12 bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-[500%] motion-reduce:hidden"
-        />
+        <span aria-hidden="true" className={styles.shine} />
         Continue as a candidate
         <ArrowRight size={18} aria-hidden="true" className="transition-transform duration-300 group-hover/cta:translate-x-1 motion-reduce:transition-none" />
       </Motion.button>
@@ -207,11 +143,8 @@ export default function OnboardingWelcome({ onCandidate, fillViewport = false })
 
         <div className={cn("contents lg:flex lg:flex-col", columnGap)}>
           <header className="md:col-span-2">
-            <Motion.p
-              variants={rise}
-              className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card/80 py-1 pr-3.5 pl-1 text-[13px] font-semibold text-primary shadow-sm backdrop-blur-sm"
-            >
-              <span className="inline-flex items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-[11px] font-bold text-highlight-foreground">
+            <Motion.p variants={rise} className={styles.eyebrowPill}>
+              <span className={styles.eyebrowBadge}>
                 <Motion.span
                   aria-hidden="true"
                   className="inline-flex"
@@ -232,11 +165,7 @@ export default function OnboardingWelcome({ onCandidate, fillViewport = false })
               How would you like<br className="hidden sm:block" /> to{" "}
               <span className="relative isolate inline-block">
                 get started?
-                <Motion.span
-                  aria-hidden="true"
-                  variants={marker}
-                  className="absolute inset-x-[-0.06em] bottom-[0.08em] -z-10 h-[0.32em] origin-left rounded-[0.12em] bg-highlight/55"
-                />
+                <Motion.span aria-hidden="true" variants={marker} className={styles.marker} />
               </span>
             </Motion.h1>
             <Motion.p variants={rise} className="text-muted-foreground mt-4 max-w-xl text-base leading-7 lg:mt-3">

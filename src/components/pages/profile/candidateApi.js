@@ -1,7 +1,7 @@
 import { http } from "../../../services/api";
 import { readResumeSections } from "./resumeSections";
 import { candidateRelatedModules, loadCandidateRelated } from "./candidateRelated.js";
-import { normalizeProfileUrl } from "./onboardingValidation.js";
+import { governmentIdFields, normalizeProfileUrl } from "./onboardingValidation.js";
 export { candidateRelatedModules } from "./candidateRelated.js";
 
 export const relatedFields = {
@@ -80,8 +80,12 @@ export async function findCandidate(email) {
   return record || null;
 }
 
-export async function saveCandidate(id, draft, email) {
-  const data = { ...normalizeCandidate(draft, email), candidate_source: draft.candidate_source || "career_portal" };
+export async function saveCandidate(id, draft, email, identification) {
+  const data = {
+    ...normalizeCandidate(draft, email),
+    candidate_source: draft.candidate_source || "career_portal",
+    ...(identification ? governmentIdFields(identification.type, identification.number) : {}),
+  };
   const response = await http({ method: "POST", body: { action: id ? "update" : "create", module: "hrc_candidates", ...(id ? { id } : {}), data } });
   if (response?.success !== true) throw new Error(response?.message || "Could not save your profile. Please try again.");
   return { ...data, id: id || response.id || response.record?.id || response.data?.id };

@@ -98,7 +98,7 @@ const RootLayout = () => {
             /* Storage may be unavailable. */
           }
           setOnboarding(false);
-          navigate("/profile", { replace: true });
+          window.location.replace("/");
         }}
       />
     );

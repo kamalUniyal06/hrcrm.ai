@@ -11,6 +11,13 @@ export const onboardingStyles = {
   status: "inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium leading-snug whitespace-nowrap text-muted-foreground",
   display: "mt-4 text-[32px] leading-[1.12] font-semibold tracking-[-0.045em] sm:text-[44px] lg:text-[52px] [&>span]:text-primary",
   eyebrow: "inline-flex items-center gap-2 text-[13px] font-semibold text-primary",
+  // Glassy eyebrow pill with a highlight badge as its first child.
+  eyebrowPill: "inline-flex items-center gap-2 rounded-full border border-primary/15 bg-card/80 py-1 pr-3.5 pl-1 text-[13px] font-semibold text-primary shadow-sm backdrop-blur-sm",
+  eyebrowBadge: "inline-flex items-center gap-1 rounded-full bg-highlight px-2 py-0.5 text-[11px] font-bold text-highlight-foreground",
+  // Highlighter stroke behind a headline phrase; parent needs `relative isolate inline-block`.
+  marker: "absolute inset-x-[-0.06em] bottom-[0.08em] -z-10 h-[0.32em] origin-left rounded-[0.12em] bg-highlight/55",
+  // Light sweep across a primary button; the hover target needs `group/cta relative overflow-hidden`.
+  shine: "pointer-events-none absolute inset-y-0 left-0 w-1/4 -translate-x-full -skew-x-12 bg-linear-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover/cta:translate-x-[500%] motion-reduce:hidden",
   inputIcon: "relative mt-2 [&>svg]:pointer-events-none [&>svg]:absolute [&>svg]:top-[22px] [&>svg]:left-[13px] [&>svg]:-translate-y-1/2 [&>svg]:text-muted-foreground [&>input]:mt-0 [&>input]:pl-[41px] [&>select]:mt-0 [&>select]:pl-[41px]",
   progressStep: "flex min-h-11 items-center gap-2 text-sm font-medium whitespace-nowrap text-muted-foreground hover:enabled:text-primary disabled:cursor-default group-aria-[current=step]:font-semibold group-aria-[current=step]:text-primary",
 };

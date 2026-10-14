@@ -4,6 +4,7 @@ import {
   ABOUT_MIN_LENGTH,
   candidateSources,
   governmentIdError,
+  governmentIdFields,
   normalizeGovernmentId,
   normalizeProfileUrl,
   requiredPersonalFields,
@@ -124,6 +125,24 @@ test("government ID validation depends on the selected document", () => {
   assert.ok(governmentIdError("aadhaar", "12345678901A"));
   assert.equal(governmentIdError("driving_licence", "DL-0123456789012"), "");
   assert.ok(governmentIdError("unknown", "12345"));
+});
+
+test("the final identification save normalizes the selected ID and adds the legacy PAN field only for PAN", () => {
+  assert.deepEqual(governmentIdFields("pan", " abcde1234f "), {
+    government_id_type: "pan",
+    government_id_number: "ABCDE1234F",
+    pan_card_number: "ABCDE1234F",
+  });
+  assert.deepEqual(governmentIdFields("aadhaar", "2222-2222-2222"), {
+    government_id_type: "aadhaar",
+    government_id_number: "222222222222",
+  });
+  assert.deepEqual(governmentIdFields("driving_licence", " dl-0123456789012 "), {
+    government_id_type: "driving_licence",
+    government_id_number: "DL-0123456789012",
+  });
+  assert.throws(() => governmentIdFields("pan", "1234567890"), /valid PAN/);
+  assert.throws(() => governmentIdFields("unknown", "12345"), /government ID type/);
 });
 
 test("Aadhaar accepts grouped numbers and sends only the twelve digits", () => {

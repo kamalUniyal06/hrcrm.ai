@@ -6,7 +6,7 @@ const steps = [
   { label: "Skills", short: "Skills", icon: Sparkles },
   { label: "Experience", short: "Work", icon: BriefcaseBusiness },
   { label: "Education", short: "Education", icon: GraduationCap },
-  { label: "Photo", short: "Photo", icon: Camera },
+  { label: "Photo & ID", short: "Photo / ID", icon: Camera },
 ];
 
 export default function ProfileSetupProgress({ active, completed, disabled, onStepChange }) {

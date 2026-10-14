@@ -19,18 +19,3 @@ export const fieldIcons = {
 };
 
 export const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
-export const countrySuggestions = [
-  "India", "Australia", "Canada", "Germany", "New Zealand", "Singapore",
-  "United Arab Emirates", "United Kingdom", "United States",
-];
-
-// State/UT names: https://igod.gov.in/sg/states
-export const indianRegions = [
-  "Andaman and Nicobar Islands", "Andhra Pradesh", "Arunachal Pradesh", "Assam",
-  "Bihar", "Chandigarh", "Chhattisgarh", "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jammu and Kashmir",
-  "Jharkhand", "Karnataka", "Kerala", "Ladakh", "Lakshadweep", "Madhya Pradesh",
-  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha",
-  "Puducherry", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana",
-  "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
-];

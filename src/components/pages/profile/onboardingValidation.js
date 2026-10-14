@@ -20,16 +20,19 @@ export const governmentIdTypes = {
   pan: {
     label: "PAN",
     hint: "Enter 5 letters, 4 digits, and 1 letter, for example ABCDE1234F.",
+    placeholder: "ABCDE1234F",
     maxLength: 10,
   },
   driving_licence: {
     label: "Driving Licence",
     hint: "Enter the licence number as printed on your document.",
+    placeholder: "As printed on your licence",
     maxLength: 30,
   },
   aadhaar: {
     label: "Aadhaar",
     hint: "Enter 12 digits. Spaces or hyphens between groups are accepted.",
+    placeholder: "1234 5678 9012",
     maxLength: 14,
   },
 };
@@ -117,6 +120,17 @@ export function governmentIdError(type, number) {
   if (type === "driving_licence" && !/^[A-Z0-9][A-Z0-9 /-]{4,29}$/.test(value))
     return "Enter 5 to 30 characters using letters, numbers, spaces, slashes, or hyphens.";
   return "";
+}
+
+export function governmentIdFields(type, number) {
+  const error = governmentIdError(type, number);
+  if (error) throw new Error(error);
+  const normalized = normalizeGovernmentId(type, number);
+  return {
+    government_id_type: type,
+    government_id_number: normalized,
+    ...(type === "pan" ? { pan_card_number: normalized } : {}),
+  };
 }
 
 export function validateRelatedEntries(section, rows, noExperience = false) {

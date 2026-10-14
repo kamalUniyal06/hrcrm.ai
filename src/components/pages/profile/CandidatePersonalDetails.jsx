@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { BriefcaseBusiness, FileText, LockKeyhole, Mail, MapPin, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "./onboardingStyles";
-import { countrySuggestions, fieldIcons, genderOptions, indianRegions } from "./candidateFormOptions";
+import { fieldIcons, genderOptions } from "./candidateFormOptions";
 import { ABOUT_MIN_LENGTH, localToday, normalizeProfileUrl, requiredPersonalFields, validatePersonalDetails } from "./onboardingValidation";
 
 const groups = [
@@ -18,7 +17,6 @@ const autoComplete = {
 };
 
 export default function CandidatePersonalDetails({ email, draft, setDraft, fieldErrors, setFieldErrors }) {
-  const [customRegion, setCustomRegion] = useState(false);
   const usesIndianRegions = !draft.primary_address_country || /^(india|in|ind|bharat)$/i.test(draft.primary_address_country.trim());
   const change = (key, value) => {
     setDraft(prev => ({ ...prev, [key]: value }));
@@ -66,27 +64,15 @@ export default function CandidatePersonalDetails({ email, draft, setDraft, field
           <Icon size={18} aria-hidden="true" />
           {key === "description" ? (
             <textarea {...attributes} rows={4} minLength={ABOUT_MIN_LENGTH} placeholder="Tell us about your background, strengths, and what you'd like to do next." />
-          ) : key === "primary_address_state" && usesIndianRegions && !customRegion ? (
-            <select {...attributes} onChange={event => {
-              if (event.target.value === "__custom_region__") { setCustomRegion(true); change(key, ""); requestAnimationFrame(() => document.getElementById(id)?.focus()); }
-              else change(key, event.target.value);
-            }}>
-              <option value="" disabled>Select a state or union territory</option>
-              {draft[key] && !indianRegions.includes(draft[key]) && <option value={draft[key]}>{draft[key]}</option>}
-              {indianRegions.map(region => <option key={region} value={region}>{region}</option>)}
-              <option value="__custom_region__">Enter another state / region</option>
-            </select>
           ) : (
             <input {...attributes}
               type={key === "dob" ? "date" : key === "phone_mobile" ? "tel" : "text"}
               inputMode={key.endsWith("_url") ? "url" : key === "primary_address_postalcode" && usesIndianRegions ? "numeric" : undefined}
               max={key === "dob" ? localToday() : undefined}
-              list={key === "primary_address_country" ? "candidate-country-options" : undefined}
-              placeholder={key === "linkedin_url" ? "linkedin.com/in/your-name" : key === "github_url" ? "github.com/your-name" : key === "primary_address_country" ? "Choose or enter your country" : key === "primary_address_state" ? "Enter your state or region" : undefined}
+              placeholder={key === "linkedin_url" ? "linkedin.com/in/your-name" : key === "github_url" ? "github.com/your-name" : key === "primary_address_country" ? "Enter your country" : key === "primary_address_state" ? "Enter your state or region" : undefined}
             />
           )}
         </div>
-        {key === "primary_address_state" && usesIndianRegions && customRegion && <button type="button" onClick={() => setCustomRegion(false)} className="mt-1 min-h-11 text-xs font-medium text-primary hover:underline">Choose from Indian states instead</button>}
         {key === "description" && <p id="candidate-about-hint" className={cn(styles.help, "flex flex-wrap justify-between gap-2")}><span>At least {ABOUT_MIN_LENGTH} characters.</span><span className={cn("tabular-nums", draft.description.trim().length >= ABOUT_MIN_LENGTH && "text-primary")}>{draft.description.trim().length} characters</span></p>}
         {error && <p id={`${id}-error`} className="mt-2 text-xs leading-5 text-destructive">{error}</p>}
       </div>
@@ -95,7 +81,6 @@ export default function CandidatePersonalDetails({ email, draft, setDraft, field
 
   return (
     <div className="space-y-5">
-      <datalist id="candidate-country-options">{countrySuggestions.map(country => <option key={country} value={country} />)}</datalist>
       {groups.map(({ title, hint, icon, keys }, index) => {
         const Icon = icon;
         return (

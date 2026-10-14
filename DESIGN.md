@@ -124,10 +124,16 @@ Patterns:
 - Use `framer-motion` for UI transitions. GSAP appears only in a few existing spots; don't spread it.
 - Keep motion short (150–350ms) and purposeful: entering panels, toasts, drag feedback.
 - Always add `motion-reduce:transition-none` or check `prefers-reduced-motion`. Wrap animated screens in `<MotionConfig reducedMotion="user">`.
-- The onboarding welcome screen (`src/components/pages/profile/OnboardingWelcome.jsx`) is the reference for expressive, candidate-facing screens:
-  - `OnboardingBackdrop`: dot grid, drifting color glows, and a cursor spotlight
+- The onboarding screens (`OnboardingWelcome.jsx`, `CandidateWelcome.jsx` in `src/components/pages/profile/`) are the reference for expressive, candidate-facing screens:
+  - `OnboardingBackdrop pattern="dots" | "grid" | "aurora"`: drifting color glows plus a cursor glow, with one of three treatments. Give each screen in a flow its own one.
+    - `dots`: breathing dot waves (welcome)
+    - `grid`: light beams gliding along a line grid (registration choice)
+    - `aurora`: no pattern; shifting color fields, a slow rotating sheen and flowing silk ribbons (ID and resume upload)
+
+    Form screens use a split layout on `lg+`: context (back link, step pill, headline, vertical stepper) in a sticky left column, and the form on a frosted card (`bg-card/85 backdrop-blur-xl`) on the right.
   - `OnboardingJourneyPreview`: floating parallax cards
-  - staggered entrances, card spotlight on hover, and a shine on the call-to-action button
+  - `onboardingMotion.js`: shared entrance variants (`rise`, `slideIn`, `stagger`, `marker`), `usePointerField`, and `useCardSpotlight`
+  - `onboardingStyles.js`: `eyebrowPill`, `eyebrowBadge`, `marker`, and `shine` class sets
 
   Keep admin screens calmer than this. Use it as a pattern for first-run or marketing-like moments only.
 

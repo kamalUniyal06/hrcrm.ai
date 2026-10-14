@@ -3,7 +3,7 @@ import { onboardingStyles as styles } from "./profile/onboardingStyles";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
 import { resetPageScroll } from "../../utils/resetPageScroll";
-import { candidateSources, governmentIdError, normalizeGovernmentId, validatePersonalDetails } from "./profile/onboardingValidation";
+import { candidateSources, validatePersonalDetails } from "./profile/onboardingValidation";
 import { useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -27,7 +27,6 @@ import { crmFetch } from "../../services/crmClient";
 import CandidatePhotoUpload from "./profile/CandidatePhotoUpload";
 import CandidateWelcome from "./profile/CandidateWelcome";
 import OnboardingWelcome from "./profile/OnboardingWelcome";
-import { governmentDocumentFileError, governmentDocumentNumbersMatch, scanGovernmentDocument } from "./profile/governmentDocument.js";
 import CandidateResumeBuilder from "./profile/CandidateResumeBuilder";
 import {
   candidateProfileStartPhase,
@@ -107,69 +106,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (message) toast.error(message);
   };
   const [file, setFile] = useState(null);
-  const [governmentIdType, setGovernmentIdType] = useState("pan");
-  const [governmentIdNumber, setGovernmentIdNumber] = useState("");
-  const [governmentDocumentFile, setGovernmentDocumentFile] = useState(null);
-  const [documentScan, setDocumentScan] = useState(null);
-  const [documentScanBusy, setDocumentScanBusy] = useState(false);
-  const [documentScanError, setDocumentScanError] = useState("");
-  const documentRequestRef = useRef(null);
-  const documentMatches = Boolean(
-    documentScan?.file === governmentDocumentFile &&
-    documentScan?.type === governmentIdType &&
-    governmentDocumentNumbersMatch(governmentIdType, governmentIdNumber, documentScan?.number),
-  );
-  useEffect(() => () => {
-    documentRequestRef.current?.abort();
-    documentRequestRef.current = null;
-  }, []);
-  const resetDocumentScan = () => {
-    documentRequestRef.current?.abort();
-    documentRequestRef.current = null;
-    setDocumentScanBusy(false);
-    setDocumentScan(null);
-    setDocumentScanError("");
-  };
-  const selectGovernmentDocument = (selected) => {
-    resetDocumentScan();
-    setGovernmentDocumentFile(null);
-    if (!selected) return;
-    const fileError = governmentDocumentFileError(selected);
-    if (fileError) { setDocumentScanError(fileError); return; }
-    setGovernmentDocumentFile(selected);
-  };
-  const scanDocument = async () => {
-    if (documentRequestRef.current) return;
-    const idError = governmentIdError(governmentIdType, governmentIdNumber);
-    if (idError) {
-      setDocumentScanError(idError);
-      document.getElementById("resume-id-number")?.focus();
-      return;
-    }
-    const controller = new AbortController();
-    documentRequestRef.current = controller;
-    setDocumentScanBusy(true);
-    setDocumentScan(null);
-    setDocumentScanError("");
-    const timeout = setTimeout(() => controller.abort(), 60000);
-    try {
-      const number = await scanGovernmentDocument({
-        file: governmentDocumentFile, type: governmentIdType,
-        request: crmFetch, signal: controller.signal, apiKey: FETCH_GPC_X_API_KEY,
-      });
-      if (documentRequestRef.current === controller && !controller.signal.aborted)
-        setDocumentScan({ file: governmentDocumentFile, type: governmentIdType, number });
-    } catch (err) {
-      if (documentRequestRef.current === controller)
-        setDocumentScanError(err.name === "AbortError" ? "Document scanning timed out. Please try again." : err.message);
-    } finally {
-      clearTimeout(timeout);
-      if (documentRequestRef.current === controller) {
-        documentRequestRef.current = null;
-        setDocumentScanBusy(false);
-      }
-    }
-  };
   const [stage, setStage] = useState("");
   const pageRef = useRef(null);
   const uploadProcessing = phase === "upload" && busy;
@@ -277,17 +213,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     event.preventDefault();
     if (!file || !email || requestRef.current) return;
     setError("");
-    const idError = governmentIdError(governmentIdType, governmentIdNumber);
-    if (idError) {
-      setError(idError);
-      document.getElementById("resume-id-number")?.focus();
-      return;
-    }
-    if (documentScanBusy || !documentMatches) {
-      setError("Verify your government ID before uploading your resume.");
-      document.getElementById("government-document-file")?.focus();
-      return;
-    }
     if (!candidateSources.some(source => source.value === stage)) {
       setError("Select how you found us.");
       return;
@@ -306,10 +231,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       body.append("file", file, file.name);
       body.append("primary_email", email);
       body.append("stage", stage);
-      const idNumber = normalizeGovernmentId(governmentIdType, governmentIdNumber);
-      body.append("government_id_type", governmentIdType);
-      body.append("government_id_number", idNumber);
-      if (governmentIdType === "pan") body.append("pan_card_number", idNumber);
       if (jobId) body.append("job_record_id", jobId);
       const response = await crmFetch(
         "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing",
@@ -502,6 +423,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     setError("");
   };
   const showWelcomeChooser = phase === "welcome" && !candidateFlowStarted;
+  const showOnboardingBackdrop = phase === "welcome" || phase === "upload" || phase === "builder";
   return (
     <main
       ref={pageRef}
@@ -509,9 +431,9 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         standalone
           ? "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary  min-h-dvh bg-background px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
           : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8",
-        // OnboardingBackdrop fills <main> behind the welcome screen.
-        showWelcomeChooser && "relative isolate",
-        showWelcomeChooser && standalone && "lg:pb-0",
+        // OnboardingBackdrop fills <main> behind the onboarding welcome and upload screens.
+        showOnboardingBackdrop && "relative isolate",
+        showOnboardingBackdrop && standalone && phase !== "builder" && "lg:pb-0",
       )}
     >
 
@@ -547,6 +469,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         )}
         {phase === "welcome" && candidateFlowStarted && (
           <CandidateWelcome
+            fillViewport={standalone}
             onBack={() => setCandidateFlowStarted(false)}
             onUpload={() => {
               setError("");
@@ -576,35 +499,26 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                 "Your profile is ready. You can update your details anytime.",
               );
               onComplete?.(saved);
-              if (!standalone) navigate("/profile", { replace: true });
+              if (!standalone) window.location.replace("/");
             }}
           />
         )}
         {phase === "upload" &&
           (busy ? (
             <ResumeLoading
+              fillViewport={standalone}
               filename={file?.name}
               phase={parsingPhase}
             />
           ) : (
             <ResumeUpload
+              fillViewport={standalone}
               email={email}
               file={file}
-              governmentIdType={governmentIdType}
-              governmentIdNumber={governmentIdNumber}
-              governmentDocumentFile={governmentDocumentFile}
-              documentScanBusy={documentScanBusy}
-              documentScanned={Boolean(documentScan)}
-              documentMatches={documentMatches}
-              documentScanError={documentScanError}
-              onDocumentFileChange={selectGovernmentDocument}
-              onDocumentScan={scanDocument}
               stage={stage}
-              onIdTypeChange={type => { resetDocumentScan(); setGovernmentDocumentFile(null); setGovernmentIdType(type); setGovernmentIdNumber(""); }}
-              onIdNumberChange={number => { setGovernmentIdNumber(number); setDocumentScanError(""); }}
               onStageChange={setStage}
               onFileChange={selectResume}
-              onBack={() => { resetDocumentScan(); setError(""); setPhase("welcome"); }}
+              onBack={() => { setError(""); setPhase("welcome"); }}
               onSubmit={parseResume}
             />
           ))}
@@ -777,6 +691,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                         initialEmail={email}
                         lockedEmail
                         disabled={busy}
+                        existingUrl={draft.profile_image}
                         onBusyChange={setPhotoBusy}
                         onUploaded={(url, uploadedFile) => {
                           setPhotoFile(uploadedFile);

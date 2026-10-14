@@ -9,11 +9,11 @@ import {
 } from "framer-motion";
 import { CalendarCheck, Check, PartyPopper, Sparkles, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EASE } from "./onboardingMotion";
 
 // Decorative preview of the candidate journey shown beside the welcome headline.
 // Hidden from assistive tech; the real content lives in OnboardingWelcome.
 
-const EASE = [0.22, 1, 0.36, 1];
 const SPRING = { stiffness: 70, damping: 20, mass: 0.6 };
 const PROFILE_STRENGTH = 92;
 

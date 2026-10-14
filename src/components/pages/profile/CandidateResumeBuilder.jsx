@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "./onboardingStyles";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -25,11 +25,19 @@ import {
   saveCandidateRelated,
 } from "./candidateApi";
 import CandidatePhotoUpload from "./CandidatePhotoUpload";
+import GovernmentIdVerification from "./GovernmentIdVerification";
+import { governmentDocumentFileError, governmentDocumentNumbersMatch, scanGovernmentDocument } from "./governmentDocument.js";
+import { FETCH_GPC_X_API_KEY } from "../../../store/constants";
+import { crmFetch } from "../../../services/crmClient";
 import CandidatePersonalDetails from "./CandidatePersonalDetails";
+import OnboardingBackdrop from "./OnboardingBackdrop";
 import ProfileSetupProgress from "./ProfileSetupProgress";
+import SkillPills from "./SkillPills";
+import { usePointerField } from "./onboardingMotion";
 import { fieldIcons } from "./candidateFormOptions";
 import { rememberOnboardingStarted } from "./onboardingState";
 import {
+  governmentIdError,
   localToday,
   validatePersonalDetails,
   validateRelatedEntries,
@@ -37,7 +45,7 @@ import {
 import { resetPageScroll } from "../../../utils/resetPageScroll";
 import { educationForOnboarding } from "./educationEntries.js";
 
-const steps = ["Personal details", "Skills", "Experience", "Education", "Photo"];
+const steps = ["Personal details", "Skills", "Experience", "Education", "Photo & ID"];
 const stepIcons = [UserRound, Sparkles, BriefcaseBusiness, GraduationCap, Camera];
 const stepSections = [null, "skills", "experiences", "education", null];
 const photoStep = steps.length - 1;
@@ -46,14 +54,14 @@ const titles = [
   "Skills and proficiency",
   "Work experience",
   "Education",
-  "Profile photograph",
+  "Photo and government ID",
 ];
 const hints = [
   "Review your information and complete all required fields.",
   "Add your skills. You can include how long you have used each one.",
   "Add employment dates for each role, or confirm that you have no work experience yet.",
   "Review education from your resume, or add your qualifications manually.",
-  "Upload a photograph, or complete registration and add one later.",
+  "Add your profile photo and verify your government ID to complete registration.",
 ];
 const relatedFields = {
   skills: {
@@ -126,8 +134,75 @@ export default function CandidateResumeBuilder({
   const lock = useRef(false);
   const [busy, setBusy] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoMissing, setPhotoMissing] = useState(false);
+  const [governmentIdType, setGovernmentIdType] = useState("pan");
+  const [governmentIdNumber, setGovernmentIdNumber] = useState("");
+  const [governmentDocumentFile, setGovernmentDocumentFile] = useState(null);
+  const [documentScan, setDocumentScan] = useState(null);
+  const [documentScanBusy, setDocumentScanBusy] = useState(false);
+  const [documentScanError, setDocumentScanError] = useState("");
+  const documentRequestRef = useRef(null);
+  const documentMatches = Boolean(
+    documentScan?.file === governmentDocumentFile &&
+    documentScan?.type === governmentIdType &&
+    governmentDocumentNumbersMatch(governmentIdType, governmentIdNumber, documentScan?.number),
+  );
+  useEffect(() => () => {
+    documentRequestRef.current?.abort();
+    documentRequestRef.current = null;
+  }, []);
+  const resetDocumentScan = () => {
+    documentRequestRef.current?.abort();
+    documentRequestRef.current = null;
+    setDocumentScanBusy(false);
+    setDocumentScan(null);
+    setDocumentScanError("");
+  };
+  const selectGovernmentDocument = (selected) => {
+    resetDocumentScan();
+    setGovernmentDocumentFile(null);
+    if (!selected) return;
+    const fileError = governmentDocumentFileError(selected);
+    if (fileError) { setDocumentScanError(fileError); return; }
+    setGovernmentDocumentFile(selected);
+  };
+  const scanDocument = async () => {
+    if (documentRequestRef.current) return;
+    const idError = governmentIdError(governmentIdType, governmentIdNumber);
+    if (idError) {
+      setDocumentScanError(idError);
+      document.getElementById("candidate-id-number")?.focus();
+      return;
+    }
+    const controller = new AbortController();
+    documentRequestRef.current = controller;
+    setDocumentScanBusy(true);
+    setDocumentScan(null);
+    setDocumentScanError("");
+    const timeout = setTimeout(() => controller.abort(), 60000);
+    try {
+      const number = await scanGovernmentDocument({
+        file: governmentDocumentFile, type: governmentIdType,
+        request: crmFetch, signal: controller.signal, apiKey: FETCH_GPC_X_API_KEY,
+      });
+      if (documentRequestRef.current === controller && !controller.signal.aborted)
+        setDocumentScan({ file: governmentDocumentFile, type: governmentIdType, number });
+    } catch (err) {
+      if (documentRequestRef.current === controller)
+        setDocumentScanError(err.name === "AbortError" ? "Document scanning timed out. Please try again." : err.message);
+    } finally {
+      clearTimeout(timeout);
+      if (documentRequestRef.current === controller) {
+        documentRequestRef.current = null;
+        setDocumentScanBusy(false);
+      }
+    }
+  };
+
   const heading = useRef(null);
   const page = useRef(null);
+  const backdropRef = useRef(null);
+  const pointer = usePointerField(backdropRef);
   useLayoutEffect(() => {
     resetPageScroll(page.current);
     heading.current?.focus({ preventScroll: true });
@@ -173,7 +248,7 @@ export default function CandidateResumeBuilder({
     });
   const saveStep = async (event) => {
     event.preventDefault();
-    if (lock.current || photoBusy) return;
+    if (lock.current || photoBusy || documentScanBusy) return;
     if (step === 0 || step === photoStep) {
       const errors = validatePersonalDetails(draft);
       if (Object.keys(errors).length) {
@@ -185,7 +260,27 @@ export default function CandidateResumeBuilder({
         focusField(`candidate-${Object.keys(errors)[0]}`);
         return;
       }
+      if (step === photoStep) {
+        const idError = governmentIdError(governmentIdType, governmentIdNumber);
+        if (idError || !documentMatches) {
+          setDocumentScanError(idError || "Verify your government ID before completing registration.");
+          focusField(idError ? "candidate-id-number" : "government-document-file");
+          return;
+        }
+      }
+      if (step === photoStep && !draft.profile_image) {
+        setPhotoMissing(true);
+        toast.error("Add your profile photo to complete registration.");
+        focusField("candidate-photo-dropzone");
+        return;
+      }
     } else {
+      // A skill typed into the add box but not added yet would not be saved.
+      if (section === "skills" && document.getElementById("candidate-skill-new")?.value.trim()) {
+        toast.error("Press Enter to add the skill you typed, or clear it, before continuing.");
+        focusField("candidate-skill-new");
+        return;
+      }
       const invalid = validateRelatedEntries(
         section,
         items[section],
@@ -212,6 +307,7 @@ export default function CandidateResumeBuilder({
           current?.id,
           { ...draft, candidate_source: current?.candidate_source },
           email,
+          step === photoStep ? { type: governmentIdType, number: governmentIdNumber } : undefined,
         );
         current = { ...current, ...saved };
         if (!current.id) current = await findCandidate(email);
@@ -261,11 +357,12 @@ export default function CandidateResumeBuilder({
   };
   return (
     <section ref={page} className="mx-auto max-w-4xl pb-6 pt-5 sm:pt-8">
+      <OnboardingBackdrop containerRef={backdropRef} pointer={pointer} pattern="aurora" pinned />
       <div className="mb-5 flex items-center justify-between gap-4">
         {onBack && (
           <button
             type="button"
-            disabled={busy || photoBusy}
+            disabled={busy || photoBusy || documentScanBusy}
             onClick={onBack}
             className="text-muted-foreground flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium"
           >
@@ -279,7 +376,7 @@ export default function CandidateResumeBuilder({
       <ProfileSetupProgress
         active={step}
         completed={completedSteps}
-        disabled={busy || photoBusy}
+        disabled={busy || photoBusy || documentScanBusy}
         onStepChange={next => { setEntryError(null); setStep(next); }}
       />
       <div className="space-y-5">
@@ -292,32 +389,76 @@ export default function CandidateResumeBuilder({
             {titles[step]}
           </h1>
           <p className="text-muted-foreground mt-2 text-sm leading-6">{hints[step]}</p>
-          {step !== photoStep && (
-            <p className="text-muted-foreground mt-3 text-xs">
-              Fields marked <span className="text-primary">*</span> are required.
-            </p>
-          )}
+          <p className="text-muted-foreground mt-3 text-xs">
+            Fields marked <span className="text-primary">*</span> are required.
+          </p>
         </header>
         {step === photoStep && (
           <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-          <CandidatePhotoUpload
-            embedded
-            initialEmail={email}
-            lockedEmail
-            disabled={busy}
-            onBusyChange={setPhotoBusy}
-            onUploaded={(url) =>
-              setDraft((prev) => ({ ...prev, profile_image: url }))
-            }
-          />
+            <h2 className="mb-4 text-base font-semibold">Profile photo <span className="text-primary">*</span></h2>
+            <CandidatePhotoUpload
+              embedded
+              initialEmail={email}
+              lockedEmail
+              disabled={busy || documentScanBusy}
+              existingUrl={draft.profile_image}
+              invalid={photoMissing}
+              onBusyChange={setPhotoBusy}
+              onUploaded={(url) => {
+                setPhotoMissing(false);
+                setDraft((prev) => ({ ...prev, profile_image: url }));
+              }}
+            />
+            {photoMissing && !draft.profile_image && (
+              <p className="mt-3 text-xs leading-5 text-destructive">Add your profile photo to complete registration.</p>
+            )}
           </div>
         )}
         <form id="candidate-step-form" onSubmit={saveStep} noValidate aria-busy={busy} className="[&_input]:scroll-mb-32 [&_select]:scroll-mb-32 [&_textarea]:scroll-mb-32">
-          <fieldset disabled={busy || photoBusy} className="min-w-0">
+          <fieldset disabled={busy || photoBusy || documentScanBusy} className="min-w-0">
+            {step === photoStep && (
+              <GovernmentIdVerification
+                governmentIdType={governmentIdType}
+                governmentIdNumber={governmentIdNumber}
+                governmentDocumentFile={governmentDocumentFile}
+                documentScanBusy={documentScanBusy}
+                documentScanned={Boolean(documentScan)}
+                documentMatches={documentMatches}
+                documentScanError={documentScanError}
+                onDocumentFileChange={selectGovernmentDocument}
+                onDocumentScan={scanDocument}
+                onIdTypeChange={type => { resetDocumentScan(); setGovernmentDocumentFile(null); setGovernmentIdType(type); setGovernmentIdNumber(""); }}
+                onIdNumberChange={number => { setGovernmentIdNumber(number); setDocumentScanError(""); }}
+              />
+            )}
             {step === 0 && (
               <CandidatePersonalDetails email={email} draft={draft} setDraft={setDraft} fieldErrors={fieldErrors} setFieldErrors={setFieldErrors} />
             )}
-            {section && (
+            {section === "skills" && (
+              <SkillPills
+                items={items.skills}
+                entryError={entryError}
+                onAdd={(names) => {
+                  setEntryError(null);
+                  setItems((prev) => ({
+                    ...prev,
+                    skills: [
+                      ...prev.skills,
+                      ...names.map((name, i) => ({ name, clientKey: `skill-${Date.now()}-${i}` })),
+                    ],
+                  }));
+                }}
+                onUpdate={updateEntry}
+                onRemove={(index) => {
+                  setEntryError(null);
+                  setItems((prev) => ({
+                    ...prev,
+                    skills: prev.skills.filter((_, i) => i !== index),
+                  }));
+                }}
+              />
+            )}
+            {section && section !== "skills" && (
               <div className="space-y-4">
                 {!items[section].length && (
                   <div className="rounded-2xl border border-dashed border-border bg-card p-6 text-center sm:p-8">
@@ -365,16 +506,14 @@ export default function CandidateResumeBuilder({
                                 row.institution || row.university || row.school,
                                 [row.from_time, row.to_time].filter(Boolean).join(" to "),
                               ].filter(Boolean).join(" / ") || "Add your qualification and institution"
-                            : step === 1
-                              ? row.total_years_total_months || "Duration not provided"
-                              : [
-                                  row.company_name,
-                                  row.joining_date &&
-                                    `${row.joining_date} to ${row.currentlyWorking ? "present" : row.leaving_date || "end date required"}`,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" / ") ||
-                                "Add role details and employment dates"}
+                            : [
+                                row.company_name,
+                                row.joining_date &&
+                                  `${row.joining_date} to ${row.currentlyWorking ? "present" : row.leaving_date || "end date required"}`,
+                              ]
+                                .filter(Boolean)
+                                .join(" / ") ||
+                              "Add role details and employment dates"}
                         </span>
                       </span>
                       <ChevronDown
@@ -564,7 +703,7 @@ export default function CandidateResumeBuilder({
       <div className="sticky bottom-0 z-10 mt-5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:px-5">
         <button
           type="button"
-          disabled={!step || busy || photoBusy}
+          disabled={!step || busy || photoBusy || documentScanBusy}
           onClick={() => {
             setEntryError(null);
             setStep(step - 1);
@@ -576,13 +715,13 @@ export default function CandidateResumeBuilder({
         <div className="flex min-w-0 items-center gap-3">
           <span className="text-muted-foreground hidden text-xs sm:block">
             {step === photoStep
-              ? "Photo is optional"
+              ? !documentMatches ? "Verify your ID to finish" : draft.profile_image ? "Photo and ID are ready" : "Add a photo to finish"
               : "Changes save when you continue"}
           </span>
           <button
             type="submit"
             form="candidate-step-form"
-            disabled={busy || photoBusy}
+            disabled={busy || photoBusy || documentScanBusy}
             className={styles.primary}
           >
             {busy ? (
