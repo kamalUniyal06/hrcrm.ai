@@ -1,68 +1,87 @@
-import { ArrowRight, FileText, PencilLine } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { onboardingStyles as styles } from "./onboardingStyles";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FileText,
+  PencilLine,
+  Sparkles,
+} from "lucide-react";
 
-export default function CandidateWelcome({ onUpload, onCreate }) {
+export default function CandidateWelcome({ onUpload, onCreate, onBack }) {
   return (
-    <section className="mx-auto max-w-3xl py-10 sm:py-16">
-      <header className="mb-8 max-w-xl">
-        <p className="ob-muted text-sm font-medium">Candidate registration</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+    <section
+      aria-labelledby="candidate-welcome-title"
+      className="mx-auto max-w-[960px] py-6"
+    >
+      {onBack && (
+        <button type="button" onClick={onBack} className={styles.back}>
+          <ArrowLeft size={16} aria-hidden="true" /> Back to getting started
+        </button>
+      )}
+      <header className="mt-5 mb-8 sm:mt-6">
+        <p className={styles.eyebrow}>
+          <PencilLine size={15} aria-hidden="true" /> Candidate registration
+        </p>
+        <h1 id="candidate-welcome-title" className={styles.display}>
           Create your candidate profile
         </h1>
-        <p className="ob-muted mt-4 text-sm leading-7">
-          Add your contact details, skills, work experience, and education so our
-          recruitment team can review your application.
+        <p className="text-muted-foreground mt-4 max-w-xl text-base leading-7">
+          Create your candidate profile. Choose how you would like to add your
+          details; you can review everything before you finish.
         </p>
       </header>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-[22px]">
         <button
           type="button"
           onClick={onUpload}
-          className="ob-surface ob-choice flex flex-col items-start p-6 text-left sm:p-7"
+          className={cn(styles.surface, `transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none flex flex-col items-start p-6 text-left sm:p-[30px] border-primary/25 bg-linear-to-br from-card to-accent`)}
         >
-          <FileText
-            size={26}
-            className="text-[var(--ob-accent)]"
-            aria-hidden="true"
-          />
-          <span className="mt-5 text-lg font-semibold">Upload a resume</span>
-          <span className="ob-muted mt-2 flex-1 text-sm leading-6">
-            Use your existing resume to fill in your profile, then review and
-            update the details.
+          <div className="flex w-full items-center justify-between gap-3">
+            <span className={styles.icon}>
+              <FileText size={27} aria-hidden="true" />
+            </span>
+            <span className={cn(styles.status, `border-primary/20 bg-accent text-primary`)}>
+              <Sparkles size={13} aria-hidden="true" /> Recommended
+            </span>
+          </div>
+          <span className="mt-6 text-xl font-semibold tracking-tight">Upload a resume</span>
+          <span className="text-muted-foreground mt-3 flex-1 text-sm leading-6">
+            Give yourself a head start. We will fill in your profile from your
+            resume, then you can fine-tune the details.
           </span>
-          <span className="ob-primary mt-6 w-full">
-            Upload resume <ArrowRight size={16} aria-hidden="true" />
+          <span className={cn(styles.primary, `mt-7 w-full`)}>
+            Upload resume <ArrowRight size={17} aria-hidden="true" />
           </span>
-          <span className="ob-muted mt-3 text-xs">
+          <span className="text-muted-foreground mt-4 text-xs">
             PDF, DOC, or DOCX, up to 10 MB
           </span>
         </button>
         <button
           type="button"
           onClick={onCreate}
-          className="ob-surface ob-choice flex flex-col items-start p-6 text-left sm:p-7"
+          className={cn(styles.surface, `transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-primary hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none flex flex-col items-start p-6 text-left sm:p-[30px] bg-linear-to-br from-card to-[var(--employee-green-soft)] [&>span:first-child]:text-[var(--employee-green)]`)}
         >
-          <PencilLine
-            size={26}
-            className="text-[var(--ob-accent)]"
-            aria-hidden="true"
-          />
-          <span className="mt-5 text-lg font-semibold">
-            Enter details manually
+          <span className={styles.icon}>
+            <PencilLine size={27} aria-hidden="true" />
           </span>
-          <span className="ob-muted mt-2 flex-1 text-sm leading-6">
-            Complete your profile using the form. You can use this option if you
-            do not have a resume.
+          <span className="mt-6 text-xl font-semibold tracking-tight">Enter details manually</span>
+          <span className="text-muted-foreground mt-3 flex-1 text-sm leading-6">
+            Start with a clean slate. Add your personal details, skills,
+            experience, and education at your own pace.
           </span>
-          <span className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-[var(--ob-line)] px-4 py-3 text-sm font-semibold">
-            Create profile <ArrowRight size={16} aria-hidden="true" />
+          <span className={cn(styles.secondary, `mt-7 w-full`)}>
+            Create profile <ArrowRight size={17} aria-hidden="true" />
           </span>
-          <span className="ob-muted mt-3 text-xs">
-            Personal details, skills, experience, education, and photo
+          <span className="text-muted-foreground mt-4 text-xs">
+            No resume needed to get started
           </span>
         </button>
       </div>
-      <p className="ob-muted mt-6 text-sm">
-        You can review your information before completing registration.
+      <p className="mt-6 flex items-start gap-2 text-[13px] leading-relaxed text-muted-foreground [&>svg]:mt-0.5 [&>svg]:shrink-0 [&>svg]:text-[var(--employee-green)]">
+        <Check size={16} aria-hidden="true" /> You are in control. Review your
+        information before completing registration.
       </p>
     </section>
   );

@@ -1,6 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion as Motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, FileText, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { onboardingStyles as styles } from "./onboardingStyles";
+import { useRef, useState } from "react";
+import {
+  ArrowLeft, ArrowRight, Check, FileText, Hash, IdCard, Mail,
+  Megaphone, ShieldCheck, UploadCloud, X,
+} from "lucide-react";
+import GovernmentDocumentUpload from "./GovernmentDocumentUpload";
+import ResumePreview from "./ResumePreview";
 import {
   candidateSources,
   governmentIdError,
@@ -219,6 +225,13 @@ export default function ResumeUpload({
   file,
   governmentIdType,
   governmentIdNumber,
+  governmentDocumentFile,
+  documentScanBusy,
+  documentScanned,
+  documentMatches,
+  documentScanError,
+  onDocumentFileChange,
+  onDocumentScan,
   stage,
   onIdTypeChange,
   onIdNumberChange,
@@ -228,7 +241,9 @@ export default function ResumeUpload({
   onSubmit,
 }) {
   const input = useRef(null);
-  const reducedMotion = useReducedMotion();
+  const heading = useRef(null);
+  // Resume parsing temporarily unmounts this form. Keep retries on step two.
+  const [step, setStep] = useState(() => documentMatches ? "resume" : "id");
   const [dragging, setDragging] = useState(false);
   const [dragFileName, setDragFileName] = useState("");
   const [idTouched, setIdTouched] = useState(false);
@@ -237,426 +252,176 @@ export default function ResumeUpload({
 
   const idError = governmentIdError(governmentIdType, governmentIdNumber);
   const selectedId = governmentIdTypes[governmentIdType];
-  const step = file && !isStaging ? 1 : 0;
+  const idReady = !!email && !idError && documentMatches && !documentScanBusy;
+  const sourceReady = candidateSources.some(source => source.value === stage);
+  const isIdStep = step === "id";
 
-  useEffect(() => {
-    if (!file) {
-      setIsStaging(false);
-      setUploadProgress(0);
-      return;
-    }
-    if (reducedMotion) {
-      setIsStaging(false);
-      setUploadProgress(100);
-      return;
-    }
-    setIsStaging(true);
-    setUploadProgress(35);
-    const step1 = setTimeout(() => setUploadProgress(75), 90);
-    const step2 = setTimeout(() => setUploadProgress(100), 200);
-    const done = setTimeout(() => setIsStaging(false), 300);
-    return () => {
-      clearTimeout(step1);
-      clearTimeout(step2);
-      clearTimeout(done);
-    };
-  }, [file, reducedMotion]);
-
-  const handleFileSelect = (selected) => {
-    setDragging(false);
-    setDragFileName("");
-    onFileChange(selected);
+  const goToStep = (next) => {
+    setStep(next);
+    requestAnimationFrame(() => {
+      heading.current?.focus({ preventScroll: true });
+      heading.current?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    });
   };
 
-  const circleRadius = 26;
-  const circleCircumference = 2 * Math.PI * circleRadius;
-  const strokeDashoffset =
-    circleCircumference - (uploadProgress / 100) * circleCircumference;
-
   return (
-    <section className="mx-auto max-w-3xl pb-6 pt-4 sm:pt-8">
-      {/* Top Bar — Same structure as CandidateResumeBuilder */}
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={onBack}
-          className="ob-muted flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium"
-        >
-          <ArrowLeft size={16} /> Back to options
-        </button>
-        <span className="ob-muted ml-auto text-sm">
-          Step {step + 1} of {steps.length}
-        </span>
-      </div>
-
-      {/* Step Indicator — Same structure as CandidateResumeBuilder */}
-      <ol
-        aria-label="Resume upload steps"
-        className="mb-6 grid grid-cols-2 gap-2 sm:gap-3"
-      >
-        {steps.map((label, index) => (
-          <li key={label} aria-current={step === index ? "step" : undefined}>
-            <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[var(--ob-line)]">
-              <Motion.div
-                initial={false}
-                animate={{ width: index <= step ? "100%" : "0%" }}
-                transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
-                className="h-full rounded-full bg-[var(--ob-accent)]"
-              />
-            </div>
-            <span
-              className={`flex items-center gap-1 text-[10px] leading-4 sm:text-xs sm:leading-5 ${
-                step === index
-                  ? "font-semibold text-[var(--ob-accent)]"
-                  : "ob-muted"
-              }`}
-            >
-              {index < step && (
-                <Check
-                  size={13}
-                  className="hidden shrink-0 sm:block"
-                  aria-label="Completed"
-                />
-              )}
-              {label}
-            </span>
+    <section className="mx-auto max-w-2xl py-5 sm:py-7" aria-labelledby="resume-step-heading">
+      <button type="button" onClick={onBack} className={styles.back}>
+        <ArrowLeft size={16} aria-hidden="true" /> Back to options
+      </button>
+      <nav aria-label="Resume setup progress" className="mt-5 mb-7 border-b border-border pb-4">
+        <ol className="flex items-center gap-4 sm:gap-6">
+          <li className="group" aria-current={isIdStep ? "step" : undefined}>
+            <button type="button" onClick={() => goToStep("id")} className={styles.progressStep}>
+              {documentMatches ? <Check size={20} aria-hidden="true" /> : <ShieldCheck size={20} aria-hidden="true" />}
+              <span>1. Verify ID</span>
+              {!isIdStep && <span className="sr-only">(completed)</span>}
+            </button>
           </li>
-        ))}
-      </ol>
-
+          <li className="h-px min-w-3 flex-1 bg-border" aria-hidden="true" />
+          <li className="group" aria-current={!isIdStep ? "step" : undefined}>
+            <button type="button" disabled={!idReady} onClick={() => goToStep("resume")} className={styles.progressStep}>
+              <FileText size={20} aria-hidden="true" /><span>2. Add resume</span>
+            </button>
+          </li>
+        </ol>
+      </nav>
+      <header className="mb-7">
+        <h1 id="resume-step-heading" ref={heading} tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+          {isIdStep ? "Verify your government ID" : "Upload your resume"}
+        </h1>
+        <p className="text-muted-foreground mt-2 text-sm leading-6">
+          {isIdStep
+            ? "Enter your ID number, then upload the document for verification."
+            : "Add your resume to fill in your profile. You can review every detail next."}
+        </p>
+      </header>
       <form
         id="resume-upload-form"
         onSubmit={(event) => {
-          setIdTouched(true);
+          if (isIdStep) {
+            event.preventDefault();
+            setIdTouched(true);
+            if (idReady) goToStep("resume");
+            return;
+          }
+          if (!idReady) {
+            event.preventDefault();
+            goToStep("id");
+            return;
+          }
+          if (!file || !sourceReady) {
+            event.preventDefault();
+            return;
+          }
           onSubmit(event);
         }}
       >
-        <div
-          className="ob-surface p-5 sm:p-8"
-          onDragOver={(event) => {
-            event.preventDefault();
-            if (!dragging) setDragging(true);
-            const item = event.dataTransfer?.items?.[0];
-            if (item && item.kind === "file" && !dragFileName) {
-              setDragFileName("resume.pdf");
-            }
-          }}
-          onDragLeave={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) {
-              setDragging(false);
-              setDragFileName("");
-            }
-          }}
-          onDrop={(event) => {
-            event.preventDefault();
-            handleFileSelect(event.dataTransfer.files?.[0]);
-          }}
-        >
-          {/* Card Header */}
-          <header className="mb-6 flex items-start justify-between gap-4 border-b border-[var(--ob-line)] pb-5">
+        {isIdStep ? (
+          <div className="space-y-6">
             <div>
-              <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-                Upload existing resume
-              </h1>
-              <p className="ob-muted mt-1.5 text-sm leading-6">
-                {step === 0
-                  ? "Choose your resume file or drag and drop it below to continue."
-                  : "Complete the required details below, then proceed to review your extracted profile."}
-              </p>
-              {step === 1 && (
-                <p className="ob-muted mt-1 text-xs">
-                  Fields marked <span className="ob-required">*</span> are
-                  required.
+              <label htmlFor="resume-email" className={styles.label}>Account email</label>
+              <div className={styles.inputIcon}>
+                <Mail size={18} aria-hidden="true" />
+                <input id="resume-email" type="email" value={email} readOnly className={styles.input} aria-describedby="resume-email-hint" />
+              </div>
+              <p id="resume-email-hint" className={styles.help}>Your ID and resume will be linked to this account.</p>
+            </div>
+            <div className="grid gap-5 sm:grid-cols-[0.85fr_1.15fr]">
+              <div>
+                <label htmlFor="resume-id-type" className={styles.label}>Government ID <span className="text-primary">*</span></label>
+                <div className={styles.inputIcon}>
+                  <IdCard size={18} aria-hidden="true" />
+                  <select id="resume-id-type" required value={governmentIdType}
+                    onChange={(event) => { onIdTypeChange(event.target.value); setIdTouched(false); }} className={styles.input}>
+                    {Object.entries(governmentIdTypes).map(([value, item]) => <option key={value} value={value}>{item.label}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="resume-id-number" className={styles.label}>{selectedId.label} number <span className="text-primary">*</span></label>
+                <div className={styles.inputIcon}>
+                  <Hash size={18} aria-hidden="true" />
+                  <input id="resume-id-number" required autoComplete="off" spellCheck={false}
+                    inputMode={governmentIdType === "aadhaar" ? "numeric" : "text"}
+                    maxLength={selectedId.maxLength} value={governmentIdNumber}
+                    onChange={(event) => onIdNumberChange(event.target.value.toUpperCase())}
+                    onBlur={() => setIdTouched(true)} aria-invalid={idTouched && !!idError}
+                    aria-describedby="resume-id-hint" className={styles.input} />
+                </div>
+                <p id="resume-id-hint" className={cn(styles.help, `${idTouched && idError ? "text-destructive" : ""}`)}>
+                  {idTouched && idError ? idError : selectedId.hint}
                 </p>
+              </div>
+            </div>
+            <GovernmentDocumentUpload
+              label={selectedId.label} file={governmentDocumentFile}
+              scanning={documentScanBusy} scanned={documentScanned} matches={documentMatches}
+              error={documentScanError} onFileChange={onDocumentFileChange} onScan={onDocumentScan}
+            />
+          </div>
+        ) : (
+          <div className="space-y-7">
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border pb-5 text-sm">
+              <span className="inline-flex items-center gap-2"><ShieldCheck size={17} aria-hidden="true" /> {selectedId.label} verified</span>
+              <button type="button" onClick={() => goToStep("id")} className="inline-flex items-center gap-1.5 font-medium text-primary min-h-11">Edit ID details <ArrowLeft size={14} aria-hidden="true" /></button>
+            </div>
+            <div>
+              <label className={styles.label} htmlFor="resume-file">Resume <span className="text-primary">*</span></label>
+              <div className={`mt-3 flex flex-col items-center border-y border-dashed border-border px-3 py-7 text-center transition-colors duration-150 motion-reduce:transition-none ${dragging ? "border-primary! bg-accent" : ""}`}
+                onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
+                onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
+                onDrop={(event) => { event.preventDefault(); setDragging(false); onFileChange(event.dataTransfer.files?.[0]); }}>
+                {file ? <ResumePreview file={file} /> : (
+                  <>
+                    <UploadCloud size={32} className="text-primary" aria-hidden="true" />
+                    <p className="mt-3 text-sm font-medium">Drag and drop your resume here</p>
+                  </>
+                )}
+                <p id="resume-file-hint" className={styles.help}>PDF, DOC, or DOCX. Up to 10 MB.</p>
+                <button type="button" onClick={() => input.current?.click()} className={cn(styles.secondary, `mt-5`)}>
+                  <UploadCloud size={17} aria-hidden="true" /> {file ? "Choose another file" : "Choose resume"}
+                </button>
+                <input ref={input} id="resume-file" type="file" accept=".pdf,.doc,.docx"
+                  aria-describedby="resume-file-hint" className="sr-only" tabIndex={-1}
+                  onChange={(event) => { if (event.target.files?.[0]) onFileChange(event.target.files[0]); event.target.value = ""; }} />
+              </div>
+              {file && (
+                <div className="flex items-center gap-3 border-b border-border py-3" role="status">
+                  <FileText size={20} className="shrink-0 text-primary" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-all text-sm font-medium">{file.name}</p>
+                    <p className="text-muted-foreground mt-1 text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                  <button type="button" aria-label="Remove selected resume" onClick={() => onFileChange(null)} className="text-muted-foreground grid size-11 shrink-0 place-items-center rounded-lg hover:bg-accent"><X size={18} /></button>
+                </div>
               )}
             </div>
-            <button
-              type="button"
-              onClick={onBack}
-              aria-label="Back to options"
-              className="ob-muted grid size-9 shrink-0 place-items-center rounded-lg transition-colors hover:bg-[var(--ob-page)] hover:text-[var(--ob-text)]"
-            >
-              <X size={18} />
+            <div>
+              <label htmlFor="resume-source" className={styles.label}>How did you find us? <span className="text-primary">*</span></label>
+              <div className={styles.inputIcon}>
+                <Megaphone size={18} aria-hidden="true" />
+                <select id="resume-source" required value={stage} onChange={(event) => onStageChange(event.target.value)} className={styles.input}>
+                  <option value="" disabled>Select a source</option>
+                  {candidateSources.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+        <footer className="mt-7 border-t border-border pt-5">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {!isIdStep && <button type="button" onClick={() => goToStep("id")} className={cn(styles.back, `justify-center`)}><ArrowLeft size={16} aria-hidden="true" /> Back to ID</button>}
+            <button type="submit" disabled={isIdStep ? !idReady : !file || !idReady || !sourceReady} className={cn(styles.primary, `w-full sm:ml-auto sm:w-auto`)}>
+              {isIdStep ? "Continue to resume" : "Upload and review details"} <ArrowRight size={16} aria-hidden="true" />
             </button>
-          </header>
-
-          <input
-            ref={input}
-            id="resume-file"
-            type="file"
-            accept=".pdf,.doc,.docx"
-            aria-describedby="resume-file-hint"
-            className="sr-only"
-            tabIndex={-1}
-            onChange={(event) => {
-              handleFileSelect(event.target.files?.[0]);
-              event.target.value = "";
-            }}
-          />
-
-          <AnimatePresence mode="wait" initial={false}>
-            {/* STATE 1A: Fast Circular Uploading Ring */}
-            {file && isStaging ? (
-              <Motion.div
-                key="staging"
-                initial={reducedMotion ? false : { opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.15 }}
-                className="flex min-h-[240px] flex-col items-center justify-center rounded-xl border-2 border-dashed border-[var(--ob-accent)] bg-[var(--ob-soft)] px-5 py-8 text-center"
-              >
-                <div className="relative grid size-16 place-items-center">
-                  <svg
-                    className="-rotate-90 size-16"
-                    viewBox="0 0 64 64"
-                    aria-hidden="true"
-                  >
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="var(--ob-line)"
-                      strokeWidth="4"
-                    />
-                    <circle
-                      cx="32"
-                      cy="32"
-                      r={circleRadius}
-                      fill="none"
-                      stroke="var(--ob-accent)"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={circleCircumference}
-                      strokeDashoffset={strokeDashoffset}
-                      className="transition-all duration-150 ease-out"
-                    />
-                  </svg>
-                  <span className="text-xs font-semibold tabular-nums text-[var(--ob-accent)]">
-                    {uploadProgress}%
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-medium">Uploading file...</p>
-                <button
-                  type="button"
-                  onClick={() => handleFileSelect(null)}
-                  className="mt-3 rounded-lg border border-[var(--ob-line)] bg-[var(--ob-surface)] px-3.5 py-1 text-xs font-medium transition-colors hover:bg-[var(--ob-page)]"
-                >
-                  Cancel
-                </button>
-                <p id="resume-file-hint" className="sr-only">
-                  PDF, DOC, or DOCX. Maximum file size: 10 MB.
-                </p>
-              </Motion.div>
-            ) : !file ? (
-              /* STATE 1B: Animated Upload Dropzone (Idle & Drag-Over) */
-              <Motion.div
-                key="dropzone"
-                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reducedMotion ? undefined : { opacity: 0, y: -6 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                onClick={() => input.current?.click()}
-                className={`ob-choice relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-5 py-8 text-center ${
-                  dragging
-                    ? "border-[var(--ob-accent)] bg-[var(--ob-soft)]"
-                    : "border-[var(--ob-line)] bg-[var(--ob-page)]"
-                }`}
-              >
-                <div className="relative">
-                  <UploadResumeIllustration
-                    active={dragging}
-                    reducedMotion={reducedMotion}
-                  />
-                  <AnimatePresence>
-                    {dragging && (
-                      <Motion.div
-                        initial={{ opacity: 0, y: 6, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 4, scale: 0.95 }}
-                        transition={{ duration: 0.12 }}
-                        className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 rounded-lg border border-[var(--ob-line)] bg-[var(--ob-surface)] px-3 py-1 text-xs font-semibold text-[var(--ob-accent)] shadow-xs whitespace-nowrap"
-                      >
-                        <FileText size={13} className="shrink-0" />
-                        <span>{dragFileName || "resume.pdf"}</span>
-                      </Motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <p className="mt-2 text-sm font-medium">
-                  Choose a file or drag it here
-                </p>
-                <p id="resume-file-hint" className="ob-help">
-                  PDF, DOC, or DOCX. Maximum file size: 10 MB.
-                </p>
-
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    input.current?.click();
-                  }}
-                  className="ob-primary mt-5"
-                >
-                  Upload from local
-                </button>
-              </Motion.div>
-            ) : (
-              /* STEP 2: Selected File Row + Verification Fields */
-              <Motion.div
-                key="details"
-                initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                {/* Compact Selected File Row with Change File Button */}
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[var(--ob-soft)] px-4 py-3">
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <FileText
-                      size={20}
-                      className="shrink-0 text-[var(--ob-accent)]"
-                      aria-hidden="true"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-[var(--ob-accent)]">
-                        {file.name}
-                      </p>
-                      <p className="ob-muted text-xs">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => input.current?.click()}
-                    className="min-h-10 shrink-0 rounded-lg border border-[var(--ob-line)] bg-[var(--ob-surface)] px-3.5 py-2 text-xs font-semibold transition-colors hover:border-[var(--ob-accent)]"
-                  >
-                    Change File
-                  </button>
-                </div>
-
-                <p id="resume-file-hint" className="sr-only">
-                  PDF, DOC, or DOCX. Maximum file size: 10 MB.
-                </p>
-
-                {/* Staggered Verification Fields */}
-                <Motion.div
-                  initial={reducedMotion ? false : { opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.16, delay: 0.03, ease: "easeOut" }}
-                  className="mt-5 border-t border-[var(--ob-line)] pt-5"
-                >
-                  <div>
-                    <label htmlFor="resume-email" className="ob-label">
-                      Account email
-                    </label>
-                    <input
-                      id="resume-email"
-                      type="email"
-                      value={email}
-                      readOnly
-                      className="ob-input"
-                      aria-describedby="resume-email-hint"
-                    />
-                    <p id="resume-email-hint" className="ob-help">
-                      Your resume will be linked to this account.
-                    </p>
-                  </div>
-
-                  <div className="mt-5 grid gap-4 sm:grid-cols-[0.85fr_1.15fr]">
-                    <label htmlFor="resume-id-type" className="ob-label">
-                      Government ID <span className="ob-required">*</span>
-                      <select
-                        id="resume-id-type"
-                        required
-                        value={governmentIdType}
-                        onChange={(event) => {
-                          onIdTypeChange(event.target.value);
-                          setIdTouched(false);
-                        }}
-                        className="ob-input"
-                      >
-                        {Object.entries(governmentIdTypes).map(
-                          ([value, item]) => (
-                            <option key={value} value={value}>
-                              {item.label}
-                            </option>
-                          ),
-                        )}
-                      </select>
-                    </label>
-
-                    <div>
-                      <label htmlFor="resume-id-number" className="ob-label">
-                        {selectedId.label} number{" "}
-                        <span className="ob-required">*</span>
-                      </label>
-                      <input
-                        id="resume-id-number"
-                        required
-                        autoComplete="off"
-                        spellCheck={false}
-                        inputMode={
-                          governmentIdType === "aadhaar" ? "numeric" : "text"
-                        }
-                        maxLength={selectedId.maxLength}
-                        value={governmentIdNumber}
-                        onChange={(event) =>
-                          onIdNumberChange(event.target.value.toUpperCase())
-                        }
-                        onBlur={() => setIdTouched(true)}
-                        aria-invalid={idTouched && !!idError}
-                        aria-describedby="resume-id-hint"
-                        className="ob-input"
-                      />
-                      <p
-                        id="resume-id-hint"
-                        className={`ob-help ${idTouched && idError ? "!text-red-700" : ""}`}
-                      >
-                        {idTouched && idError ? idError : selectedId.hint}
-                      </p>
-                    </div>
-                  </div>
-
-                  <label htmlFor="resume-source" className="ob-label mt-5">
-                    How did you find us? <span className="ob-required">*</span>
-                    <select
-                      id="resume-source"
-                      required
-                      value={stage}
-                      onChange={(event) => onStageChange(event.target.value)}
-                      className="ob-input"
-                    >
-                      <option value="" disabled>
-                        Select a source
-                      </option>
-                      {candidateSources.map((source) => (
-                        <option key={source.value} value={source.value}>
-                          {source.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </Motion.div>
-
-                <div className="mt-6 border-t border-[var(--ob-line)] pt-5">
-                  <button
-                    type="submit"
-                    disabled={!file || !email}
-                    className="ob-primary w-full"
-                  >
-                    Proceed <ArrowRight size={16} />
-                  </button>
-                  <p className="ob-help text-center">
-                    You will review your profile before completing registration.
-                  </p>
-                </div>
-              </Motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+          </div>
+          <p className={cn(styles.help, `sm:text-right`)}>
+            {isIdStep
+              ? documentMatches ? "ID verified. You're ready to add your resume." : "Verify your ID to continue."
+              : !file ? "Choose a resume to continue." : !sourceReady ? "Select how you found us to continue." : "Next, review and edit your profile details."}
+          </p>
+        </footer>
       </form>
     </section>
   );

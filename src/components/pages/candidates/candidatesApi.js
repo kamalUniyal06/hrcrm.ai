@@ -1,3 +1,4 @@
+import he from "he";
 import { http } from "../../../services/api";
 import { loadCandidatePage, loadShortlistSource } from "./candidateList.js";
 export { shortlistedCandidatesKey } from "./candidateList.js";
@@ -103,14 +104,15 @@ export function workflowValue(record, kind, options = []) {
   const option = options.find(
     (option) => String(option.id) === raw || option.name === raw,
   );
-  return (
+  // Decode display text only; keep IDs and saved workflow values unchanged.
+  return he.decode(String(
     option?.name ||
     record[`${key}_name`] ||
     record[workflowFields[kind]] ||
     record[`${kind}_name`] ||
     raw ||
     "Unassigned"
-  );
+  ));
 }
 
 export function optionValue(record, kind, option, options) {
