@@ -1,4 +1,5 @@
-// Experience date-only values follow the CRM's DD/MM/YYYY convention.
+// The authenticated browser API returns experience dates as MM/DD/YYYY,
+// even when the CRM UI or another session displays DD/MM/YYYY.
 // Keep calendar dates as strings so browser timezones cannot shift the day.
 export function experienceDateForInput(value) {
   const text = String(value ?? "").trim();
@@ -6,7 +7,7 @@ export function experienceDateForInput(value) {
   const slashDate = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   const isoDate = text.match(/^(\d{4}-\d{2}-\d{2})(?:$|[T ]\d{2}:\d{2})/);
   const date = slashDate
-    ? `${slashDate[3]}-${slashDate[2].padStart(2, "0")}-${slashDate[1].padStart(2, "0")}`
+    ? `${slashDate[3]}-${slashDate[1].padStart(2, "0")}-${slashDate[2].padStart(2, "0")}`
     : isoDate?.[1];
   if (!date) return text;
   const parsed = new Date(`${date}T00:00:00Z`);

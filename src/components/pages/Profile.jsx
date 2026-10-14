@@ -501,14 +501,18 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     setSection("personal");
     setError("");
   };
+  const showWelcomeChooser = phase === "welcome" && !candidateFlowStarted;
   return (
     <main
       ref={pageRef}
-      className={
+      className={cn(
         standalone
           ? "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary  min-h-dvh bg-background px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
-          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8"
-      }
+          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8",
+        // OnboardingBackdrop fills <main> behind the welcome screen.
+        showWelcomeChooser && "relative isolate",
+        showWelcomeChooser && standalone && "lg:pb-0",
+      )}
     >
 
       <div
@@ -538,8 +542,8 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         {phase === "loading" && (
           <LoadingPage />
         )}
-        {phase === "welcome" && !candidateFlowStarted && (
-          <OnboardingWelcome onCandidate={() => setCandidateFlowStarted(true)} />
+        {showWelcomeChooser && (
+          <OnboardingWelcome fillViewport={standalone} onCandidate={() => setCandidateFlowStarted(true)} />
         )}
         {phase === "welcome" && candidateFlowStarted && (
           <CandidateWelcome

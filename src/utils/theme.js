@@ -1,3 +1,5 @@
+export const DEFAULT_THEME = "hrcrm";
+
 export const THEMES = [
     {
         id: "default",
@@ -49,6 +51,16 @@ export const THEMES = [
             accent: "#7c3aed",
         },
     },
+    {
+        id: "hrcrm",
+        name: "HRCRM",
+        description: "Official HRCRM brand workspace",
+        colors: {
+            primary: "#0b1310",
+            secondary: "#064030",
+            accent: "#d4fa3c",
+        },
+    },
 ];
 
 
@@ -68,7 +80,7 @@ export const setTheme = (theme) => {
 
     const selectedTheme = validTheme
         ? theme
-        : "default";
+        : DEFAULT_THEME;
 
     document.documentElement.setAttribute(
         "data-theme",
@@ -93,7 +105,7 @@ export const getTheme = () => {
         document.documentElement.getAttribute(
             "data-theme"
         ) ||
-        "default"
+        DEFAULT_THEME
     );
 };
 

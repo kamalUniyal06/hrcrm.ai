@@ -7,6 +7,13 @@ export const candidateRelatedModules = {
   education: "hrc_education",
 };
 
+export function candidateRelatedQueryKey(id, section) {
+  const key = ["candidate-related", id, section];
+  // Cached experience records contain normalized dates. Do not reuse records
+  // produced by the old day/month parser after a hot update or navigation.
+  return section === "experiences" ? [...key, "dates-mm-dd-yyyy-v2"] : key;
+}
+
 export async function loadCandidateRelated(request, id, section) {
   const related_module = candidateRelatedModules[section];
   if (!id || !related_module) throw new Error("A saved candidate is required to load this section.");

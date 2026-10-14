@@ -1,7 +1,26 @@
 import { candidateInterviewStatus } from "../interviews/candidateInterviewData.js";
 import { interviewDate } from "../interviews/interviewUtils.js";
+import { experienceDateForInput } from "../profile/experienceDates.js";
 
 const lower = (value) => String(value ?? "").trim().toLowerCase();
+
+function experienceDateLabel(value) {
+  const text = experienceDateForInput(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const date = new Date(`${text}T00:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== text) return text;
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "UTC",
+  });
+}
+
+/** Show the saved calendar days without losing precision or shifting timezones. */
+export function experienceDateRange(item) {
+  const start = experienceDateLabel(item.joining_date);
+  const end = experienceDateLabel(item.leaving_date);
+  if (!start) return end ? `Until ${end}` : "";
+  return `${start} – ${end || "Present"}`;
+}
 
 export const personalFields = [
   "first_name", "last_name", "email1", "phone_mobile",

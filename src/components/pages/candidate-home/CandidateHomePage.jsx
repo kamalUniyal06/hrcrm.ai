@@ -35,6 +35,7 @@ import {
   fetchCandidateRelated,
   normalizeCandidate,
 } from "../profile/candidateApi";
+import { candidateRelatedQueryKey } from "../profile/candidateRelated.js";
 import { fetchJobApplications, fetchJobPostings } from "../jobs/jobsApi";
 import {
   fieldLabel,
@@ -45,6 +46,7 @@ import {
 } from "../jobs/jobFormatting";
 import { fetchMyInterviews } from "../interviews/candidateInterviews.api";
 import {
+  experienceDateRange,
   hiringProgress,
   nextInterview,
   profileStrength,
@@ -97,7 +99,7 @@ function monthYear(value) {
 
 function useRelated(candidateId, section) {
   return useQuery({
-    queryKey: ["candidate-related", candidateId, section],
+    queryKey: candidateRelatedQueryKey(candidateId, section),
     queryFn: () => fetchCandidateRelated(candidateId, section),
     enabled: Boolean(candidateId),
     staleTime: 60000,
@@ -651,10 +653,7 @@ function ExperienceItem({ item }) {
   const company =
     plainText(item.company_name || item.company || item.name) || "Company";
   const role = plainText(item.position || item.designation);
-  const start = monthYear(item.joining_date);
-  const dates = start
-    ? `${start} – ${monthYear(item.leaving_date) || "Present"}`
-    : "";
+  const dates = experienceDateRange(item);
   const points = plainText(
     item.responsibilities || item.description || item.details,
   )

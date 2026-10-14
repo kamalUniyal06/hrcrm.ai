@@ -65,6 +65,8 @@
   --sidebar-secondary: #033081;
   --topbtn-primary: #0b6bf7;
   --topbtn-secondary: #063f91;
+  --highlight: var(--topbtn-primary);
+  --highlight-foreground: #ffffff;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -215,6 +217,54 @@
   --topbtn-primary: #ef4444;
   --topbtn-secondary: #b91c1c;
 }
+
+/* HRCRM brand theme (palette from hrcrm.ai) */
+[data-theme="hrcrm"] {
+  --background: #f7f8f6;
+  --foreground: #0b1310;
+
+  --card: #ffffff;
+  --card-foreground: #0b1310;
+
+  --popover: #ffffff;
+  --popover-foreground: #0b1310;
+
+  --primary: #09533d;
+  --primary-foreground: #ffffff;
+
+  --secondary: #eef9d2;
+  --secondary-foreground: #3b4a0b;
+
+  --muted: #eff2ee;
+  --muted-foreground: #6a7074;
+
+  --accent: #f0fbc9;
+  --accent-foreground: #064030;
+
+  --border: #dce3d9;
+  --ring: #8fa61b;
+
+  --chart-1: #d4fa3c;
+  --chart-2: #10b981;
+  --chart-3: #09533d;
+  --chart-4: #8fa61b;
+  --chart-5: #3da9a5;
+
+  --sidebar: #0b1310;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #0b1310;
+  --sidebar-secondary: #064030;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #161d1a;
+  --sidebar-accent-foreground: #d4fa3c;
+  --sidebar-border: #1c241f;
+
+  --topbtn-primary: #8fa61b;
+  --topbtn-secondary: #064030;
+
+  --highlight: #d4fa3c;
+  --highlight-foreground: #0b1310;
+}
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -299,6 +349,8 @@
   --color-border: var(--border);
   --color-search-primary: var(--topbtn-primary);
   --color-search-secondary: var(--topbtn-secondary);
+  --color-highlight: var(--highlight);
+  --color-highlight-foreground: var(--highlight-foreground);
   --color-input: var(--input);
   --color-input-background: var(--input-background);
   --color-switch-background: var(--switch-background);

@@ -6,8 +6,8 @@ import { validateRelatedEntries } from "./onboardingValidation.js";
 
 test("backend experience dates populate date inputs and pass onboarding validation", async () => {
   const records = [
-    { id: "experience-1", name: "Expelee", joining_date: "01/01/2024", leaving_date: "01/03/2025" },
-    { id: "experience-2", name: "Internship", joining_date: "01/08/2023", leaving_date: "01/12/2023" },
+    { id: "experience-1", name: "Expelee", joining_date: "01/01/2024", leaving_date: "03/01/2025" },
+    { id: "experience-2", name: "Internship", joining_date: "08/01/2023", leaving_date: "12/01/2023" },
   ];
   const result = await loadCandidateRelated(async () => ({ success: true, records }), "candidate-a", "experiences");
   assert.deepEqual(result, [
@@ -15,11 +15,11 @@ test("backend experience dates populate date inputs and pass onboarding validati
     { ...records[1], joining_date: "2023-08-01", leaving_date: "2023-12-01" },
   ]);
   assert.equal(validateRelatedEntries("experiences", result), null);
-  assert.equal(records[0].leaving_date, "01/03/2025");
+  assert.equal(records[0].leaving_date, "03/01/2025");
 });
 
 test("blank end dates remain blank and other sections keep their original date text", async () => {
-  const records = [{ id: "experience-current", name: "Developer", joining_date: "01/03/2025", leaving_date: "" }];
+  const records = [{ id: "experience-current", name: "Developer", joining_date: "03/01/2025", leaving_date: "" }];
   const request = async () => ({ success: true, records });
   const result = await loadCandidateRelated(request, "candidate-a", "experiences");
   assert.equal(result[0].joining_date, "2025-03-01");
