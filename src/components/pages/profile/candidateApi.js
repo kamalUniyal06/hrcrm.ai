@@ -68,7 +68,9 @@ export function normalizeCandidate(record = {}, email) {
   for (const [field, source] of Object.entries({ primary_address_street: "street", primary_address_city: "city", primary_address_state: "state", primary_address_postalcode: "postal_code", primary_address_country: "country" })) {
     draft[field] ||= typeof record[source] === "string" ? record[source] : "";
   }
-  draft.current_designation ||= record.designation || record.title || "";
+  draft.title ||= record.title || record.job_title || "";
+  draft.current_designation ||= record.current_designation || record.designation || record.title || record.job_title || "";
+  draft.department ||= record.department || record.department_name || record.hrc_departments_hrc_employees_1_name || "";
   draft.description ||= record.summary || "";
   const history = readResumeSections(draft.description);
   draft.description = history.about;

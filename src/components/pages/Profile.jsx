@@ -129,6 +129,12 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (!base.last_name && user?.last_name) base.last_name = user.last_name;
     if (!base.phone_mobile && (user?.phone_mobile || user?.phone || user?.mobile))
       base.phone_mobile = user.phone_mobile || user.phone || user.mobile;
+    if (!base.title && (user?.title || user?.job_title))
+      base.title = user.title || user.job_title;
+    if (!base.current_designation && (user?.current_designation || user?.designation || user?.title || user?.role))
+      base.current_designation = user.current_designation || user.designation || user.title || user.role;
+    if (!base.department && (user?.department || user?.department_name || userInfo?.department))
+      base.department = user.department || user.department_name || userInfo?.department;
     return base;
   });
   const [phase, setPhase] = useState(() => cachedCandidate
@@ -269,6 +275,12 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         if (!base.last_name && user?.last_name) base.last_name = user.last_name;
         if (!base.phone_mobile && (user?.phone_mobile || user?.phone || user?.mobile))
           base.phone_mobile = user.phone_mobile || user.phone || user.mobile;
+        if (!base.title && (user?.title || user?.job_title))
+          base.title = user.title || user.job_title;
+        if (!base.current_designation && (user?.current_designation || user?.designation || user?.title || user?.role))
+          base.current_designation = user.current_designation || user.designation || user.title || user.role;
+        if (!base.department && (user?.department || user?.department_name || userInfo?.department))
+          base.department = user.department || user.department_name || userInfo?.department;
       }
       setDraft(base);
       setResumeReview(hasParsedResume(cached));
@@ -292,6 +304,12 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           if (!base.last_name && user?.last_name) base.last_name = user.last_name;
           if (!base.phone_mobile && (user?.phone_mobile || user?.phone || user?.mobile))
             base.phone_mobile = user.phone_mobile || user.phone || user.mobile;
+          if (!base.title && (user?.title || user?.job_title))
+            base.title = user.title || user.job_title;
+          if (!base.current_designation && (user?.current_designation || user?.designation || user?.title || user?.role))
+            base.current_designation = user.current_designation || user.designation || user.title || user.role;
+          if (!base.department && (user?.department || user?.department_name || userInfo?.department))
+            base.department = user.department || user.department_name || userInfo?.department;
         }
         setDraft(base);
         setResumeReview(hasParsedResume(candidate));
@@ -723,9 +741,46 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     try {
       // Recheck before creating, including after an uncertain previous save response.
       const existing = record || (await findCandidate(email));
+      const lockedTitle =
+        existing?.title ||
+        record?.title ||
+        user?.title ||
+        user?.job_title ||
+        draft?.title ||
+        "";
+      const lockedDesignation =
+        existing?.current_designation ||
+        record?.current_designation ||
+        existing?.designation ||
+        record?.designation ||
+        user?.current_designation ||
+        user?.designation ||
+        user?.title ||
+        user?.role ||
+        draft?.current_designation ||
+        "";
+      const lockedDepartment =
+        existing?.department ||
+        record?.department ||
+        existing?.department_name ||
+        record?.department_name ||
+        existing?.hrc_departments_hrc_employees_1_name ||
+        record?.hrc_departments_hrc_employees_1_name ||
+        user?.department ||
+        user?.department_name ||
+        userInfo?.department ||
+        draft?.department ||
+        "";
+
       const saved = await saveCandidate(
         existing?.id,
-        { ...draft, candidate_source: existing?.candidate_source },
+        {
+          ...draft,
+          title: lockedTitle,
+          current_designation: lockedDesignation,
+          department: lockedDepartment,
+          candidate_source: existing?.candidate_source,
+        },
         email,
       );
       if (!alive.current) return;
@@ -1044,13 +1099,17 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       className={
         standalone
           ? "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary  min-h-dvh bg-background px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
-          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8"
+          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-3 py-4 sm:px-6 sm:py-6"
       }
     >
 
       <div
         className={
-          standalone ? `mx-auto max-w-[1400px] space-y-6 ${phase === "builder" || phase === "upload" ? "pt-[22px] sm:pt-0" : ""}` : "w-full space-y-6 mt-4"
+          standalone
+            ? (phase === "view" || phase === "edit")
+              ? "mx-auto max-w-6xl 2xl:max-w-7xl space-y-4 sm:space-y-5"
+              : `mx-auto max-w-[1400px] space-y-5 ${phase === "builder" || phase === "upload" ? "pt-[22px] sm:pt-0" : ""}`
+            : "mx-auto max-w-6xl 2xl:max-w-7xl space-y-4 sm:space-y-5"
         }
       >
         {!standalone && phase !== "view" && phase !== "edit" && (
@@ -1142,7 +1201,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
             />
           ))}
         {draft && (phase === "view" || phase === "edit") && (
-          <div className="space-y-6">
+          <div className="space-y-4 sm:space-y-5">
             {/* Top Navigation Bar with Tabs */}
             <ProfileHeaderNav
               activeTab={["personal", "education", "experiences", "skills"].includes(section) ? section : "personal"}
@@ -1153,7 +1212,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
             />
 
             {/* Main Content Layout: Left Sidebar + Right Cards */}
-            <div className="flex flex-col lg:flex-row items-start gap-6">
+            <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-5">
               {/* Left Column Profile Sidebar Card */}
               <EmployeeProfileSidebar
                 record={record}
@@ -1198,6 +1257,8 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                 setRelated={setRelated}
                 relatedCache={relatedCache}
                 deletedRelatedIdsRef={deletedRelatedIdsRef}
+                user={user}
+                userInfo={userInfo}
               />
             </div>
 
@@ -1240,313 +1301,7 @@ function calculateAge(dob) {
   return age > 0 ? `${age} yrs` : "Not added";
 }
 
-export const PROFILE_BANNER_THEMES = [
-  {
-    id: "waves",
-    name: "Architectural Waves",
-    subtitle: "Minimalist silver ribbon flow",
-    tag: "Default",
-  },
-  {
-    id: "navy_tech",
-    name: "Executive Slate & Navy",
-    subtitle: "Deep corporate grid & ambient glow",
-    tag: "Corporate",
-  },
-  {
-    id: "ocean_blue",
-    name: "Ocean & Sky Flow",
-    subtitle: "High-tech vibrant blue layered waves",
-    tag: "Vibrant",
-  },
-  {
-    id: "aurora_mesh",
-    name: "Aurora Indigo Mesh",
-    subtitle: "Modern HR CRM organic mesh gradient",
-    tag: "Modern",
-  },
-];
 
-function ProfileCoverBanner({ theme = "waves", isThumbnail = false }) {
-  const heightClass = isThumbnail ? "h-full w-full" : "h-36 w-full";
-
-  if (theme === "navy_tech") {
-    return (
-      <div className={`relative ${heightClass} overflow-hidden bg-gradient-to-br from-[#0b0f19] via-[#111827] to-[#1e293b]`}>
-        <svg
-          className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none"
-          viewBox="0 0 420 160"
-          preserveAspectRatio="xMidYMid slice"
-          fill="none"
-        >
-          <defs>
-            <linearGradient id="navyLineGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.45" />
-              <stop offset="50%" stopColor="#6366f1" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#818cf8" stopOpacity="0.05" />
-            </linearGradient>
-            <linearGradient id="navyLineGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.1" />
-            </linearGradient>
-            <pattern id="navyGridDots" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
-              <circle cx="2" cy="2" r="0.8" fill="#94a3b8" fillOpacity="0.2" />
-            </pattern>
-          </defs>
-          <rect width="420" height="160" fill="url(#navyGridDots)" />
-          <path d="M-20,130 C80,60 180,150 300,85 C370,45 400,75 440,55 L440,160 L-20,160 Z" fill="url(#navyLineGrad1)" />
-          <path d="M-20,150 C120,85 220,135 340,70 C390,45 420,60 440,45 L440,160 L-20,160 Z" fill="url(#navyLineGrad2)" />
-          <path d="M-10,115 C100,50 200,120 320,65 C380,35 410,55 435,40" stroke="#38bdf8" strokeWidth="1.2" strokeOpacity="0.4" />
-          <path d="M10,135 C120,70 220,130 340,75 C390,50 420,65 440,55" stroke="#818cf8" strokeWidth="1" strokeOpacity="0.35" />
-        </svg>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
-      </div>
-    );
-  }
-
-  if (theme === "ocean_blue") {
-    return (
-      <div className={`relative ${heightClass} overflow-hidden bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-700`}>
-        <svg
-          className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none"
-          viewBox="0 0 420 160"
-          preserveAspectRatio="xMidYMid slice"
-          fill="none"
-        >
-          <defs>
-            <linearGradient id="oceanCurve1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.2" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
-            </linearGradient>
-            <linearGradient id="oceanCurve2" x1="100%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          <circle cx="360" cy="25" r="95" fill="white" fillOpacity="0.08" />
-          <circle cx="70" cy="140" r="75" fill="white" fillOpacity="0.05" />
-          <path d="M-20,110 C90,55 190,120 310,65 C370,40 400,60 440,50 L440,160 L-20,160 Z" fill="url(#oceanCurve1)" />
-          <path d="M-20,135 C110,85 230,135 340,80 C390,60 415,70 440,65 L440,160 L-20,160 Z" fill="url(#oceanCurve2)" />
-          <path d="M0,95 C110,45 210,110 330,55 C380,30 410,48 435,38" stroke="#ffffff" strokeWidth="1.5" strokeOpacity="0.35" />
-        </svg>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent pointer-events-none" />
-      </div>
-    );
-  }
-
-  if (theme === "aurora_mesh") {
-    return (
-      <div className={`relative ${heightClass} overflow-hidden bg-gradient-to-br from-indigo-800 via-purple-800 to-slate-950`}>
-        <div className="absolute -top-10 -left-10 h-40 w-40 rounded-full bg-cyan-400/25 blur-2xl" />
-        <div className="absolute top-2 right-2 h-36 w-36 rounded-full bg-pink-500/25 blur-2xl" />
-        <div className="absolute -bottom-8 left-1/3 h-32 w-32 rounded-full bg-indigo-400/35 blur-2xl" />
-        <svg
-          className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none"
-          viewBox="0 0 420 160"
-          preserveAspectRatio="xMidYMid slice"
-          fill="none"
-        >
-          <path d="M-10,115 C130,65 240,140 430,75 L430,160 L-10,160 Z" fill="white" fillOpacity="0.07" />
-          <path d="M-10,135 C140,85 260,150 430,95 L430,160 L-10,160 Z" fill="white" fillOpacity="0.08" />
-          <path d="M0,100 C140,55 250,125 430,65" stroke="#ffffff" strokeWidth="1.2" strokeOpacity="0.25" />
-        </svg>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none" />
-      </div>
-    );
-  }
-
-  // Default: "waves" (Architectural Wave)
-  return (
-    <div className={`relative ${heightClass} overflow-hidden bg-gradient-to-br from-[#f8f9fb] via-[#f1f3f6] to-[#e6eaee]`}>
-      <svg
-        className="absolute inset-0 h-full w-full object-cover select-none pointer-events-none"
-        viewBox="0 0 420 160"
-        preserveAspectRatio="xMidYMid slice"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <linearGradient id="ribbonGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="45%" stopColor="#f4f6f8" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#d8dde4" stopOpacity="0.95" />
-          </linearGradient>
-
-          <linearGradient id="ribbonGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.95" />
-            <stop offset="50%" stopColor="#e9edf2" stopOpacity="0.75" />
-            <stop offset="100%" stopColor="#cbd2dc" stopOpacity="0.9" />
-          </linearGradient>
-
-          <linearGradient id="ribbonGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.85" />
-            <stop offset="60%" stopColor="#e2e7ee" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#bcc5d2" stopOpacity="0.95" />
-          </linearGradient>
-
-          <linearGradient id="ribbonGrad4" x1="50%" y1="0%" x2="50%" y2="100%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#cad1db" stopOpacity="0.6" />
-          </linearGradient>
-
-          <filter id="softRibbonShadow1" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="-3" dy="5" stdDeviation="6" floodColor="#0f172a" floodOpacity="0.09" />
-          </filter>
-
-          <filter id="softRibbonShadow2" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="-2" dy="4" stdDeviation="4" floodColor="#0f172a" floodOpacity="0.07" />
-          </filter>
-        </defs>
-
-        <path
-          d="M110 -30 C190 40, 260 85, 430 115 L450 -30 Z"
-          fill="url(#ribbonGrad1)"
-          filter="url(#softRibbonShadow1)"
-        />
-
-        <path
-          d="M145 -30 C220 45, 290 85, 435 85 L450 -30 Z"
-          fill="url(#ribbonGrad2)"
-          filter="url(#softRibbonShadow2)"
-        />
-
-        <path
-          d="M180 -30 C250 45, 320 80, 440 60 L450 -30 Z"
-          fill="url(#ribbonGrad4)"
-          opacity="0.85"
-        />
-
-        <path
-          d="M75 -20 C175 45, 235 110, 410 170 L430 190 L-10 190 Z"
-          fill="url(#ribbonGrad3)"
-          filter="url(#softRibbonShadow1)"
-        />
-
-        <path
-          d="M130 -15 C205 55, 255 115, 395 175"
-          stroke="#ffffff"
-          strokeWidth="1.6"
-          strokeOpacity="0.85"
-        />
-
-        <path
-          d="M160 -15 C230 55, 275 115, 415 175"
-          stroke="#ffffff"
-          strokeWidth="1.4"
-          strokeOpacity="0.7"
-        />
-
-        <path
-          d="M190 -15 C255 55, 295 115, 435 175"
-          stroke="#ffffff"
-          strokeWidth="1.2"
-          strokeOpacity="0.55"
-        />
-
-        <path
-          d="M220 -15 C280 50, 315 105, 445 165"
-          stroke="#ffffff"
-          strokeWidth="1"
-          strokeOpacity="0.4"
-        />
-
-        <path
-          d="M250 -15 C305 45, 335 95, 455 155"
-          stroke="#ffffff"
-          strokeWidth="0.8"
-          strokeOpacity="0.3"
-        />
-      </svg>
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-900/[0.03] via-transparent to-transparent pointer-events-none" />
-    </div>
-  );
-}
-
-function ProfileBannerThemeModal({
-  isOpen,
-  onClose,
-  currentTheme,
-  onSelectTheme,
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl border border-slate-100">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">
-              Change Cover Background
-            </h3>
-            <p className="text-xs text-slate-500">
-              Select one of the 4 professional themes saved in your local storage.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
-          >
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          {PROFILE_BANNER_THEMES.map((themeOption) => {
-            const isSelected = currentTheme === themeOption.id;
-            return (
-              <button
-                key={themeOption.id}
-                type="button"
-                onClick={() => onSelectTheme(themeOption.id)}
-                className={cn(
-                  "group relative flex flex-col text-left rounded-2xl border p-2.5 transition-all cursor-pointer overflow-hidden",
-                  isSelected
-                    ? "border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-500/20 shadow-sm"
-                    : "border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
-                )}
-              >
-                {/* Mini Preview */}
-                <div className="relative h-16 w-full rounded-xl overflow-hidden border border-slate-200/60 shadow-inner">
-                  <ProfileCoverBanner theme={themeOption.id} isThumbnail />
-                  {isSelected && (
-                    <div className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-indigo-600 text-white shadow">
-                      <Check size={11} strokeWidth={3} />
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2.5 px-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                      {themeOption.name}
-                    </span>
-                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-                      {themeOption.tag}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
-                    {themeOption.subtitle}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-5 flex justify-end gap-2 pt-3 border-t border-slate-100">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function ProfilePhotoModal({
   isOpen,
@@ -1920,22 +1675,22 @@ function ProfileHeaderNav({ activeTab, setActiveTab }) {
   return (
     <div className="space-y-4">
       {/* Top Bar with Title */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => toast("Profile navigation", { icon: "📋" })}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 cursor-pointer"
           aria-label="Navigation menu"
         >
-          <AlignLeft size={18} />
+          <AlignLeft size={16} />
         </button>
-        <h1 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-900">
           Employee Profile
         </h1>
       </div>
 
       {/* Horizontal Tabs Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 hide-scrollbar">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 pt-1 hide-scrollbar">
         {tabsList.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -1943,7 +1698,7 @@ function ProfileHeaderNav({ activeTab, setActiveTab }) {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`relative shrink-0 rounded-full px-5 py-2 text-xs md:text-sm font-medium transition-all duration-200 cursor-pointer ${
+              className={`relative shrink-0 rounded-full px-4 py-1.5 text-xs md:text-sm font-medium transition-all duration-200 cursor-pointer ${
                 isActive
                   ? "text-white"
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
@@ -2114,55 +1869,21 @@ function EmployeeProfileSidebar({
     (user?.name ? user.name[0]?.toUpperCase() : "") ||
     "EP";
 
-  const [bannerTheme, setBannerTheme] = useState(() => {
-    try {
-      return localStorage.getItem("hrcrm_profile_banner_theme") || "waves";
-    } catch {
-      return "waves";
-    }
-  });
-  const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
-
-  const handleSelectBannerTheme = (themeId) => {
-    setBannerTheme(themeId);
-    try {
-      localStorage.setItem("hrcrm_profile_banner_theme", themeId);
-      toast.success("Cover background updated!");
-    } catch {}
-    setIsBannerModalOpen(false);
-  };
-
   return (
-    <aside className="w-full lg:w-[350px] shrink-0 space-y-5">
+    <aside className="w-full lg:w-[310px] xl:w-[330px] shrink-0 space-y-4">
       <Motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: "easeOut" }}
-        className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_2px_16px_rgba(0,0,0,0.04)]"
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
       >
-        {/* Banner with selectable background theme */}
-        <div className="relative">
-          <ProfileCoverBanner theme={bannerTheme} />
-
-          {/* Pencil button to change background cover */}
-          <button
-            type="button"
-            onClick={() => setIsBannerModalOpen(true)}
-            className="absolute top-3 right-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/80 text-slate-700 shadow-sm backdrop-blur-md transition-all hover:bg-white hover:text-slate-900 hover:scale-105 active:scale-95 cursor-pointer ring-1 ring-slate-900/10 z-10"
-            title="Change cover background"
-            aria-label="Change cover background"
-          >
-            <Pencil size={13} />
-          </button>
-        </div>
-
-        {/* Avatar overlapping the banner */}
-        <div className="relative px-6">
-          <div className="relative -mt-12 flex items-end justify-between">
+        <div className="p-5">
+          {/* Avatar */}
+          <div className="flex items-center justify-between">
             <div className="relative">
               {/* Avatar circle (non-clickable, photo/initials display only) */}
               <div
-                className="relative block h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-md select-none"
+                className="relative block h-20 w-20 shrink-0 overflow-hidden rounded-full border-2 border-slate-100 bg-slate-100 shadow-sm select-none"
               >
                 {photoSrc ? (
                   <img
@@ -2260,7 +1981,7 @@ function EmployeeProfileSidebar({
           </div>
 
           {/* Basic Information Section */}
-          <div className="mt-6 border-t border-slate-100 pt-5">
+          <div className="mt-4 border-t border-slate-100 pt-3.5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold tracking-tight text-slate-900">
                 Basic Information
@@ -2269,7 +1990,7 @@ function EmployeeProfileSidebar({
                 type="button"
                 onClick={onEditToggle}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-full transition-colors cursor-pointer",
+                  "flex h-7 w-7 items-center justify-center rounded-full transition-colors cursor-pointer",
                   editing
                     ? "bg-slate-900 text-white hover:bg-slate-800"
                     : "text-slate-400 hover:bg-slate-100 hover:text-slate-700"
@@ -2277,15 +1998,15 @@ function EmployeeProfileSidebar({
                 title={editing ? "Cancel editing" : "Edit mobile, gender, DOB & details"}
                 aria-label="Edit basic information"
               >
-                <Pencil size={15} />
+                <Pencil size={13} />
               </button>
             </div>
 
-            <div className="mt-4 space-y-3.5 pb-2">
+            <div className="mt-3 space-y-2.5 pb-1">
               {basicInfoItems.map((item) => (
-                <div key={item.label} className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-100/90 bg-slate-50 text-slate-500 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                    <item.icon size={16} />
+                <div key={item.label} className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-100/90 bg-slate-50 text-slate-500 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                    <item.icon size={15} />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
@@ -2408,7 +2129,7 @@ function EmployeeProfileSidebar({
         </div>
 
         {/* Profile Strength Footer */}
-        <div className="border-t border-slate-100 bg-slate-50/50 p-5">
+        <div className="border-t border-slate-100 bg-slate-50/50 px-5 py-3.5">
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="text-slate-500">Profile completeness</span>
             <span className="text-indigo-600">{completionPercent}%</span>
@@ -2438,19 +2159,12 @@ function EmployeeProfileSidebar({
         </Motion.div>
       )}
 
-      {/* Profile Cover Selection Modal */}
-      <ProfileBannerThemeModal
-        isOpen={isBannerModalOpen}
-        onClose={() => setIsBannerModalOpen(false)}
-        currentTheme={bannerTheme}
-        onSelectTheme={handleSelectBannerTheme}
-      />
     </aside>
   );
 }
 
 const inputClass =
-  "w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-50/70";
+  "w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2 text-sm text-slate-800 transition placeholder:text-slate-400 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-50/70";
 
 function EmployeeProfileCards({
   activeTab,
@@ -2469,9 +2183,39 @@ function EmployeeProfileCards({
   relatedCache,
   onPhotoUploaded,
   deletedRelatedIdsRef,
+  user,
+  userInfo,
 }) {
   const [activeEditCard, setActiveEditCard] = useState(null);
   const isEditing = editing || Boolean(activeEditCard);
+
+  const resolvedTitle =
+    draft?.title ||
+    record?.title ||
+    record?.job_title ||
+    user?.title ||
+    user?.job_title ||
+    "";
+  const resolvedDesignation =
+    draft?.current_designation ||
+    record?.current_designation ||
+    record?.designation ||
+    record?.title ||
+    record?.job_title ||
+    user?.current_designation ||
+    user?.designation ||
+    user?.title ||
+    user?.role ||
+    "";
+  const resolvedDepartment =
+    draft?.department ||
+    record?.department ||
+    record?.department_name ||
+    record?.hrc_departments_hrc_employees_1_name ||
+    user?.department ||
+    user?.department_name ||
+    userInfo?.department ||
+    "";
 
   useEffect(() => {
     if (!editing) {
@@ -2561,7 +2305,7 @@ function EmployeeProfileCards({
   const isSkillLoading = Boolean(related?.skills?.loading);
 
   return (
-    <div className="min-w-0 flex-1 space-y-6">
+    <div className="min-w-0 flex-1 space-y-4 sm:space-y-5">
       {/* Edit Mode Alert Banner */}
       <AnimatePresence>
         {isEditing && (
@@ -2569,7 +2313,7 @@ function EmployeeProfileCards({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-5 py-3 text-sm text-amber-900 shadow-sm"
+            className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-2.5 text-xs sm:text-sm text-amber-900 shadow-sm"
           >
             <div className="flex items-center gap-2">
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-200 text-amber-800">
@@ -2617,14 +2361,14 @@ function EmployeeProfileCards({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="space-y-6"
+          className="space-y-4 sm:space-y-5"
         >
           {/* Card 1: Personal Information */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
-            <div className="flex items-center justify-between pb-4">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 shadow-sm">
-                  <UserCheck size={20} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500 shadow-sm">
+                  <UserCheck size={18} />
                 </div>
                 <div>
                   <h3 className="text-base font-bold tracking-tight text-slate-900">
@@ -2646,7 +2390,7 @@ function EmployeeProfileCards({
             </div>
 
             <div className="divide-y divide-slate-100 text-sm">
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   First name <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2671,7 +2415,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Last name <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2696,7 +2440,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-500">Email</span>
                   {editing && (
@@ -2719,7 +2463,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Mobile phone <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2747,7 +2491,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Date of birth <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2771,7 +2515,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Gender <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2803,11 +2547,11 @@ function EmployeeProfileCards({
           </div>
 
           {/* Card 2: Address */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
-            <div className="flex items-center justify-between pb-4">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-orange-50 text-orange-500 shadow-sm">
-                  <Home size={20} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-500 shadow-sm">
+                  <Home size={18} />
                 </div>
                 <div>
                   <h3 className="text-base font-bold tracking-tight text-slate-900">
@@ -2829,7 +2573,7 @@ function EmployeeProfileCards({
             </div>
 
             <div className="divide-y divide-slate-100 text-sm">
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Street address <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2853,7 +2597,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   City <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2877,7 +2621,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   State <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2901,7 +2645,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Postal code <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2928,7 +2672,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">
                   Country <span className="text-rose-500 font-bold">*</span>
                 </span>
@@ -2955,11 +2699,11 @@ function EmployeeProfileCards({
           </div>
 
           {/* Card 3: Professional Information */}
-          <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
-            <div className="flex items-center justify-between pb-4">
+          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100/80">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
-                  <Briefcase size={20} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm">
+                  <Briefcase size={18} />
                 </div>
                 <div>
                   <h3 className="text-base font-bold tracking-tight text-slate-900">
@@ -2981,7 +2725,7 @@ function EmployeeProfileCards({
             </div>
 
             <div className="divide-y divide-slate-100 text-sm">
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-500">Title</span>
                   {(activeEditCard === "professional" || editing) && (
@@ -2995,17 +2739,17 @@ function EmployeeProfileCards({
                     type="text"
                     readOnly
                     disabled
-                    value={draft.title || ""}
+                    value={resolvedTitle}
                     className={`${inputClass} sm:max-w-xs bg-slate-100 text-slate-500 cursor-not-allowed`}
                   />
                 ) : (
                   <span className="font-semibold text-slate-900">
-                    {draft.title || "Not added"}
+                    {resolvedTitle || "Not added"}
                   </span>
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-500">Current designation</span>
                   {(activeEditCard === "professional" || editing) && (
@@ -3019,17 +2763,17 @@ function EmployeeProfileCards({
                     type="text"
                     readOnly
                     disabled
-                    value={draft.current_designation || ""}
+                    value={resolvedDesignation}
                     className={`${inputClass} sm:max-w-xs bg-slate-100 text-slate-500 cursor-not-allowed`}
                   />
                 ) : (
                   <span className="font-semibold text-slate-900">
-                    {draft.current_designation || "Not added"}
+                    {resolvedDesignation || "Not added"}
                   </span>
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-slate-500">Department</span>
                   {(activeEditCard === "professional" || editing) && (
@@ -3043,17 +2787,17 @@ function EmployeeProfileCards({
                     type="text"
                     readOnly
                     disabled
-                    value={draft.department || ""}
+                    value={resolvedDepartment}
                     className={`${inputClass} sm:max-w-xs bg-slate-100 text-slate-500 cursor-not-allowed`}
                   />
                 ) : (
                   <span className="font-semibold text-slate-900">
-                    {draft.department || "Not added"}
+                    {resolvedDepartment || "Not added"}
                   </span>
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">LinkedIn URL</span>
                 {activeEditCard === "professional" || editing ? (
                   <input
@@ -3083,7 +2827,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-1 py-2.5 sm:py-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="font-medium text-slate-500">GitHub URL</span>
                 {activeEditCard === "professional" || editing ? (
                   <input
@@ -3113,7 +2857,7 @@ function EmployeeProfileCards({
                 )}
               </div>
 
-              <div className="flex flex-col gap-2 py-3.5">
+              <div className="flex flex-col gap-2 py-3">
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-slate-500">
                     About you <span className="text-rose-500 font-bold">*</span>
@@ -3176,16 +2920,16 @@ function EmployeeProfileCards({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="space-y-6"
+          className="space-y-4 sm:space-y-5"
         >
           {/* Header Card */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
-                <GraduationCap size={24} />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm">
+                <GraduationCap size={18} />
               </div>
               <div>
-                <h3 className="text-base font-bold tracking-tight text-slate-900">
+                <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900">
                   Education
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -3208,25 +2952,25 @@ function EmployeeProfileCards({
                   description: "",
                 })
               }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Add Education
             </button>
           </div>
 
           {/* Education Records */}
           {isEduLoading ? (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm">
-              <Loader2 size={24} className="mx-auto animate-spin text-indigo-500" />
-              <p className="mt-3 text-xs font-medium text-slate-500">Loading education records...</p>
+            <div className="rounded-2xl border border-slate-200/80 bg-white py-8 px-6 text-center shadow-sm">
+              <Loader2 size={22} className="mx-auto animate-spin text-indigo-500" />
+              <p className="mt-2.5 text-xs font-medium text-slate-500">Loading education records...</p>
             </div>
           ) : educationItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-12 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-500">
-                <GraduationCap size={28} />
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 py-8 px-6 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-500">
+                <GraduationCap size={24} />
               </div>
-              <h4 className="mt-4 text-sm font-bold text-slate-800">
+              <h4 className="mt-3.5 text-sm font-bold text-slate-800">
                 No education records added yet
               </h4>
               <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
@@ -3247,7 +2991,7 @@ function EmployeeProfileCards({
                     description: "",
                   })
                 }
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
+                className="mt-3.5 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
               >
                 <Plus size={14} />
                 Add Education
@@ -3257,9 +3001,9 @@ function EmployeeProfileCards({
             educationItems.map((item, index) => (
               <div
                 key={item.id || `edu-${index}`}
-                className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8"
+                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6"
               >
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                       <GraduationCap size={18} />
@@ -3285,7 +3029,7 @@ function EmployeeProfileCards({
                   )}
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
+                <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 text-sm">
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       Degree / Qualification <span className="text-rose-500 font-bold">*</span>
@@ -3448,16 +3192,16 @@ function EmployeeProfileCards({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="space-y-6"
+          className="space-y-4 sm:space-y-5"
         >
           {/* Header Card */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm">
-                <BriefcaseBusiness size={24} />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shadow-sm">
+                <BriefcaseBusiness size={18} />
               </div>
               <div>
-                <h3 className="text-base font-bold tracking-tight text-slate-900">
+                <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900">
                   Experience
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -3478,25 +3222,25 @@ function EmployeeProfileCards({
                   description: "",
                 })
               }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Add Experience
             </button>
           </div>
 
           {/* Experience Records */}
           {isExpLoading ? (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm">
-              <Loader2 size={24} className="mx-auto animate-spin text-blue-500" />
-              <p className="mt-3 text-xs font-medium text-slate-500">Loading work experience...</p>
+            <div className="rounded-2xl border border-slate-200/80 bg-white py-8 px-6 text-center shadow-sm">
+              <Loader2 size={22} className="mx-auto animate-spin text-blue-500" />
+              <p className="mt-2.5 text-xs font-medium text-slate-500">Loading work experience...</p>
             </div>
           ) : experienceItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-12 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-500">
-                <BriefcaseBusiness size={28} />
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 py-8 px-6 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+                <BriefcaseBusiness size={24} />
               </div>
-              <h4 className="mt-4 text-sm font-bold text-slate-800">
+              <h4 className="mt-3.5 text-sm font-bold text-slate-800">
                 No work experience added yet
               </h4>
               <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
@@ -3515,7 +3259,7 @@ function EmployeeProfileCards({
                     description: "",
                   })
                 }
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
+                className="mt-3.5 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
               >
                 <Plus size={14} />
                 Add Experience
@@ -3525,9 +3269,9 @@ function EmployeeProfileCards({
             experienceItems.map((item, index) => (
               <div
                 key={item.id || `exp-${index}`}
-                className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8"
+                className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6"
               >
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                       <BriefcaseBusiness size={18} />
@@ -3553,7 +3297,7 @@ function EmployeeProfileCards({
                   )}
                 </div>
 
-                <div className="mt-4 grid gap-4 sm:grid-cols-2 text-sm">
+                <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2 text-sm">
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">
                       Role / Job Title <span className="text-rose-500 font-bold">*</span>
@@ -3695,16 +3439,16 @@ function EmployeeProfileCards({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.25 }}
-          className="space-y-6"
+          className="space-y-4 sm:space-y-5"
         >
           {/* Header Card */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
-                <Sparkles size={24} />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-sm">
+                <Sparkles size={18} />
               </div>
               <div>
-                <h3 className="text-base font-bold tracking-tight text-slate-900">
+                <h3 className="text-sm sm:text-base font-bold tracking-tight text-slate-900">
                   Skills
                 </h3>
                 <p className="text-xs text-slate-400">
@@ -3723,25 +3467,25 @@ function EmployeeProfileCards({
                   description: "",
                 })
               }
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 cursor-pointer"
             >
-              <Plus size={15} />
+              <Plus size={14} />
               Add Skill
             </button>
           </div>
 
           {/* Skill Records */}
           {isSkillLoading ? (
-            <div className="rounded-3xl border border-slate-200/80 bg-white p-12 text-center shadow-sm">
-              <Loader2 size={24} className="mx-auto animate-spin text-indigo-500" />
-              <p className="mt-3 text-xs font-medium text-slate-500">Loading skills...</p>
+            <div className="rounded-2xl border border-slate-200/80 bg-white py-8 px-6 text-center shadow-sm">
+              <Loader2 size={22} className="mx-auto animate-spin text-indigo-500" />
+              <p className="mt-2.5 text-xs font-medium text-slate-500">Loading skills...</p>
             </div>
           ) : skillItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-slate-200 bg-white/70 p-12 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
-                <Sparkles size={28} />
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 py-8 px-6 text-center shadow-sm">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                <Sparkles size={24} />
               </div>
-              <h4 className="mt-4 text-sm font-bold text-slate-800">
+              <h4 className="mt-3.5 text-sm font-bold text-slate-800">
                 No skills added yet
               </h4>
               <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
@@ -3758,18 +3502,18 @@ function EmployeeProfileCards({
                     description: "",
                   })
                 }
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
+                className="mt-3.5 inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 cursor-pointer"
               >
                 <Plus size={14} />
                 Add Skill
               </button>
             </div>
           ) : isEditing ? (
-            <div className="space-y-4">
+            <div className="space-y-3.5">
               {skillItems.map((item, index) => (
                 <div
                   key={item.id || `skill-${index}`}
-                  className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm"
+                  className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-sm"
                 >
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -3833,7 +3577,7 @@ function EmployeeProfileCards({
               ))}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.04)] md:p-8">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
               <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                 {skillItems.map((item, index) => {
                   const skillTitle = item.skill_name || item.name || `Skill #${index + 1}`;

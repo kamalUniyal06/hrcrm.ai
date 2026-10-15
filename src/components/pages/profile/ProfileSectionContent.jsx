@@ -111,7 +111,8 @@ export default function ProfileSectionContent({
                           }
                           required={Object.hasOwn(requiredPersonalFields, key)}
                           max={key === "dob" ? localToday() : undefined}
-                          readOnly={key === "email1"}
+                          readOnly={key === "email1" || ["title", "current_designation", "department"].includes(key)}
+                          disabled={["title", "current_designation", "department"].includes(key)}
                           inputMode={key.endsWith("_url") ? "url" : undefined}
                           value={draft[key]}
                           onChange={(event) =>
@@ -124,7 +125,7 @@ export default function ProfileSectionContent({
                             const value = normalizeProfileUrl(event.target.value);
                             setDraft(prev => ({ ...prev, [key]: value }));
                           } : undefined}
-                          className={inputClass}
+                          className={`${inputClass} ${["title", "current_designation", "department"].includes(key) ? "bg-slate-100 text-slate-500 cursor-not-allowed" : ""}`}
                         />
                       )
                     ) : (
