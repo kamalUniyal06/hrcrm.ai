@@ -8,7 +8,9 @@ import TodayAttendanceCard from "../components/TodayAttendanceCard";
 import SystemAlertCarousel from "../components/SystemAlertCarousel";
 import HomeHeader from "../components/home/HomeHeader";
 import StatTile from "../components/home/StatTile";
-import AttendanceGauge from "../components/home/AttendanceGauge";
+import OffboardingCard from "../components/home/OffboardingCard";
+import IncrementRequestsCard from "../components/home/IncrementRequestsCard";
+import HiringPipelineCard from "../components/home/HiringPipelineCard";
 import ScheduleCard from "../components/home/ScheduleCard";
 import TasksFeedCard from "../components/home/TasksFeedCard";
 import { headerAction } from "../components/home/homeUi";
@@ -20,18 +22,26 @@ import {
     isRowOnLeave,
 } from "../components/attendance/adminAttendanceUtils";
 import { adminDayStats, buildFeed, formatClock } from "../components/home/homeDashboardUtils";
+import { countByLabel, openOffboardingCases } from "../components/home/adminInsights";
+import { requestOverview } from "../api/incrementAdminData";
+import { candidateName, workflowValue } from "../../pages/candidates/candidatesApi";
+import { hasOutcome, interviewDate, roundName, uniqueInterviews } from "../../pages/interviews/interviewUtils";
 import {
     useAllLeaves,
     useAnnouncements,
+    useCandidatesForRange,
     useEmployeesDirectory,
+    useIncrementQuestions,
+    useIncrementRequests,
+    useInterviews,
     useOrgActivityForDay,
+    useResignations,
+    monthRange,
 } from "../components/home/homeDashboard.queries";
 import { employeeDisplayName, employeeFor } from "../components/leave/admin/leaveAdminUtils";
 import { usePublicHolidays } from "../queries/leaves.queries";
 import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
 
-// Gauge segment -> overview filter understood by the admin attendance page.
-const ATTENDANCE_FILTER = { present: "onTime", late: "late", leave: "leave", absent: "missing" };
 const PEOPLE_TABS = [["late", "Late"], ["missing", "Not checked in"], ["leave", "On leave"]];
 
 function TodayPeopleCard({ groups, loading, onOpen, onViewAll }) {
@@ -102,6 +112,12 @@ export default function AdminHomePage() {
     const leaves = useAllLeaves();
     const holidays = usePublicHolidays();
     const announcements = useAnnouncements();
+    const resignations = useResignations();
+    const incrementRequests = useIncrementRequests();
+    const incrementQuestions = useIncrementQuestions();
+    const [month] = useState(() => monthRange());
+    const candidates = useCandidatesForRange(month);
+    const interviews = useInterviews();
 
     const rows = useMemo(() => buildAttendanceRows(employees.data || [], activity.data || []), [employees.data, activity.data]);
     const leaveDays = useMemo(() => buildLeaveDays(leaves.data || []), [leaves.data]);
@@ -142,6 +158,39 @@ export default function AdminHomePage() {
         leaveLabel: (leave) => `${employeeDisplayName(leave, employeeFor(leave, employeeMap))} on leave`,
     }), [employees.data, holidays.data, leaves.data, employeeMap]);
 
+    const offboarding = useMemo(() => openOffboardingCases(resignations.data || [], employees.data || []), [resignations.data, employees.data]);
+    const incrementOverview = useMemo(
+        () => requestOverview(incrementRequests.data?.records || [], incrementQuestions.data || [], incrementRequests.data?.replies || []),
+        [incrementRequests.data, incrementQuestions.data],
+    );
+
+    const hiring = useMemo(() => {
+        const records = (candidates.data || [])
+            .map((record) => ({ record, stage: workflowValue(record, "stage"), at: Date.parse(record.date_entered_uni_format || record.date_entered) || 0 }))
+            .sort((a, b) => b.at - a.at);
+        return {
+            total: records.length,
+            shortlisted: records.filter((item) => /shortlist/i.test(item.stage)).length,
+            stages: countByLabel(records, (item) => item.stage),
+            recent: records.slice(0, 4).map(({ record, stage }) => ({
+                id: record.id,
+                name: candidateName(record),
+                designation: record.current_designation || record.department,
+                stage,
+                record,
+            })),
+        };
+    }, [candidates.data]);
+
+    const upcomingInterviews = useMemo(() => {
+        const now = Date.now();
+        return uniqueInterviews(interviews.data || [])
+            .filter((record) => !hasOutcome(record))
+            .map((record) => ({ id: record.id, name: record.name || record.email || "Candidate", round: roundName(record), date: interviewDate(record.interview_datetime) }))
+            .filter((item) => item.date && item.date.getTime() >= now)
+            .sort((a, b) => a.date - b.date);
+    }, [interviews.data]);
+
     const loading = employees.isPending || activity.isPending || leaves.isPending;
     const failed = employees.isError || activity.isError || leaves.isError;
     const openAttendance = (filter) => navigate(`/attendance?filter=${filter}`);
@@ -150,7 +199,7 @@ export default function AdminHomePage() {
         <main className="min-h-full w-full bg-background px-3 py-4 sm:px-5 lg:px-6">
             <div className="mx-auto w-full max-w-[1600px] space-y-4">
                 <HomeHeader
-                    subtitle="Today's attendance across the team, at a glance."
+                    subtitle="Attendance, hiring and people changes across the team, at a glance."
                     actions={
                         <>
                             <button type="button" onClick={() => navigate("/attendance")} className={headerAction}>
@@ -194,14 +243,13 @@ export default function AdminHomePage() {
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                            <AttendanceGauge
-                                title="Today's Attendance"
-                                subtitle="Select a status to open those records"
-                                counts={stats.counts}
-                                labels={{ present: "On time", absent: "Not checked in" }}
-                                loading={loading}
-                                error={failed}
-                                onSelect={(key) => openAttendance(ATTENDANCE_FILTER[key])}
+                            <OffboardingCard
+                                cases={offboarding}
+                                loading={resignations.isPending || employees.isPending}
+                                error={resignations.isError}
+                                onRetry={() => resignations.refetch()}
+                                onOpen={() => navigate("/offboarding")}
+                                onViewAll={() => navigate("/offboarding")}
                             />
                             <TodayPeopleCard
                                 groups={groups}
@@ -210,6 +258,30 @@ export default function AdminHomePage() {
                                     ? navigate(`/attendance/${person.key.slice("employee:".length)}`)
                                     : openAttendance("all")}
                                 onViewAll={openAttendance}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+                            <HiringPipelineCard
+                                total={hiring.total}
+                                shortlisted={hiring.shortlisted}
+                                stages={hiring.stages}
+                                recent={hiring.recent}
+                                upcoming={upcomingInterviews}
+                                loading={candidates.isPending}
+                                error={candidates.isError}
+                                interviewsLoading={interviews.isPending}
+                                onRetry={() => candidates.refetch()}
+                                onOpenCandidate={(candidate) => navigate(`/candidates?candidate=${candidate.id}`)}
+                                onViewAll={() => navigate("/candidates")}
+                                onViewInterviews={() => navigate("/candidates?view=interviews")}
+                            />
+                            <IncrementRequestsCard
+                                overview={incrementOverview}
+                                loading={incrementRequests.isPending || incrementQuestions.isPending}
+                                error={incrementRequests.isError || incrementQuestions.isError}
+                                onRetry={() => { incrementRequests.refetch(); incrementQuestions.refetch(); }}
+                                onViewAll={() => navigate("/increment-management")}
                             />
                         </div>
 
