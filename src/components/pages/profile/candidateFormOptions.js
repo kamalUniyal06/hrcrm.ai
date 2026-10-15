@@ -19,3 +19,33 @@ export const fieldIcons = {
 };
 
 export const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
+
+export const relatedFieldLabels = {
+  skills: {
+    name: "Skill",
+    version: "Version",
+    total_years_total_months: "Experience duration",
+  },
+  experiences: {
+    name: "Role / job title",
+    company_name: "Company",
+    company_location: "Location",
+    joining_date: "Start date",
+    leaving_date: "End date",
+    description: "Responsibilities and achievements",
+  },
+  education: {
+    name: "Education title",
+    qualification: "Degree / qualification",
+    institution: "Institution",
+    university: "University",
+    school: "School / college",
+    board: "Board",
+    specialization: "Field of study / specialization",
+    percentage: "Percentage / grade",
+    from_time: "Start year / date",
+    to_time: "End year / date",
+    status: "Completion status",
+    description: "Academic achievements and details",
+  },
+};

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { candidateInterviewStatus, loadCandidateInterviews } from "./candidateInterviewData.js";
+import { candidateInterviewStatus, interviewJourney, loadCandidateInterviews, timeUntil } from "./candidateInterviewData.js";
 
 const candidate = { id: "candidate-one", email1: "candidate@example.com" };
 const options = { candidate, email: "candidate@example.com", uiModuleId: "allowed-interview-module" };
@@ -100,4 +100,42 @@ test("candidate status distinguishes outcomes, future schedules, pending updates
   assert.equal(candidateInterviewStatus({ interview_datetime: "2026-10-15 10:00:00" }, now).label, "Scheduled");
   assert.equal(candidateInterviewStatus({ interview_datetime: "2026-10-05 10:00:00" }, now).label, "Awaiting an update");
   assert.equal(candidateInterviewStatus({}, now).label, "Date to be confirmed");
+});
+
+test("the journey opens on the next scheduled round and counts completed rounds", () => {
+  const now = Date.parse("2026-10-15T10:00:00Z");
+  const rounds = [
+    { id: "one", round: "Round 1", status: "Pass", scheduledAt: "2026-10-01 10:00:00" },
+    { id: "two", round: "Round 2", status: "", scheduledAt: "2026-11-01 10:00:00" },
+    { id: "three", round: "Round 3", status: "", scheduledAt: "" },
+  ];
+  const journey = interviewJourney(rounds, now);
+  assert.equal(journey.focusId, "two");
+  assert.equal(journey.next.record.id, "two");
+  assert.equal(journey.completed, 1);
+  assert.deepEqual(journey.rounds.map((round) => round.status.key), ["passed", "scheduled", "pending"]);
+  assert.deepEqual(journey.rounds.map((round) => round.upNext), [false, true, false]);
+});
+
+test("without a scheduled round, the journey opens on the latest round awaiting news, then the latest round", () => {
+  const now = Date.parse("2026-10-15T10:00:00Z");
+  const passed = { id: "one", round: "Round 1", status: "Pass", scheduledAt: "2026-10-01 10:00:00" };
+  const unscheduled = { id: "two", round: "Round 2", status: "", scheduledAt: "" };
+  assert.equal(interviewJourney([passed, unscheduled], now).focusId, "two");
+  assert.equal(interviewJourney([passed, { ...unscheduled, status: "Fail" }], now).focusId, "two");
+  assert.equal(interviewJourney([passed], now).next, null);
+  assert.equal(interviewJourney([], now).focusId, "");
+});
+
+test("countdown uses plain language in the viewer's calendar days", () => {
+  const now = new Date(2026, 9, 15, 9, 0).getTime();
+  const at = (day, hour, minute = 0) => new Date(2026, 9, day, hour, minute);
+  assert.equal(timeUntil(at(15, 9), now), "Starting now");
+  assert.equal(timeUntil(at(15, 9, 25), now), "In 25 minutes");
+  assert.equal(timeUntil(at(15, 10), now), "Today, in 1 hour");
+  assert.equal(timeUntil(at(15, 11, 30), now), "Today, in 2 hours");
+  assert.equal(timeUntil(at(16, 8), now), "Tomorrow");
+  assert.equal(timeUntil(at(18, 8), now), "In 3 days");
+  assert.equal(timeUntil(at(15, 8), now), "");
+  assert.equal(timeUntil(null, now), "");
 });

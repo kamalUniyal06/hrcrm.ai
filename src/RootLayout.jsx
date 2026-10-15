@@ -123,7 +123,7 @@ const RootLayout = () => {
         {/* The page fills the remaining shell space; visible footers reserve their own height. */}
         <main
           ref={mainRef}
-          className="hide-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"
+          className="hide-scrollbar relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-tl-2xl rounded-tr-2xl bg-background shadow-[0_-1px_0_rgba(255,255,255,0.08),0_0_24px_rgba(15,23,42,0.12)] sm:rounded-tl-3xl"
         >
           <div
             className="flex min-h-full w-full flex-col px-3 pb-6 pt-3 sm:px-4 sm:pt-4"

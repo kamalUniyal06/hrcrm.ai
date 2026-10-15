@@ -1,5 +1,4 @@
 import { candidateInterviewStatus } from "../interviews/candidateInterviewData.js";
-import { interviewDate } from "../interviews/interviewUtils.js";
 import { experienceDateForInput } from "../profile/experienceDates.js";
 
 const lower = (value) => String(value ?? "").trim().toLowerCase();
@@ -74,11 +73,4 @@ export function profileStrength(draft, counts = {}) {
   return { score, items };
 }
 
-/** The earliest scheduled round that has not happened yet. */
-export function nextInterview(interviews = [], now = Date.now()) {
-  return interviews
-    .map((record) => ({ record, date: interviewDate(record.scheduledAt) }))
-    .filter(({ record, date }) => date &&
-      candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }, now).key === "scheduled")
-    .sort((left, right) => left.date - right.date)[0] || null;
-}
+export { nextInterview } from "../interviews/candidateInterviewData.js";

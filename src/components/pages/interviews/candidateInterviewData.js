@@ -24,6 +24,50 @@ export function candidateInterviewStatus(record, now = Date.now()) {
   return { key: "pending", label: "Date to be confirmed" };
 }
 
+/** The earliest scheduled round that has not happened yet. */
+export function nextInterview(interviews = [], now = Date.now()) {
+  return interviews
+    .map((record) => ({ record, date: interviewDate(record.scheduledAt) }))
+    .filter(({ record, date }) => date &&
+      candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }, now).key === "scheduled")
+    .sort((left, right) => left.date - right.date)[0] || null;
+}
+
+// Opens on the round that needs the candidate's attention: the next scheduled one,
+// then the latest round still awaiting news, then the latest round.
+export function interviewJourney(interviews = [], now = Date.now()) {
+  const next = nextInterview(interviews, now);
+  const rounds = interviews.map((record) => ({
+    record,
+    date: interviewDate(record.scheduledAt),
+    status: candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }, now),
+    upNext: record.id === next?.record.id,
+  }));
+  const focus = rounds.find((round) => round.upNext) || rounds.findLast((round) => round.status.key === "pending") || rounds.at(-1);
+  return {
+    rounds,
+    next,
+    completed: rounds.filter((round) => ["passed", "completed"].includes(round.status.key)).length,
+    focusId: focus?.record.id || "",
+  };
+}
+
+const startOfDay = (value) => new Date(value).setHours(0, 0, 0, 0);
+
+/** Plain-language countdown to a future interview, counted in the viewer's calendar days. */
+export function timeUntil(date, now = Date.now()) {
+  const minutes = Math.ceil((date?.getTime() - now) / 60000);
+  if (!Number.isFinite(minutes) || minutes < 0) return "";
+  if (minutes <= 1) return "Starting now";
+  if (minutes < 60) return `In ${minutes} minutes`;
+  const days = Math.round((startOfDay(date) - startOfDay(now)) / 86400000);
+  if (days === 0) {
+    const hours = Math.floor(minutes / 60);
+    return `Today, in ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
+  return days === 1 ? "Tomorrow" : `In ${days} days`;
+}
+
 /** Read through the candidate's relationship, never the global interview collection. */
 export async function loadCandidateInterviews(request, { candidate, email, uiModuleId } = {}) {
   const id = clean(candidate?.id);

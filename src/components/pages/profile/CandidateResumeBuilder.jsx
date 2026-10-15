@@ -34,7 +34,7 @@ import OnboardingBackdrop from "./OnboardingBackdrop";
 import ProfileSetupProgress from "./ProfileSetupProgress";
 import SkillPills from "./SkillPills";
 import { usePointerField } from "./onboardingMotion";
-import { fieldIcons } from "./candidateFormOptions";
+import { fieldIcons, relatedFieldLabels as relatedFields } from "./candidateFormOptions";
 import { rememberOnboardingStarted } from "./onboardingState";
 import {
   governmentIdError,
@@ -63,35 +63,6 @@ const hints = [
   "Review education from your resume, or add your qualifications manually.",
   "Add your profile photo and verify your government ID to complete registration.",
 ];
-const relatedFields = {
-  skills: {
-    name: "Skill",
-    version: "Version",
-    total_years_total_months: "Experience duration",
-  },
-  experiences: {
-    name: "Role / job title",
-    company_name: "Company",
-    company_location: "Location",
-    joining_date: "Start date",
-    leaving_date: "End date",
-    description: "Responsibilities and achievements",
-  },
-  education: {
-    name: "Education title",
-    qualification: "Degree / qualification",
-    institution: "Institution",
-    university: "University",
-    school: "School / college",
-    board: "Board",
-    specialization: "Field of study / specialization",
-    percentage: "Percentage / grade",
-    from_time: "Start year / date",
-    to_time: "End year / date",
-    status: "Completion status",
-    description: "Academic achievements and details",
-  },
-};
 const entryLabels = {
   skills: "skill",
   experiences: "experience",
