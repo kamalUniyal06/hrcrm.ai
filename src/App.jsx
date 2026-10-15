@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { SettingsPage } from "./components/pages/settingpages/SettingsPage";
 import { useDispatch, useSelector } from "react-redux";
-import { createBrowserRouter, Outlet, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
 import RootLayout from "./RootLayout";
 import RecruitmentProvider from "./context/RecruitmentProvider";
 
@@ -208,7 +208,8 @@ const router = createBrowserRouter([
       },
       {
         path: "shortlisted",
-        element: <CandidatesPage key="shortlisted" shortlistedOnly />,
+        // Shortlisted candidates now live in the Candidates workspace.
+        element: <Navigate to="/candidates?view=shortlisted" replace />,
         handle: { breadcrumb: "Shortlisted" },
       },
       {

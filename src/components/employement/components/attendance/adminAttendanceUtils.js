@@ -112,11 +112,12 @@ export function buildAttendanceRows(employees, activity) {
   return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export function daySummary(records = [], day, today, onLeave = false) {
+// lateAfter is minutes after midnight; a first login after it is late (default 10:00 AM).
+export function daySummary(records = [], day, today, onLeave = false, lateAfter = 600) {
   const sessions = records.map(sessionSummary);
   const logins = sessions.map(session => session.login).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
   const first = logins[0];
-  const status = first ? first.minutes > 600 ? "late" : "onTime" : records.length ? "incomplete" : onLeave ? "leave" : day > today ? "upcoming" : "missing";
+  const status = first ? first.minutes > lateAfter ? "late" : "onTime" : records.length ? "incomplete" : onLeave ? "leave" : day > today ? "upcoming" : "missing";
   const complete = sessions.length > 0 && sessions.every(session => session.worked !== null);
   const allSessionsHaveOfficeTime = sessions.length > 0 && sessions.every(session => session.inOffice !== null);
   return {
@@ -127,3 +128,36 @@ export function daySummary(records = [], day, today, onLeave = false) {
     inOffice: allSessionsHaveOfficeTime ? sessions.reduce((sum, session) => sum + session.inOffice, 0) : null,
   };
 }
+
+// Accepts YYYY-MM-DD[...] or CRM MM/DD/YYYY[...] dates and returns YYYY-MM-DD.
+export function calendarDateKey(value) {
+  const text = clean(value);
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const crm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : crm ? `${crm[3]}-${crm[1].padStart(2, "0")}-${crm[2].padStart(2, "0")}` : null;
+}
+
+// Accepted leaves expanded into "employee:<id>|YYYY-MM-DD" and "email:<email>|YYYY-MM-DD" keys.
+export function buildLeaveDays(leaves = []) {
+  const result = new Set();
+  for (const leave of leaves) {
+    if (clean(leave.status).toLowerCase() !== "accepted") continue;
+    const id = clean(leave.employee_id || leave.hrc_employees_hrc_leaves_1hrc_employees_ida);
+    const email = clean(leave.email).toLowerCase();
+    const from = calendarDateKey(leave.leave_from);
+    const to = calendarDateKey(leave.leave_to) || from;
+    if ((!id && !email) || !from || !to) continue;
+    const cursor = new Date(`${from}T00:00:00`);
+    const last = new Date(`${to}T00:00:00`);
+    while (cursor <= last) {
+      const day = dateKey(cursor);
+      if (id) result.add(`employee:${id}|${day}`);
+      if (email) result.add(`email:${email}|${day}`);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  return result;
+}
+
+export const isRowOnLeave = (leaveDays, row, day) =>
+  leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);

@@ -21,3 +21,13 @@ export function filterAdminNavigation(groups, isAdmin) {
     data: (group.data || []).filter(item => !isAdminPage(sidebarDestination(item))),
   })).filter(group => group.data.length > 0);
 }
+
+// Admins manage the shortlist and interviews inside /candidates, so those links are redundant.
+const MERGED_INTO_CANDIDATES = /^\/(?:shortlisted|interviews)\/?$/i;
+export function hideMergedRecruitmentNavigation(groups, isAdmin) {
+  if (!isAdmin) return groups;
+  return groups.map(group => ({
+    ...group,
+    data: (group.data || []).filter(item => !MERGED_INTO_CANDIDATES.test(String(sidebarDestination(item) || "").split(/[?#]/)[0])),
+  })).filter(group => group.data.length > 0);
+}

@@ -1,7 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowLeft,
@@ -19,10 +19,13 @@ import { fetchAllRecords } from "../../../pages/candidates/candidatesApi";
 import { selectIsAdmin } from "../../../../utils/pageAccess";
 import {
   buildAttendanceRows,
+  buildLeaveDays,
   dateKey,
   daySummary,
   formatMinutes,
+  isRowOnLeave,
 } from "./adminAttendanceUtils";
+import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
 
 const statuses = {
   onTime: {
@@ -59,6 +62,7 @@ const statuses = {
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40";
 const PAGE_SIZE = 50;
+const OVERVIEW_FILTERS = ["all", "checkedIn", "onTime", "late", "missing", "leave"];
 export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const isAdmin = useSelector(selectIsAdmin);
   const navigate = useNavigate();
@@ -68,7 +72,14 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
-  const [overviewFilter, setOverviewFilter] = useState("all");
+  const [searchParams] = useSearchParams();
+  // The home dashboard links here with ?filter=<status> to open a filtered list.
+  const [overviewFilter, setOverviewFilter] = useState(() => {
+    const requested = searchParams.get("filter");
+    return OVERVIEW_FILTERS.includes(requested) ? requested : "all";
+  });
+  const limits = useAttendanceLimits();
+  const lateAfter = (timeToMinutes(limits.actualLoginTime) ?? 570) + limits.loginDelayMinutes;
   const activityFrom = selectedPersonKey
     ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
     : dateKey(anchor);
@@ -110,33 +121,8 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
-  const leaveDays = useMemo(() => {
-    const result = new Set();
-    for (const leave of leaves.data || []) {
-      if (String(leave.status).toLowerCase() !== "accepted") continue;
-      const id = String(leave.employee_id || leave.hrc_employees_hrc_leaves_1hrc_employees_ida || "").trim();
-      const email = String(leave.email || "").trim().toLowerCase();
-      const parse = (value) => {
-        const text = String(value || "");
-        const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        const crm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        return iso ? `${iso[1]}-${iso[2]}-${iso[3]}` : crm ? `${crm[3]}-${crm[1].padStart(2, "0")}-${crm[2].padStart(2, "0")}` : null;
-      };
-      const from = parse(leave.leave_from);
-      const to = parse(leave.leave_to) || from;
-      if ((!id && !email) || !from || !to) continue;
-      const cursor = new Date(`${from}T00:00:00`);
-      const last = new Date(`${to}T00:00:00`);
-      while (cursor <= last) {
-        const day = dateKey(cursor);
-        if (id) result.add(`employee:${id}|${day}`);
-        if (email) result.add(`email:${email}|${day}`);
-        cursor.setDate(cursor.getDate() + 1);
-      }
-    }
-    return result;
-  }, [leaves.data]);
-  const isOnLeave = (row, day) => leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);
+  const leaveDays = useMemo(() => buildLeaveDays(leaves.data || []), [leaves.data]);
+  const isOnLeave = (row, day) => isRowOnLeave(leaveDays, row, day);
   const matchingRows = rows.filter(
     (row) =>
       (!selectedPersonKey || row.key === selectedPersonKey) &&
@@ -153,8 +139,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     if (overviewFilter === "missing") {
       return row.matched && !isOnLeave(row, dateKey(anchor)) && !records.some((record) => Boolean(String(record.login ?? "").trim()));
     }
-    const status = daySummary(records, dateKey(anchor), today, isOnLeave(row, dateKey(anchor))).status;
+    const status = daySummary(records, dateKey(anchor), today, isOnLeave(row, dateKey(anchor)), lateAfter).status;
     if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
+    if (overviewFilter === "onTime") return status === "onTime";
     if (overviewFilter === "late") return status === "late";
     if (overviewFilter === "leave") return status === "leave";
     return true;
@@ -174,7 +161,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   matchingRows.forEach((row) =>
     days.forEach((day) => {
       const key = dateKey(day);
-      totals[daySummary(row.days[key], key, today, isOnLeave(row, key)).status] += 1;
+      totals[daySummary(row.days[key], key, today, isOnLeave(row, key), lateAfter).status] += 1;
     }),
   );
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
@@ -186,7 +173,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const fetching = employees.isFetching || activity.isFetching || leaves.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
-  const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false);
+  const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false, lateAfter);
   const effectiveMinutes = selectedSummary.worked;
   const breakMinutes = selectedSummary.sessions.every((session) => session.breakMinutes !== null)
     ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
@@ -303,6 +290,17 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
           );
         })}
       </section>
+
+      {!selectedPersonKey && overviewFilter === "onTime" && (
+        <div className="flex items-center gap-2 text-sm text-slate-600">
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-800">
+            Showing on-time check-ins
+          </span>
+          <button type="button" onClick={() => setOverviewFilter("all")} className="font-medium text-indigo-600 hover:underline">
+            Clear
+          </button>
+        </div>
+      )}
 
       <section
         aria-label="Employee attendance grid"
@@ -502,7 +500,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     {selectedPersonKey ? days.map((day) => {
                       const key = dateKey(day);
                       const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today, isOnLeave(row, key));
+                      const summary = daySummary(records, key, today, isOnLeave(row, key), lateAfter);
                       const style = statuses[summary.status];
                       return (
                         <td
@@ -550,7 +548,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     }) : (() => {
                       const key = dateKey(anchor);
                       const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today, isOnLeave(row, key));
+                      const summary = daySummary(records, key, today, isOnLeave(row, key), lateAfter);
                       const style = statuses[summary.status];
                       const logouts = summary.sessions.map((session) => session.logout).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
                       return <Fragment key={row.key}>
@@ -649,7 +647,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
                   </section>
                   {selectedRecords.map((record, index) => {
-                    const summary = daySummary([record], selected.date, today);
+                    const summary = daySummary([record], selected.date, today, false, lateAfter);
                     const session = summary.sessions[0];
                     return (
                       <section

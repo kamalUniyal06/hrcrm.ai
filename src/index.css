@@ -46,6 +46,13 @@
   --employee-red: #df3d19;
   --employee-row: #f8fafc;
   --employee-track: #edf1f5;
+  --employee-break-soft: #fff1e8;
+  --employee-break-foreground: #c2410c;
+  /* Attendance status marks (CVD-validated against card surfaces) */
+  --attendance-present: #1f9d7a;
+  --attendance-late: #d98a0b;
+  --attendance-leave: #4f6bed;
+  --attendance-absent: #df3d19;
   --leave-page: #f6f8fb;
   --leave-surface: #ffffff;
   --leave-text: #182338;
@@ -315,6 +322,12 @@
   --employee-red: #f87171;
   --employee-row: #1f2937;
   --employee-track: #334155;
+  --employee-break-soft: #431407;
+  --employee-break-foreground: #fdba74;
+  --attendance-present: #25a582;
+  --attendance-late: #c27f17;
+  --attendance-leave: #6178f0;
+  --attendance-absent: #e04f30;
   --leave-page: #111827;
   --leave-surface: #1f2937;
   --leave-text: #f1f5f9;

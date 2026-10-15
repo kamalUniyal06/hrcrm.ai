@@ -1,4 +1,5 @@
 import EmployeHomePage from "./employement/pages/EmployeHomePage";
+import AdminHomePage from "./employement/pages/AdminHomePage";
 import Profile from "./pages/Profile";
 import LoadingPage from "./pages/LoadingPage";
 import CandidateHomePage from "./pages/candidate-home/CandidateHomePage";
@@ -9,8 +10,8 @@ import { useSelector } from "react-redux";
 export default function Home() {
   const userInfo = useSelector((s) => s.user.userInfo)
   const isAdmin = useSelector(selectIsAdmin);
+  if (isAdmin) return <AdminHomePage />;
   if (userInfo?.phase == 'Employment') return <EmployeHomePage />;
-  if (isAdmin) return <Profile />;
   return <CandidateHome />;
 }
 

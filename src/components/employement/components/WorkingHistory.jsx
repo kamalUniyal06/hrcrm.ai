@@ -87,46 +87,4 @@ export default function WorkingHistory({ email }) {
                 .slice(0, 7)
             : [];
     }, [data, dates]);
-
-    return (
-        <section className="min-w-0 rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-                <h2 className="text-base font-semibold text-foreground">Working History</h2>
-                <button type="button" onClick={() => navigate("/attendance")} className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-                    See all <ChevronRight size={14} />
-                </button>
-            </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[10px] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-green-500" />9 hours or more</span>
-                <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-yellow-500" />6–9 hours or still working</span>
-                <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-red-500" />Less than 6 hours</span>
-            </div>
-
-            <div className="mt-4 w-full overflow-x-auto">
-                <table className="w-full min-w-[570px] border-separate border-spacing-y-1 text-left">
-                    <thead><tr>
-                        {['Date', 'Arrival', 'Departure', 'Effective time'].map((label, index) => <th key={label} className={`${index === 0 ? 'rounded-l-lg' : index === 3 ? 'rounded-r-lg' : ''} bg-muted px-3 py-2.5 text-[10px] font-medium text-muted-foreground`}>{label}</th>)}
-                        <th className="w-12" />
-                    </tr></thead>
-                    <tbody>
-                        {records.map((record) => {
-                            const dateKey = getDateKey(record.login || record.date_entered);
-                            const minutes = workedMinutes(record);
-                            return <tr key={record.id || `${dateKey}-${record.login}`}>
-                                <td className="border-b border-border px-3 py-2"><div className="flex items-center gap-2 whitespace-nowrap"><span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-xs text-muted-foreground">{dateKey?.slice(-2)}</span><span className={dateKey === today ? "font-semibold text-primary" : "text-foreground"}>{formatDate(dateKey, today)}</span></div></td>
-                                <td className="whitespace-nowrap border-b border-border px-3 py-2 text-xs text-foreground">{formatTime(record.login)}</td>
-                                <td className="whitespace-nowrap border-b border-border px-3 py-2 text-xs text-foreground">{record.logout ? formatTime(record.logout) : "Still working"}</td>
-                                <td className="border-b border-border px-3 py-2"><span className="block whitespace-nowrap text-xs text-foreground">{formatDuration(minutes)}</span><span className="block text-[9px] text-muted-foreground">/ 9 hours</span></td>
-                                <td className="border-b border-border px-3 py-2"><span className={`relative block h-6 w-6 rounded-full ${statusColor(minutes, Boolean(record.logout))}`}><span className="absolute inset-[3px] rounded-full bg-card" /></span></td>
-                            </tr>;
-                        })}
-                    </tbody>
-                </table>
-                {isLoading && <p className="py-8 text-center text-sm text-muted-foreground">Loading working history…</p>}
-                {isError && <p className="py-8 text-center text-sm text-destructive">Could not load working history.</p>}
-                {!isLoading && !isError && records.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No working history found for the last 7 days.</p>}
-            </div>
-        </section>
-    );
 }
