@@ -5,15 +5,13 @@ import { toast } from "react-hot-toast";
 import { resetPageScroll } from "../../utils/resetPageScroll";
 import { candidateSources, validatePersonalDetails } from "./profile/onboardingValidation";
 import { useSelector } from "react-redux";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft,
-  ArrowRight,
   BadgeCheck,
   BriefcaseBusiness,
   Camera,
-  ChevronRight,
   CircleCheck,
+  ExternalLink,
   GraduationCap,
   Loader2,
   Mail,
@@ -21,6 +19,7 @@ import {
   Pencil,
   Phone,
   Plus,
+  Quote,
   Save,
   ShieldCheck,
   Sparkles,
@@ -48,18 +47,18 @@ import {
 } from "./profile/candidateApi";
 
 import ProfileSectionContent from "./profile/ProfileSectionContent";
-import { profileCompletion } from "./profile/profileDisplay";
+import { displayUrl, isWebUrl, profileCompletion } from "./profile/profileDisplay";
 import LoadingPage from "./LoadingPage";
 import ResumeLoading from "./profile/ResumeLoading";
 import ResumeUpload from "./profile/ResumeUpload";
 import { useQueryClient } from "@tanstack/react-query";
 import { candidateKey } from "../../queries/candidate.queries";
 import EmployeeOptions from "../employement/components/employee-actions/EmployeeOptions";
+import { CandidateChip, CandidatePageHeader } from "./candidate/candidateUi";
+import { candidateStyles } from "./candidate/candidateStyles";
 
-const metaChip =
-  "inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs text-muted-foreground";
-const sectionNavButton =
-  "inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-40 motion-reduce:transition-none";
+const metaItem = "inline-flex min-w-0 max-w-full items-center gap-1.5 text-[13px] text-foreground/80 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
+const tocLink = "flex min-h-10 items-center justify-between gap-2 rounded-lg px-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none";
 
 export default function Profile({ standalone = false, onComplete }) {
   const email = useSelector((state) => state.user.user?.email)?.trim() || "";
@@ -73,6 +72,31 @@ export default function Profile({ standalone = false, onComplete }) {
       standalone={standalone}
       onComplete={onComplete}
     />
+  );
+}
+
+/** One section of the saved profile: title, count, and its own Edit button. */
+function ProfileSection({ id, icon, title, count, onEdit, editLabel = "Edit", busy, children }) {
+  const Icon = icon;
+  return (
+    <section id={id} aria-labelledby={`${id}-title`} className={cn(candidateStyles.card, "scroll-mt-6 overflow-clip")}>
+      <div className="flex items-center gap-3 border-b border-border px-4 py-3.5 sm:px-5">
+        <span className={cn(candidateStyles.tile, "size-9 rounded-[10px]")}>
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <h2 id={`${id}-title`} className="min-w-0 flex-1 truncate text-base font-semibold">
+          {title}
+          {count !== undefined && <span className="ml-1.5 text-[13px] font-medium text-muted-foreground">· {count}</span>}
+        </h2>
+        {onEdit && (
+          <button type="button" onClick={onEdit} disabled={busy} className={cn(candidateStyles.ghost, "-mr-1")} aria-label={`${editLabel} ${title.toLowerCase()}`}>
+            <Pencil size={15} aria-hidden="true" />
+            {editLabel}
+          </button>
+        )}
+      </div>
+      <div className="p-4 sm:p-5">{children}</div>
+    </section>
   );
 }
 
@@ -188,32 +212,29 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     };
   }, [email, jobId, retry, queryClient]);
 
+  // The profile reads as one page, so every related section loads together.
   useEffect(() => {
-    if (!candidateRelatedModules[section] || !record?.id) return;
-    if (relatedCache.current[section]?.items) return;
+    if (!record?.id) return;
+    const missing = Object.keys(candidateRelatedModules).filter((key) => !relatedCache.current[key]?.items);
+    if (!missing.length) return;
     let active = true;
-    setRelated((prev) => ({ ...prev, [section]: { loading: true } }));
-    fetchCandidateRelated(record.id, section)
-      .then((items) => {
-        if (active) {
-          relatedCache.current[section] = { items, original: items };
-          setRelated((prev) => ({
-            ...prev,
-            [section]: relatedCache.current[section],
-          }));
-        }
-      })
-      .catch((err) => {
-        if (active)
-          setRelated((prev) => ({
-            ...prev,
-            [section]: { error: err.message },
-          }));
-      });
+    setRelated((prev) => ({ ...prev, ...Object.fromEntries(missing.map((key) => [key, { loading: true }])) }));
+    for (const key of missing) {
+      fetchCandidateRelated(record.id, key)
+        .then((items) => {
+          if (active) {
+            relatedCache.current[key] = { items, original: items };
+            setRelated((prev) => ({ ...prev, [key]: relatedCache.current[key] }));
+          }
+        })
+        .catch((err) => {
+          if (active) setRelated((prev) => ({ ...prev, [key]: { error: err.message } }));
+        });
+    }
     return () => {
       active = false;
     };
-  }, [record?.id, section, relatedRetry]);
+  }, [record?.id, relatedRetry]);
 
   const parseResume = async (event) => {
     event.preventDefault();
@@ -267,6 +288,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       setRecord(candidate);
       relatedCache.current = {};
       setRelated({});
+      setRelatedRetry((value) => value + 1);
       setSection("personal");
       setDraft(parsed);
       setPhase("builder");
@@ -355,6 +377,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   const name =
     [draft?.first_name, draft?.last_name].filter(Boolean).join(" ") ||
     "Candidate profile";
+  const initials = [draft?.first_name, draft?.last_name].filter(Boolean).map((part) => part[0]).join("").toUpperCase();
   const strength = profileCompletion(draft);
   const tabs = [
     {
@@ -399,19 +422,13 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       : []),
   ];
   const activeTab = tabs.find((tab) => tab.id === section) || tabs[0];
-  const activeIndex = tabs.findIndex((tab) => tab.id === activeTab.id);
-  const goTo = (next) => {
-    if (busy || photoBusy) return;
-    setSection(next);
-  };
+  const locked = busy || photoBusy;
   const startEditing = (next = section) => {
-    if (busy || photoBusy) return;
+    if (locked) return;
     setFieldErrors({});
     setSection(next);
     setPhase("edit");
   };
-  const previousTab = tabs[activeIndex - 1];
-  const nextTab = tabs[activeIndex + 1];
   const cancelEditing = () => {
     relatedCache.current = Object.fromEntries(
       Object.entries(relatedCache.current).map(([key, entry]) => [
@@ -429,6 +446,49 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
   };
   const showWelcomeChooser = phase === "welcome" && !candidateFlowStarted;
   const showOnboardingBackdrop = phase === "welcome" || phase === "upload" || phase === "builder";
+  const relatedCount = (key) => related[key]?.items?.length;
+  const sectionNav = [
+    ["section-about", "About"],
+    ["section-details", "Personal details"],
+    ["section-experiences", "Experience", relatedCount("experiences")],
+    ["section-education", "Education", relatedCount("education")],
+    ["section-skills", "Skills", relatedCount("skills")],
+    ...(record?.id ? [["section-photo", "Profile photo"]] : []),
+  ];
+
+  // Related sections (experience, education, skills) share one view and one editor.
+  const renderRelated = (key, editable) => {
+    const tab = tabs.find((item) => item.id === key);
+    return related[key]?.loading ? (
+      <div role="status" className="space-y-3">
+        <span className="sr-only">Loading {tab.label.toLowerCase()}</span>
+        {[0, 1].map((item) => (
+          <div key={item} className="h-20 rounded-xl bg-muted motion-safe:animate-pulse" />
+        ))}
+      </div>
+    ) : related[key]?.error ? (
+      <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
+        <p className="text-destructive">{related[key].error}</p>
+        <button type="button" onClick={() => setRelatedRetry((value) => value + 1)} className={cn(styles.secondary, "mt-3")}>
+          Retry
+        </button>
+      </div>
+    ) : (
+      <ProfileSectionContent
+        section={key}
+        draft={{ ...draft, resumeSections: { [key]: related[key]?.items || [] } }}
+        setDraft={(updater) => {
+          const entry = relatedCache.current[key];
+          if (!entry) return;
+          const updated = updater({ ...draft, resumeSections: { [key]: entry.items } });
+          relatedCache.current[key] = { ...entry, items: updated.resumeSections[key] };
+          setRelated((prev) => ({ ...prev, [key]: relatedCache.current[key] }));
+        }}
+        editing={editable}
+      />
+    );
+  };
+
   return (
     <main
       ref={pageRef}
@@ -436,7 +496,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
         "relative",
         standalone
           ? "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary  min-h-dvh bg-background px-4 pb-8 sm:px-8 sm:pb-12 [&_button]:cursor-pointer [&_button:disabled]:cursor-default"
-          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background px-4 py-6 sm:px-8 sm:py-8",
+          : "text-foreground [&_button:focus-visible]:outline-2 [&_button:focus-visible]:outline-offset-4 [&_button:focus-visible]:outline-primary [&_summary:focus-visible]:outline-2 [&_summary:focus-visible]:outline-offset-4 [&_summary:focus-visible]:outline-primary min-h-full bg-background",
         // OnboardingBackdrop fills <main> behind the onboarding welcome and upload screens.
         showOnboardingBackdrop && "isolate",
         showOnboardingBackdrop && standalone && phase !== "builder" && "lg:pb-0",
@@ -445,32 +505,22 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
 
       <div
         className={
-          standalone ? `mx-auto max-w-[1400px] space-y-6 ${phase === "builder" || phase === "upload" ? "pt-[22px] sm:pt-0" : ""}` : "w-full space-y-6 mt-4"
+          standalone ? `mx-auto max-w-[1400px] space-y-6 ${phase === "builder" || phase === "upload" ? "pt-[22px] sm:pt-0" : ""}` : candidateStyles.page
         }
       >
         {!standalone && (
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <p className={styles.eyebrow}>
-                <UserRound size={15} aria-hidden="true" />
-                Candidate profile
-              </p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight lg:text-3xl">
-                My profile
-              </h1>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Keep your details current so recruiters see the real you.
-              </p>
-            </div>
+          <CandidatePageHeader
+            icon={UserRound}
+            title="My profile"
+            description="This is what recruiters see when you apply. Keep it current."
+          >
             {!editing && (
-              <span className={cn(styles.status, "px-3 py-1.5 text-xs", record?.id && "border-primary/20 bg-accent text-primary")}>
+              <span className={cn(styles.status, "px-3 py-1.5 text-xs", record?.id && "border-primary/20 bg-primary/5 text-primary")}>
                 <ShieldCheck size={14} aria-hidden="true" />
-                {record?.id
-                  ? "Profile saved"
-                  : "Complete your profile"}
+                {record?.id ? "Profile saved" : "Complete your profile"}
               </span>
             )}
-          </div>
+          </CandidatePageHeader>
         )}
         {phase === "error" && error && <div className={cn(styles.surface, `p-6 text-center`)}><p className="text-muted-foreground text-sm">Your profile could not be loaded.</p><button onClick={() => setRetry(value => value + 1)} className={cn(styles.primary, `mt-4`)}>Retry lookup</button></div>}
         {phase === "loading" && (
@@ -505,6 +555,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
               setDraft(normalizeCandidate(saved, email));
               relatedCache.current = {};
               setRelated({});
+              setRelatedRetry((value) => value + 1);
               setSection("personal");
               setPhase("view");
               toast.success(
@@ -536,201 +587,89 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
           ))}
         {draft && (phase === "view" || phase === "edit") && (
           <>
-            <header className={cn(styles.surface, "relative overflow-hidden rounded-3xl")}>
-              <div aria-hidden="true" className="relative h-24 overflow-hidden bg-gradient-to-r from-sidebar-primary to-sidebar-secondary sm:h-28">
-                <div className="absolute -right-10 -top-44 size-96 rounded-full border-[48px] border-white/5" />
-                <div className="absolute right-52 top-8 size-56 rounded-full border border-white/10" />
-                <div className="absolute -bottom-24 left-1/3 size-64 rounded-full bg-highlight/15 blur-3xl" />
+            <section aria-label="Who you are" className={cn(candidateStyles.card, "flex flex-wrap items-center gap-5 p-5 sm:p-6")}>
+              <div className="flex size-[88px] shrink-0 items-center justify-center overflow-hidden rounded-[22px] border border-border bg-accent text-[28px] font-semibold text-primary">
+                {photoSrc ? (
+                  <img
+                    key={photoSrc}
+                    src={photoSrc}
+                    alt={`Profile photo of ${name}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  initials || <UserRound size={34} aria-hidden="true" />
+                )}
               </div>
-              <div className="relative px-5 pb-5 sm:px-8 sm:pb-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="-mt-12 flex min-w-0 flex-col items-start gap-4 sm:flex-row sm:items-end">
-                    <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-4 border-card bg-accent text-3xl font-semibold text-primary shadow-sm sm:size-28">
-                      {photoSrc ? (
-                        <img
-                          key={photoSrc}
-                          src={photoSrc}
-                          alt={`Profile photo of ${name}`}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        [draft.first_name, draft.last_name]
-                          .filter(Boolean)
-                          .map((part) => part[0])
-                          .join("")
-                          .toUpperCase() || <UserRound size={34} aria-hidden="true" />
-                      )}
-                    </div>
-                    <div className="min-w-0 sm:pb-1">
-                      <h2 className="break-words text-2xl font-semibold tracking-tight">
-                        {name}
-                      </h2>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <BriefcaseBusiness size={15} className="shrink-0" aria-hidden="true" />
-                        {draft.current_designation || "Professional title not added"}
-                      </p>
-                    </div>
-                  </div>
-                  {!editing ? (
-                    <button
-                      type="button"
-                      className={cn(styles.secondary, "w-full sm:w-auto")}
-                      onClick={() => startEditing()}
-                    >
-                      <Pencil size={16} aria-hidden="true" />
-                      Edit profile
-                    </button>
-                  ) : (
-                    <span className={cn(styles.status, "w-fit border-primary/20 bg-accent px-3 py-1.5 text-xs text-primary")}>
-                      <Pencil size={13} aria-hidden="true" />
-                      {record?.id
-                        ? "Editing your profile"
-                        : "Draft, review before saving"}
-                    </span>
+              <div className="min-w-0 flex-1 basis-72 space-y-2">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <h2 className="min-w-0 break-words text-2xl font-semibold tracking-tight">{name}</h2>
+                  {record?.status && (
+                    <CandidateChip tone="progress" icon={BadgeCheck}>
+                      <span className="sr-only">Status: </span>
+                      {record.status}
+                    </CandidateChip>
                   )}
                 </div>
-                <ul aria-label="Contact details" className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-                  <li className={metaChip}>
-                    <Mail size={14} className="shrink-0" aria-hidden="true" />
+                <p className="text-[15px] text-foreground/80">
+                  {draft.current_designation || <span className="text-muted-foreground">Professional title not added</span>}
+                </p>
+                <ul aria-label="Contact details" className="flex flex-wrap gap-x-5 gap-y-1.5">
+                  {draft.primary_address_city && (
+                    <li className={metaItem}>
+                      <MapPin size={14} aria-hidden="true" />
+                      {[draft.primary_address_city, draft.primary_address_country].filter(Boolean).join(", ")}
+                    </li>
+                  )}
+                  <li className={metaItem}>
+                    <Mail size={14} aria-hidden="true" />
                     <span className="break-all">{email}</span>
                   </li>
                   {draft.phone_mobile && (
-                    <li className={metaChip}>
-                      <Phone size={14} className="shrink-0" aria-hidden="true" />
+                    <li className={metaItem}>
+                      <Phone size={14} aria-hidden="true" />
                       {draft.phone_mobile}
                     </li>
                   )}
-                  {draft.primary_address_city && (
-                    <li className={metaChip}>
-                      <MapPin size={14} className="shrink-0" aria-hidden="true" />
-                      {[
-                        draft.primary_address_city,
-                        draft.primary_address_country,
-                      ]
-                        .filter(Boolean)
-                        .join(", ")}
-                    </li>
-                  )}
-                  {record?.status && (
-                    <li className={cn(metaChip, "relative border-primary/20 bg-accent font-medium text-primary")}>
-                      <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />
-                      <span className="sr-only left-0 top-0">Status: </span>
-                      {record.status}
+                  {isWebUrl(draft.linkedin_url) && (
+                    <li className={metaItem}>
+                      <ExternalLink size={14} aria-hidden="true" />
+                      <a href={draft.linkedin_url} target="_blank" rel="noopener noreferrer" className="truncate text-primary underline-offset-4 hover:underline">
+                        {displayUrl(draft.linkedin_url)}
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
                     </li>
                   )}
                 </ul>
               </div>
-            </header>
-            <div className="grid items-start gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-              <aside className="min-w-0 space-y-5 lg:sticky lg:top-5">
-                <nav
-                  aria-label="Profile sections"
-                  className="overflow-x-auto rounded-2xl border border-border bg-card p-1.5 shadow-sm"
+              {!editing ? (
+                <button
+                  type="button"
+                  className={cn(styles.secondary, "w-full sm:w-auto")}
+                  onClick={() => startEditing("personal")}
                 >
-                  <ul className="flex gap-1 lg:flex-col">
-                    {tabs.map((tab) => {
-                      const active = section === tab.id;
-                      return (
-                        <li key={tab.id} className="shrink-0">
-                          <button
-                            type="button"
-                            aria-current={active ? "step" : undefined}
-                            aria-controls="profile-section"
-                            disabled={busy || photoBusy}
-                            onClick={() => goTo(tab.id)}
-                            className={cn(
-                              "flex min-h-11 w-full items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-sm font-medium transition-colors disabled:opacity-50 motion-reduce:transition-none",
-                              active
-                                ? "bg-accent text-primary"
-                                : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "grid size-8 shrink-0 place-items-center rounded-lg transition-colors motion-reduce:transition-none",
-                                active ? "bg-primary text-primary-foreground" : "bg-muted",
-                              )}
-                            >
-                              <tab.icon size={16} aria-hidden="true" />
-                            </span>
-                            <span className="flex-1 whitespace-nowrap pr-1">
-                              {tab.label}
-                            </span>
-                            {active && (
-                              <ChevronRight size={16} className="hidden shrink-0 lg:block" aria-hidden="true" />
-                            )}
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </nav>
-                <div className={cn(styles.surface, "hidden p-5 lg:block")}>
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold">Profile strength</h2>
-                    <span className="text-sm font-semibold tabular-nums text-primary">
-                      {strength.percent}%
-                    </span>
-                  </div>
-                  <div
-                    role="progressbar"
-                    aria-label="Profile completeness"
-                    aria-valuenow={strength.percent}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
-                  >
-                    <div
-                      className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
-                      style={{ width: `${strength.percent}%` }}
-                    />
-                  </div>
-                  {strength.missing.length ? (
-                    <>
-                      <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                        Add these to make your profile stand out:
-                      </p>
-                      <ul className="mt-2 space-y-1">
-                        {strength.missing.map((item) => (
-                          <li key={item.key}>
-                            <button
-                              type="button"
-                              disabled={busy || photoBusy}
-                              onClick={() =>
-                                startEditing(item.key === "profile_image" && record?.id ? "photo" : "personal")
-                              }
-                              className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition-colors hover:bg-accent hover:text-primary disabled:opacity-50 motion-reduce:transition-none"
-                            >
-                              <Plus size={15} className="shrink-0 text-primary" aria-hidden="true" />
-                              {item.label}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  ) : (
-                    <p className="mt-4 flex items-start gap-2 text-xs leading-5 text-muted-foreground">
-                      <CircleCheck size={15} className="mt-px shrink-0 text-primary" aria-hidden="true" />
-                      Your profile is complete. Keep it current as your experience grows.
-                    </p>
-                  )}
-                </div>
-                {userPhase === "Employment" && <EmployeeOptions />}
-              </aside>
+                  <Pencil size={16} aria-hidden="true" />
+                  Edit details
+                </button>
+              ) : (
+                <CandidateChip tone="attention" icon={Pencil} className="px-3 py-1.5 text-xs">
+                  {record?.id ? `Editing ${activeTab.label.toLowerCase()}` : "Draft, review before saving"}
+                </CandidateChip>
+              )}
+            </section>
+
+            {editing ? (
               <section
                 id="profile-section"
                 aria-labelledby="profile-section-title"
-                className={cn(styles.surface, "min-w-0 overflow-clip")}
+                className={cn(candidateStyles.card, "min-w-0 overflow-clip")}
               >
-                <div className="flex items-start gap-4 border-b border-border px-5 py-5 sm:px-8 sm:py-6">
+                <div className="flex items-start gap-4 border-b border-border px-5 py-5 sm:px-6">
                   <span className={cn(styles.icon, "hidden sm:inline-flex")}>
                     <activeTab.icon size={23} aria-hidden="true" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {editing ? "Editing" : "Section"} {activeIndex + 1} of {tabs.length}
-                    </p>
-                    <h2 id="profile-section-title" className="mt-1 text-lg font-semibold tracking-tight">
+                    <p className={candidateStyles.eyebrow}>Editing</p>
+                    <h2 id="profile-section-title" className="mt-0.5 text-lg font-semibold tracking-tight">
                       {activeTab.subtitle}
                     </h2>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
@@ -739,118 +678,35 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                   </div>
                 </div>
                 {section === "photo" && record?.id ? (
-                  <div className="p-5 sm:p-8">
-                    {editing ? (
-                      <CandidatePhotoUpload
-                        initialEmail={email}
-                        lockedEmail
-                        disabled={busy}
-                        existingUrl={draft.profile_image}
-                        onBusyChange={setPhotoBusy}
-                        onUploaded={(url, uploadedFile) => {
-                          setPhotoFile(uploadedFile);
-                          setDraft((prev) => ({ ...prev, profile_image: url }));
-                        }}
-                      />
-                    ) : (
-                      <div className="flex flex-col items-center gap-6 py-4 text-center sm:flex-row sm:text-left">
-                        <div className="grid size-32 shrink-0 place-items-center overflow-hidden rounded-3xl border border-border bg-accent text-primary">
-                          {photoSrc ? (
-                            <img
-                              src={photoSrc}
-                              alt={`Profile photo of ${name}`}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <Camera size={32} aria-hidden="true" />
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="font-semibold">
-                            {photoSrc ? "Your profile photo" : "No photo yet"}
-                          </h3>
-                          <p className="mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                            {photoSrc
-                              ? "This is the photo recruiters see. Want a fresh look?"
-                              : "A clear, friendly photo helps recruiters put a face to your name."}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => startEditing("photo")}
-                            className={cn(styles.secondary, "mt-4")}
-                          >
-                            <Camera size={16} aria-hidden="true" />
-                            {draft.profile_image ? "Change photo" : "Add photo"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                  <div className="p-5 sm:p-6">
+                    <CandidatePhotoUpload
+                      initialEmail={email}
+                      lockedEmail
+                      disabled={busy}
+                      existingUrl={draft.profile_image}
+                      onBusyChange={setPhotoBusy}
+                      onUploaded={(url, uploadedFile) => {
+                        setPhotoFile(uploadedFile);
+                        setDraft((prev) => ({ ...prev, profile_image: url }));
+                      }}
+                    />
                   </div>
                 ) : (
                   <form
                     id="candidate-details"
                     onSubmit={save}
-                    className="p-5 sm:p-8"
+                    className="p-5 sm:p-6"
                     aria-busy={busy}
                   >
-                    <fieldset disabled={busy || photoBusy} className="min-w-0">
+                    <fieldset disabled={locked} className="min-w-0">
                       {candidateRelatedModules[activeTab.id] ? (
-                        related[activeTab.id]?.loading ? (
-                          <div role="status" className="relative space-y-3">
-                            <span className="sr-only left-0 top-0">Loading {activeTab.label.toLowerCase()}</span>
-                            {[0, 1].map((key) => (
-                              <div key={key} className="h-24 animate-pulse rounded-2xl bg-muted motion-reduce:animate-none" />
-                            ))}
-                          </div>
-                        ) : related[activeTab.id]?.error ? (
-                          <div role="alert" className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-sm">
-                            <p className="text-destructive">{related[activeTab.id].error}</p>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setRelatedRetry((value) => value + 1)
-                              }
-                              className={cn(styles.secondary, "mt-3")}
-                            >
-                              Retry
-                            </button>
-                          </div>
-                        ) : (
-                          <ProfileSectionContent
-                            section={activeTab.id}
-                            draft={{
-                              ...draft,
-                              resumeSections: {
-                                [activeTab.id]:
-                                  related[activeTab.id]?.items || [],
-                              },
-                            }}
-                            setDraft={(updater) => {
-                              const key = activeTab.id;
-                              const entry = relatedCache.current[key];
-                              if (!entry) return;
-                              const updated = updater({
-                                ...draft,
-                                resumeSections: { [key]: entry.items },
-                              });
-                              relatedCache.current[key] = {
-                                ...entry,
-                                items: updated.resumeSections[key],
-                              };
-                              setRelated((prev) => ({
-                                ...prev,
-                                [key]: relatedCache.current[key],
-                              }));
-                            }}
-                            editing={editing}
-                          />
-                        )
+                        renderRelated(activeTab.id, true)
                       ) : (
                         <ProfileSectionContent
                           section={activeTab.id}
                           draft={draft}
                           setDraft={setDraft}
-                          editing={editing}
+                          editing
                           email={email}
                           fieldErrors={fieldErrors}
                           setFieldErrors={setFieldErrors}
@@ -859,69 +715,154 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                     </fieldset>
                   </form>
                 )}
-                <div
-                  className={cn(
-                    "flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card px-5 py-4 sm:px-8",
-                    editing && "sticky bottom-0 z-10 bg-card/95 backdrop-blur-sm",
-                  )}
-                >
-                  <div className="flex items-center gap-1">
-                    {previousTab && (
-                      <button
-                        type="button"
-                        disabled={busy || photoBusy}
-                        onClick={() => goTo(previousTab.id)}
-                        className={cn(sectionNavButton, "text-muted-foreground hover:text-foreground")}
-                        aria-label={`Previous section: ${previousTab.label}`}
-                      >
-                        <ArrowLeft size={16} aria-hidden="true" />
-                        <span className="hidden sm:inline">{previousTab.label}</span>
-                      </button>
-                    )}
-                    {nextTab && (
-                      <button
-                        type="button"
-                        disabled={busy || photoBusy}
-                        onClick={() => goTo(nextTab.id)}
-                        className={cn(sectionNavButton, "text-primary")}
-                        aria-label={`Next section: ${nextTab.label}`}
-                      >
-                        <span>{nextTab.label}</span>
-                        <ArrowRight size={16} aria-hidden="true" />
-                      </button>
-                    )}
+                <div className="sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t border-border bg-card/95 px-5 py-4 backdrop-blur-sm sm:px-6">
+                  <p className="text-[13px] text-muted-foreground">Changes apply to applications you send from now on.</p>
+                  <div className="flex w-full gap-2 sm:w-auto">
+                    <button
+                      type="button"
+                      disabled={locked}
+                      onClick={cancelEditing}
+                      className={cn(styles.secondary, "flex-1 sm:flex-none")}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type={section === "photo" ? "button" : "submit"}
+                      form={section === "photo" ? undefined : "candidate-details"}
+                      onClick={section === "photo" ? save : undefined}
+                      disabled={locked}
+                      className={cn(styles.primary, "flex-1 sm:flex-none")}
+                    >
+                      {busy ? (
+                        <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+                      ) : (
+                        <Save size={16} aria-hidden="true" />
+                      )}
+                      {busy ? "Saving..." : "Save profile"}
+                    </button>
                   </div>
-                  {editing && (
-                    <div className="flex w-full gap-2 sm:w-auto">
-                      <button
-                        type="button"
-                        disabled={busy || photoBusy}
-                        onClick={cancelEditing}
-                        className={cn(styles.secondary, "flex-1 sm:flex-none")}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type={section === "photo" ? "button" : "submit"}
-                        form={
-                          section === "photo" ? undefined : "candidate-details"
-                        }
-                        onClick={section === "photo" ? save : undefined}
-                        disabled={busy || photoBusy}
-                        className={cn(styles.primary, "flex-1 sm:flex-none")}
-                      >
-                        {busy ? (
-                          <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
-                        ) : (
-                          <Save size={16} aria-hidden="true" />
-                        )}
-                        {busy ? "Saving..." : "Save profile"}
-                      </button>
-                    </div>
-                  )}
                 </div>
               </section>
-            </div>
+            ) : (
+              <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="min-w-0 space-y-4">
+                  <ProfileSection id="section-about" icon={Quote} title="About" onEdit={() => startEditing("personal")} busy={locked}>
+                    {draft.description ? (
+                      <p className="break-words whitespace-pre-wrap text-[15px] leading-7 text-foreground/85">{draft.description}</p>
+                    ) : (
+                      <p className="text-sm leading-6 text-muted-foreground">
+                        A short introduction in your own words: what you build, the tools you like, and the kind of team you want to join next.
+                      </p>
+                    )}
+                  </ProfileSection>
+                  <ProfileSection id="section-details" icon={UserRound} title="Personal details" onEdit={() => startEditing("personal")} busy={locked}>
+                    <ProfileSectionContent section="personal" draft={draft} setDraft={setDraft} editing={false} hideAbout />
+                  </ProfileSection>
+                  <ProfileSection id="section-experiences" icon={BriefcaseBusiness} title="Experience" count={relatedCount("experiences")} onEdit={() => startEditing("experiences")} busy={locked}>
+                    {renderRelated("experiences", false)}
+                  </ProfileSection>
+                  <ProfileSection id="section-education" icon={GraduationCap} title="Education" count={relatedCount("education")} onEdit={() => startEditing("education")} busy={locked}>
+                    {renderRelated("education", false)}
+                  </ProfileSection>
+                  <ProfileSection id="section-skills" icon={Sparkles} title="Skills" count={relatedCount("skills")} onEdit={() => startEditing("skills")} busy={locked}>
+                    {renderRelated("skills", false)}
+                  </ProfileSection>
+                  {record?.id && (
+                    <ProfileSection id="section-photo" icon={Camera} title="Profile photo" onEdit={() => startEditing("photo")} editLabel={draft.profile_image ? "Change" : "Add"} busy={locked}>
+                      <div className="flex items-center gap-4">
+                        <div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-border bg-accent text-primary">
+                          {photoSrc ? (
+                            <img src={photoSrc} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <Camera size={22} aria-hidden="true" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold">{photoSrc ? "Shown to recruiters next to your name" : "No photo yet"}</p>
+                          <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+                            {photoSrc ? "Want a fresh look? Change it any time." : "A clear, friendly photo helps recruiters put a face to your name."}
+                          </p>
+                        </div>
+                      </div>
+                    </ProfileSection>
+                  )}
+                </div>
+
+                <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
+                  <div className={cn(candidateStyles.card, "p-5")}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h2 className="text-[15px] font-semibold">Profile strength</h2>
+                      <span className="text-[22px] font-semibold tabular-nums text-primary">
+                        {strength.percent}%
+                      </span>
+                    </div>
+                    <div
+                      role="progressbar"
+                      aria-label="Profile completeness"
+                      aria-valuenow={strength.percent}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      className="mt-3 h-2 overflow-hidden rounded-full bg-muted"
+                    >
+                      <div
+                        className="h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+                        style={{ width: `${strength.percent}%` }}
+                      />
+                    </div>
+                    {strength.missing.length ? (
+                      <>
+                        <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                          Add these to make your profile stand out:
+                        </p>
+                        <ul className="mt-2 space-y-1">
+                          {strength.missing.map((item) => (
+                            <li key={item.key}>
+                              <button
+                                type="button"
+                                disabled={locked}
+                                onClick={() =>
+                                  startEditing(item.key === "profile_image" && record?.id ? "photo" : "personal")
+                                }
+                                className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition-colors hover:bg-accent hover:text-primary disabled:opacity-50 motion-reduce:transition-none"
+                              >
+                                <Plus size={15} className="shrink-0 text-primary" aria-hidden="true" />
+                                {item.label}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : (
+                      <p className="mt-4 flex items-start gap-2 text-[13px] leading-5 text-muted-foreground">
+                        <CircleCheck size={15} className="mt-px shrink-0 text-primary" aria-hidden="true" />
+                        Your profile is complete. You're ready to apply to any open role.
+                      </p>
+                    )}
+                  </div>
+                  <nav aria-label="On this page" className={cn(candidateStyles.card, "hidden p-3 lg:block")}>
+                    <p className="px-2.5 pt-1 pb-2 text-xs font-semibold text-muted-foreground">On this page</p>
+                    <ul>
+                      {sectionNav.map(([id, label, count]) => (
+                        <li key={id}>
+                          <a href={`#${id}`} className={tocLink}>
+                            {label}
+                            {count !== undefined && <span className="text-xs tabular-nums text-muted-foreground">{count}</span>}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </nav>
+                  {record?.id && !standalone && (
+                    <div className={cn(candidateStyles.card, "p-5")}>
+                      <h2 className="text-[15px] font-semibold">Where this profile is used</h2>
+                      <p className="mt-1 text-[13px] leading-5 text-muted-foreground">You apply to roles with these details. Changes apply to applications you send from now on.</p>
+                      <Link to="/job-application" className={cn(candidateStyles.ghost, "mt-2 -ml-2.5")}>View my applications</Link>
+                    </div>
+                  )}
+                  {userPhase === "Employment" && <EmployeeOptions />}
+                </aside>
+              </div>
+            )}
           </>
         )}
       </div>

@@ -1,5 +1,9 @@
 import { ExternalLink, Link2, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { recruitmentDate } from "../../../services/recruitmentUtils";
+import { CandidateChip } from "../candidate/candidateUi";
+import { candidateStyles } from "../candidate/candidateStyles";
+import { onboardingStyles } from "../profile/onboardingStyles";
 
 const statusMessages = {
   not_created: "Your test link will appear here once HR creates it.",
@@ -9,33 +13,55 @@ const statusMessages = {
   accepted: "Your test invitation has already been used. Continue in the test window you opened.",
 };
 
-export default function CandidateTestInvitation({ query }) {
+/** The Round 1 test as a to-do item: what to do, by when, and the button to do it. */
+export default function CandidateTestInvitation({ query, roundLabel = "Round 1", jobTitle = "" }) {
   const invitation = query.data;
   const expired = invitation?.status === "pending" && Date.parse(invitation.expiresAt) <= Date.now();
   const canOpen = invitation?.status === "pending" && invitation.url && !expired;
+  const due = canOpen ? recruitmentDate(invitation.expiresAt) : "";
   return (
-    <section className="mt-5 rounded-2xl border border-border bg-muted/40 p-4 sm:p-5" aria-label="Round 1 test" aria-busy={query.isFetching}>
-      <h4 className="flex items-center gap-2.5 text-sm font-semibold">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-accent text-primary"><Link2 size={16} aria-hidden="true" /></span>
-        Round 1 test
-      </h4>
-      {query.isPending ? (
-        <p role="status" className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Loading your test link…</p>
-      ) : query.isError ? (
-        <div role="alert" className="mt-3 text-sm">
-          <p className="text-destructive">{query.error.message}</p>
-          <button type="button" onClick={() => { void query.refetch(); }} disabled={query.isFetching} className="mt-2 rounded-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">Retry test link</button>
+    <article
+      className={cn(candidateStyles.card, "flex flex-wrap items-center gap-4 p-4 sm:p-5")}
+      aria-label={`${roundLabel} test`}
+      aria-busy={query.isFetching}
+    >
+      <span className={cn("grid size-12 shrink-0 place-items-center rounded-[14px] border", canOpen ? cn(candidateStyles.attentionBox, candidateStyles.attentionText) : "border-border bg-muted text-muted-foreground")}>
+        <Link2 size={22} aria-hidden="true" />
+      </span>
+      <div className="min-w-0 flex-1 basis-56">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-semibold">Complete the {roundLabel} test</h3>
+          {canOpen && <CandidateChip tone="attention">Due {due}</CandidateChip>}
         </div>
-      ) : canOpen ? (
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-          <a href={invitation.url} target="_blank" rel="noopener noreferrer" className="relative inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground sm:w-auto hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-            Open test<ExternalLink size={15} aria-hidden="true" /><span className="sr-only left-0 top-0"> (opens in a new tab)</span>
-          </a>
-          <p className="text-xs text-muted-foreground">Available until {recruitmentDate(invitation.expiresAt)}</p>
-        </div>
-      ) : (
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">{statusMessages[expired ? "expired" : invitation?.status] || "Your test link is unavailable. Please refresh or contact HR."}</p>
+        {query.isPending ? (
+          <p role="status" className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground">
+            <Loader2 size={14} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />
+            Loading your test link…
+          </p>
+        ) : query.isError ? (
+          <div role="alert" className="mt-1 text-[13px]">
+            <p className="text-destructive">{query.error.message}</p>
+            <button type="button" onClick={() => { void query.refetch(); }} disabled={query.isFetching} className="mt-1 rounded-sm font-semibold text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">
+              Retry test link
+            </button>
+          </div>
+        ) : canOpen ? (
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            {jobTitle ? `${jobTitle} · ` : ""}Open until <span className="font-semibold text-foreground">{due}</span>. Finish it before your {roundLabel} interview.
+          </p>
+        ) : (
+          <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            {statusMessages[expired ? "expired" : invitation?.status] || "Your test link is unavailable. Please refresh or contact HR."}
+          </p>
+        )}
+      </div>
+      {canOpen && (
+        <a href={invitation.url} target="_blank" rel="noopener noreferrer" className={cn(onboardingStyles.primary, "w-full sm:w-auto")}>
+          Open test
+          <ExternalLink size={15} aria-hidden="true" />
+          <span className="sr-only"> (opens in a new tab)</span>
+        </a>
       )}
-    </section>
+    </article>
   );
 }

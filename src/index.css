@@ -58,6 +58,9 @@
   --leave-green-soft: #eaf9f3;
   --leave-red-soft: #ffedf0;
   --leave-yellow-soft: #fff7e8;
+  /* Candidate-side "you need to act" tone; moving and closed states reuse primary and destructive. */
+  --candidate-attention: #8a5300;
+  --candidate-attention-soft: #fff6e5;
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -327,6 +330,8 @@
   --leave-green-soft: #064e3b;
   --leave-red-soft: #4c0519;
   --leave-yellow-soft: #422006;
+  --candidate-attention: #fbbf24;
+  --candidate-attention-soft: #422006;
 }
 
 @theme inline {

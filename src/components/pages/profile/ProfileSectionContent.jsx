@@ -53,7 +53,7 @@ function GroupCard({ title, icon, children }) {
   );
 }
 
-function PersonalView({ draft }) {
+function PersonalView({ draft, hideAbout }) {
   const address = formatAddress(draft);
   const designation = draft.current_designation?.trim().toLowerCase();
   const groups = personalGroups
@@ -65,7 +65,7 @@ function PersonalView({ draft }) {
     .filter((group) => group.keys.length || (group.title === "Address" && address.length));
   return (
     <div className="space-y-5">
-      {draft.description && (
+      {draft.description && !hideAbout && (
         <section aria-labelledby="profile-about" className="relative rounded-2xl border border-primary/15 bg-accent/60 p-5 sm:p-6">
           <Quote size={22} className="absolute right-5 top-5 text-primary/25" aria-hidden="true" />
           <h3 id="profile-about" className="text-sm font-semibold text-primary">About me</h3>
@@ -278,6 +278,7 @@ export default function ProfileSectionContent({
   email,
   fieldErrors,
   setFieldErrors,
+  hideAbout = false,
 }) {
   if (section === "personal")
     return editing ? (
@@ -289,7 +290,7 @@ export default function ProfileSectionContent({
         setFieldErrors={setFieldErrors}
       />
     ) : (
-      <PersonalView draft={draft} />
+      <PersonalView draft={draft} hideAbout={hideAbout} />
     );
 
   const items = draft.resumeSections?.[section] || [];

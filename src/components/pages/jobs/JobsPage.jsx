@@ -1,24 +1,44 @@
-import { createElement, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { NavLink, Link, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
+  Archive,
   BriefcaseBusiness,
+  CalendarClock,
+  Eye,
   FileCheck2,
+  Layers,
   Plus,
   RefreshCw,
   Search,
   UserRound,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "../profile/onboardingStyles";
-import { findCandidate } from "../profile/candidateApi";
+import { fetchCandidateRelated, findCandidate } from "../profile/candidateApi";
+import { candidateRelatedQueryKey } from "../profile/candidateRelated.js";
+import { relatedEntryView } from "../profile/profileDisplay";
+import { CandidatePageHeader, CandidateStats, EmptyState } from "../candidate/candidateUi";
+import { candidateStyles } from "../candidate/candidateStyles";
+import { applicationStage, applicationSteps } from "../candidate/candidateStatus";
 import { applyToJob, fetchJobApplications, fetchJobPostings } from "./jobsApi";
 import JobList, { JobListSkeleton } from "./JobList";
 import JobDetailsDrawer from "./JobDetailsDrawer";
 import CreateJobDialog from "./CreateJobDialog";
 import DeleteJobDialog from "./DeleteJobDialog";
-import { applicationTone, fieldLabel, plainText, readable, titleOf, valueOf } from "./jobFormatting";
+import { fieldLabel, plainText, readable, titleOf, valueOf } from "./jobFormatting";
+
+const tabLink = "inline-flex min-h-11 items-center gap-2 border-b-2 px-0.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary motion-reduce:transition-none";
+// Application filters, each one also a card in the summary strip.
+const applicationFilters = {
+  all: { label: "All applications", icon: Layers, tone: "primary", test: () => true },
+  active: { label: "Active", icon: FileCheck2, tone: "success", test: (stage) => !stage.closed },
+  interviews: { label: "In interviews", icon: CalendarClock, tone: "info", test: (stage) => !stage.closed && stage.index >= 2 },
+  closed: { label: "Closed", icon: Archive, tone: "neutral", test: (stage) => stage.closed },
+};
 
 export default function JobsPage({ applicationsOnly = false }) {
   const email = useSelector((state) => state.user.user?.email)?.trim() || "";
@@ -52,6 +72,7 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
   const [pending, setPending] = useState("");
   const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
   const [selectedKey, setSelectedKey] = useState(null);
   const locked = useRef(false);
   const alive = useRef(true);
@@ -88,6 +109,17 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
       alive.current = false;
     };
   }, [email, retry, isAdmin]);
+
+  // Shares the dashboard's cache, so the drawer can tick off skills already on the profile.
+  const skills = useQuery({
+    queryKey: candidateRelatedQueryKey(candidate?.id, "skills"),
+    queryFn: () => fetchCandidateRelated(candidate.id, "skills"),
+    enabled: Boolean(candidate?.id) && !isAdmin && !applicationsOnly,
+    staleTime: 60000,
+  });
+  const profileSkills = skills.data
+    ? skills.data.map((item) => relatedEntryView("skills", item).title).filter(Boolean)
+    : undefined;
 
   async function apply(jobId) {
     if (locked.current || isAdmin) return;
@@ -126,6 +158,7 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
     : jobs.map((job) => ({ job }));
   const query = search.trim().toLowerCase();
   const rows = cards
+    .filter(({ application }) => !applicationsOnly || applicationFilters[filter].test(applicationStage(application.status)))
     .filter(({ job, application }) =>
       [
         job ? titleOf(job) : "Job posting unavailable",
@@ -140,18 +173,21 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
       const applied = job && appliedIds.has(String(job.id).trim());
       const statusValue = application?.status?.trim();
       const postingStatus = isAdmin && fieldLabel(job, ["job_status"], jobDropdowns, true);
+      const stage = application ? applicationStage(statusValue) : null;
       return {
         key: String(application?.id || job?.id || index),
         job,
         application,
         applied,
+        stage,
+        steps: application ? applicationSteps(statusValue) : null,
         status: application
           ? {
               label: statusValue ? dropdowns.status?.[statusValue] || readable(statusValue) : "Applied",
-              tone: applicationTone(statusValue),
+              tone: stage.tone,
             }
           : applied
-            ? { label: "Applied", tone: "positive" }
+            ? { label: "Applied", tone: "progress" }
             : postingStatus
               ? { label: postingStatus, tone: "neutral" }
               : null,
@@ -163,114 +199,139 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
     setApplyError("");
     setSelectedKey(key);
   };
+  const candidateName = candidate
+    ? [candidate.first_name, candidate.last_name].filter(Boolean).join(" ").trim() || candidate.full_name || candidate.name || ""
+    : "";
+  const stages = applications.map((record) => applicationStage(record.status));
+  const countOf = (key) => stages.filter(applicationFilters[key].test).length;
+  const activeCount = countOf("active");
+  const interviewing = countOf("interviews");
+  const pickFilter = (key) => {
+    setFilter((current) => (current === key ? "all" : key));
+    setSelectedKey(null);
+  };
+  const stats = isAdmin
+    ? [
+        { label: "Job postings", value: jobs.length, icon: BriefcaseBusiness, tone: "primary", onClick: () => setSearch("") },
+        { label: "Matching your search", value: rows.length, icon: Search, tone: "info" },
+      ]
+    : applicationsOnly
+      ? Object.entries(applicationFilters).map(([key, entry]) => ({
+          label: entry.label,
+          value: countOf(key),
+          icon: entry.icon,
+          tone: entry.tone,
+          active: filter === key && key !== "all",
+          onClick: () => pickFilter(key),
+        }))
+      : [
+          { label: "Open roles", value: jobs.length, icon: BriefcaseBusiness, tone: "primary", onClick: () => setSearch("") },
+          { label: "Your applications", value: applications.length, hint: applications.length ? `${activeCount} active` : "", icon: FileCheck2, tone: "success", to: "/job-application" },
+          { label: "In interviews", value: interviewing, icon: CalendarClock, tone: "info", to: "/interviews" },
+          candidate
+            ? { label: "Profile", value: "Ready", hint: "to apply", icon: UserRound, tone: "primary", to: "/profile" }
+            : { label: "Profile", value: "Not ready", hint: "complete it to apply", icon: UserRound, tone: "attention", to: "/profile" },
+        ];
+  const filterLabel = applicationsOnly && filter !== "all" ? applicationFilters[filter].label.toLowerCase() : "";
+  const countLabel = isAdmin
+    ? `${rows.length} of ${jobs.length} job postings`
+    : applicationsOnly
+      ? `Showing ${rows.length} of ${applications.length} applications${filterLabel ? ` · ${filterLabel}` : ""}`
+      : `Showing ${rows.length} of ${jobs.length} open roles`;
 
   return (
-    <main className="min-h-full bg-background p-3 text-foreground sm:p-6">
-      <div className="mx-auto w-full space-y-6">
-        <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary px-6 py-7 text-white sm:px-9 sm:py-8">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-16 -top-32 size-96 rounded-full border-[50px] border-white/5"
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -bottom-28 left-1/3 size-72 rounded-full bg-highlight/10 blur-3xl"
-          />
-          <div className="relative flex flex-wrap items-end justify-between gap-6">
-            <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-highlight">
-                {isAdmin
-                  ? "Recruitment workspace"
-                  : "Your career, moving forward"}
-              </p>
-              <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                {isAdmin
-                  ? "Build your next great team."
-                  : applicationsOnly
-                    ? "Every application. One place."
-                    : "Make your next move."}
-              </h1>
-              <p className="mt-3 text-sm leading-6 text-white/70">
-                {isAdmin
-                  ? "Create job postings and share the roles your team is hiring for."
-                  : applicationsOnly
-                    ? "Stay close to your next opportunity. Follow each application as it progresses."
-                    : "Find a role that fits your skills. Open any role for the full details, then apply with your candidate profile."}
-              </p>
-            </div>
-            {!loading && !error && (
-              <dl className="flex gap-6 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 backdrop-blur-sm">
-                <div>
-                  <dd className="text-2xl font-semibold tabular-nums">{jobs.length}</dd>
-                  <dt className="mt-1 text-xs text-white/70">Job postings</dt>
-                </div>
-                {!isAdmin && (
-                  <div className="border-l border-white/15 pl-6">
-                    <dd className="text-2xl font-semibold tabular-nums">
-                      {applications.length}
-                    </dd>
-                    <dt className="mt-1 text-xs text-white/70">
-                      Applications sent
-                    </dt>
-                  </div>
-                )}
-              </dl>
-            )}
-          </div>
-        </header>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <nav
-            aria-label="Jobs"
-            className="flex gap-1 rounded-xl border border-border bg-card p-1 shadow-sm"
-          >
-            {[
-              ["/job-posting", "Job postings", BriefcaseBusiness],
-              ["/job-application", "My applications", FileCheck2],
-            ]
-              .filter(([to]) => !isAdmin || to !== "/job-application")
-              .map(([to, label, icon]) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  className={({ isActive }) =>
-                    cn(
-                      "inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition-colors sm:px-4 motion-reduce:transition-none",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                    )
-                  }
-                >
-                  {createElement(icon, { size: 16, "aria-hidden": true })}
-                  {label}
-                </NavLink>
-              ))}
-          </nav>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <label className="flex min-h-11 flex-1 items-center gap-2 rounded-xl border border-border bg-card px-3.5 shadow-sm transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 sm:w-80 sm:flex-none">
-              <Search size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-              <input
-                type="search"
-                aria-label="Search jobs by title, skill or location"
-                placeholder="Search title, skill or location"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-              />
-            </label>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setCreating(true)}
-                className={cn(styles.primary, "shrink-0 rounded-xl px-4")}
+    <div className={candidateStyles.page}>
+      <CandidatePageHeader
+        icon={applicationsOnly ? FileCheck2 : BriefcaseBusiness}
+        eyebrow={isAdmin ? "Recruitment" : "Career space"}
+        title={isAdmin ? "Job postings" : applicationsOnly ? "My applications" : "Jobs"}
+        description={
+          isAdmin
+            ? "Create job postings and share the roles your team is hiring for."
+            : applicationsOnly
+              ? "Follow every application from submission to decision."
+              : "Find a role that fits your skills, then apply with your saved profile."
+        }
+      >
+        {isAdmin ? (
+          <button type="button" onClick={() => setCreating(true)} className={cn(styles.primary, "w-full sm:w-auto")}>
+            <Plus size={17} aria-hidden="true" />
+            New posting
+          </button>
+        ) : applicationsOnly ? (
+          <Link to="/job-posting" className={cn(styles.secondary, "w-full sm:w-auto")}>
+            <Search size={16} aria-hidden="true" />
+            Browse jobs
+          </Link>
+        ) : (
+          <Link to="/profile" className={cn(styles.secondary, "w-full sm:w-auto")}>
+            <Eye size={16} aria-hidden="true" />
+            Review my profile
+          </Link>
+        )}
+      </CandidatePageHeader>
+
+      {!loading && !error && <CandidateStats items={stats} label={applicationsOnly ? "Application summary" : "Jobs summary"} />}
+
+      <div className="space-y-4">
+        <nav aria-label="Jobs" className="flex flex-wrap gap-x-6 border-b border-border">
+          {[
+            ["/job-posting", "Job postings", jobs.length],
+            ["/job-application", "My applications", applications.length],
+          ]
+            .filter(([to]) => !isAdmin || to !== "/job-application")
+            .map(([to, label, count]) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  cn(tabLink, "-mb-px", isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")
+                }
               >
-                <Plus size={17} aria-hidden="true" />
-                <span className="hidden sm:inline">New posting</span>
-                <span className="sr-only sm:hidden">New job posting</span>
-              </button>
-            )}
-          </div>
+                {({ isActive }) => (
+                  <>
+                    {label}
+                    {!loading && !error && (
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs tabular-nums", isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                        {count}
+                      </span>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
+        </nav>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border bg-card px-3.5 transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 sm:w-96 motion-reduce:transition-none">
+            <Search size={17} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <input
+              type="search"
+              aria-label={applicationsOnly ? "Search your applications" : "Search jobs by title, skill or location"}
+              placeholder={applicationsOnly ? "Search your applications" : "Search title, skill or location"}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          {filterLabel && (
+            <button type="button" onClick={() => pickFilter("all")} className={cn(candidateStyles.ghost, "mr-auto")}>
+              <X size={14} aria-hidden="true" />
+              Clear filter: {filterLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!!pending || loading}
+            aria-label="Refresh"
+            title="Refresh"
+            className={cn(candidateStyles.iconButton, "border border-border bg-card")}
+            onClick={() => setRetry((value) => value + 1)}
+          >
+            <RefreshCw size={16} className={cn(loading && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
+          </button>
         </div>
+
         {error && (
           <div
             role="alert"
@@ -300,8 +361,8 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
         ) : (
           <>
             {!isAdmin && !candidate && !error && (
-              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">
+              <div className={cn(candidateStyles.card, "flex flex-wrap items-center gap-3 p-4")}>
+                <span className={candidateStyles.tile}>
                   <UserRound size={18} aria-hidden="true" />
                 </span>
                 <p className="min-w-0 flex-1 text-sm text-muted-foreground">
@@ -313,52 +374,36 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
                 </Link>
               </div>
             )}
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground" aria-live="polite">
-                <span className="font-semibold text-foreground">
-                  {rows.length}
-                </span>{" "}
-                {isAdmin
-                  ? "job postings"
-                  : applicationsOnly
-                    ? "applications"
-                    : "opportunities to explore"}
-              </p>
-              <button
-                type="button"
-                disabled={!!pending}
-                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-primary hover:bg-accent disabled:opacity-50"
-                onClick={() => setRetry((value) => value + 1)}
-              >
-                <RefreshCw size={14} aria-hidden="true" />
-                Refresh
-              </button>
-            </div>
             {!rows.length && !error ? (
-              <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center">
-                <span className={cn(styles.icon, "mx-auto")}>
-                  <BriefcaseBusiness size={23} aria-hidden="true" />
-                </span>
-                <p className="mt-4 font-semibold">
-                  {query
-                    ? "No matches yet"
-                    : applicationsOnly
-                      ? "No applications yet"
-                      : "No job postings yet"}
-                </p>
-                <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-muted-foreground">
-                  {query
-                    ? "Try another title, skill or location."
-                    : applicationsOnly
-                      ? "When you apply for a role, you can follow its progress here."
-                      : "New roles will appear here as soon as they're posted."}
-                </p>
-                {applicationsOnly && !query && (
-                  <Link to="/job-posting" className={cn(styles.primary, "mt-5")}>
-                    Browse job postings
-                  </Link>
-                )}
-              </div>
+              <EmptyState
+                icon={applicationsOnly ? FileCheck2 : BriefcaseBusiness}
+                title={
+                  query
+                    ? `No matches for “${search.trim()}”`
+                    : filterLabel
+                      ? `No ${filterLabel === "in interviews" ? "applications in interviews" : `${filterLabel} applications`}`
+                      : applicationsOnly
+                        ? "No applications yet"
+                        : "No job postings yet"
+                }
+                description={
+                  query
+                    ? "Try another title, skill or location, or clear the search."
+                    : filterLabel
+                      ? "Clear the filter to see every application."
+                      : applicationsOnly
+                        ? "When you apply for a role, you can follow its progress here."
+                        : "New roles will appear here as soon as they're posted."
+                }
+              >
+                {query ? (
+                  <button type="button" onClick={() => setSearch("")} className={styles.secondary}>Clear search</button>
+                ) : filterLabel ? (
+                  <button type="button" onClick={() => pickFilter("all")} className={styles.secondary}>Clear filter</button>
+                ) : applicationsOnly ? (
+                  <Link to="/job-posting" className={styles.primary}>Browse job postings</Link>
+                ) : null}
+              </EmptyState>
             ) : (
               rows.length > 0 && (
                 <JobList
@@ -367,58 +412,62 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
                   applicationsOnly={applicationsOnly}
                   jobDropdowns={jobDropdowns}
                   onOpen={openRow}
+                  footer={countLabel}
                 />
               )
             )}
           </>
         )}
-        {selected && (
-          <JobDetailsDrawer
-            row={selected}
-            index={selectedIndex}
-            total={rows.length}
-            onNavigate={(step) => openRow(rows[selectedIndex + step]?.key ?? selectedKey)}
-            onClose={() => setSelectedKey(null)}
-            applicationsOnly={applicationsOnly}
-            isAdmin={isAdmin}
-            jobDropdowns={jobDropdowns}
-            applied={selected.applied}
-            canApply={!isAdmin && !!candidate && !error}
-            hasProfile={!!candidate}
-            pending={pending}
-            applyError={applyError}
-            onApply={apply}
-            onDelete={(job) => {
-              if (!isAdmin) return;
-              setSelectedKey(null);
-              setDeleting(job);
-            }}
-          />
-        )}
-        {isAdmin && deleting && (
-          <DeleteJobDialog
-            job={deleting}
-            onClose={() => setDeleting(null)}
-            onDeleted={id => {
-              setJobs(previous => previous.filter(job => job.id !== id));
-              setDeleting(null);
-              setNotice("Job posting deleted successfully.");
-            }}
-          />
-        )}
-        {isAdmin && creating && (
-          <CreateJobDialog
-            dropdowns={jobDropdowns}
-            jobs={jobs}
-            onClose={() => setCreating(false)}
-            onCreated={() => {
-              setCreating(false);
-              setNotice("Job posting created successfully.");
-              setRetry((value) => value + 1);
-            }}
-          />
-        )}
       </div>
-    </main>
+
+      {selected && (
+        <JobDetailsDrawer
+          row={selected}
+          index={selectedIndex}
+          total={rows.length}
+          onNavigate={(step) => openRow(rows[selectedIndex + step]?.key ?? selectedKey)}
+          onClose={() => setSelectedKey(null)}
+          applicationsOnly={applicationsOnly}
+          isAdmin={isAdmin}
+          jobDropdowns={jobDropdowns}
+          applied={selected.applied}
+          canApply={!isAdmin && !!candidate && !error}
+          hasProfile={!!candidate}
+          candidateName={candidateName}
+          profileSkills={profileSkills}
+          pending={pending}
+          applyError={applyError}
+          onApply={apply}
+          onDelete={(job) => {
+            if (!isAdmin) return;
+            setSelectedKey(null);
+            setDeleting(job);
+          }}
+        />
+      )}
+      {isAdmin && deleting && (
+        <DeleteJobDialog
+          job={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={id => {
+            setJobs(previous => previous.filter(job => job.id !== id));
+            setDeleting(null);
+            setNotice("Job posting deleted successfully.");
+          }}
+        />
+      )}
+      {isAdmin && creating && (
+        <CreateJobDialog
+          dropdowns={jobDropdowns}
+          jobs={jobs}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            setNotice("Job posting created successfully.");
+            setRetry((value) => value + 1);
+          }}
+        />
+      )}
+    </div>
   );
 }

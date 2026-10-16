@@ -46,6 +46,7 @@ Use the Tailwind utility on the right. Don't reference hex values or palette cla
 Feature tokens (keep using them in their areas):
 - `--employee-*`: blue, green, yellow, orange, red and soft variants, used for employee and status visuals
 - `--leave-*`: leave and attendance surfaces, statuses, tracks
+- `--candidate-attention` / `--candidate-attention-soft`: the amber "you need to act" tone on candidate screens (a test that is due). Moving states use `--primary`, closed states use `--destructive`. Shared chips, header and summary strip live in `src/components/pages/candidate/`.
 
 Rules:
 - `--primary` appears both as text on white and behind white text, so it must pass contrast both ways. That's why lime isn't the primary color.

@@ -1,35 +1,48 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { Tabs as TabsPrimitive } from "radix-ui";
-import { ArrowLeft, ArrowRight, Ban, CalendarCheck2, CalendarClock, Check, ExternalLink, Hourglass, MapPin, RefreshCw, Timer, Video, X } from "lucide-react";
+import { Ban, BriefcaseBusiness, CalendarCheck2, CalendarClock, Check, CircleCheckBig, Clock3, ExternalLink, Hourglass, Info, ListTodo, MapPin, RefreshCw, Timer, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "../../ui/button";
 import { useCandidateProfile } from "../../../queries/candidate.queries";
 import { useSidebarLayout } from "../../../queries/sidebar.queries";
 import { sidebarDestination } from "../../../utils/sidebarNavigation";
 import { onboardingStyles } from "../profile/onboardingStyles";
+import { CandidateChip, CandidatePageHeader, CandidateStats, EmptyState, StepDot } from "../candidate/candidateUi";
+import { candidateStyles } from "../candidate/candidateStyles";
+import { groupRounds } from "../candidate/candidateStatus";
 import { fetchMyInterviews } from "./candidateInterviews.api";
 import { interviewJourney, timeUntil } from "./candidateInterviewData";
 import { isFirstRound } from "./interviewUtils";
 import { fetchMyTestInvitation } from "./candidateTest.api";
 import CandidateTestInvitation from "./CandidateTestInvitation";
 
-// Each state pairs its tint with an icon, so status never relies on color alone.
-const statusStyles = {
-  scheduled: { icon: CalendarCheck2, chip: "border-primary/20 bg-primary/5 text-primary", step: "border-primary/40 bg-card text-primary" },
-  passed: { icon: Check, chip: "border-primary/20 bg-primary/10 text-primary", step: "border-primary bg-primary text-primary-foreground" },
-  completed: { icon: Check, chip: "border-border bg-muted text-muted-foreground", step: "border-border bg-muted text-muted-foreground" },
-  pending: { icon: Hourglass, chip: "border-border bg-card text-muted-foreground", step: "border-dashed border-border bg-card text-muted-foreground" },
-  failed: { icon: X, chip: "border-destructive/20 bg-destructive/10 text-destructive", step: "border-destructive/30 bg-destructive/10 text-destructive" },
-  cancelled: { icon: Ban, chip: "border-border bg-muted text-muted-foreground", step: "border-border bg-muted text-muted-foreground" },
+// Each state pairs a shared tone with an icon, so status never relies on colour alone.
+const statusChips = {
+  scheduled: { icon: CalendarCheck2, tone: "progress" },
+  passed: { icon: Check, tone: "success" },
+  completed: { icon: Check, tone: "neutral" },
+  pending: { icon: Hourglass, tone: "neutral" },
+  failed: { icon: X, tone: "closed" },
+  cancelled: { icon: Ban, tone: "neutral" },
 };
-const upNextStep = "border-transparent bg-highlight text-highlight-foreground ring-4 ring-highlight/30";
+const stepState = (round) => ["passed", "completed"].includes(round.status.key) ? "done"
+  : ["failed", "cancelled"].includes(round.status.key) ? "closed"
+  : round.upNext ? "current" : "upcoming";
 
 const longDate = (date, year = true) => date.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", ...(year && { year: "numeric" }) });
 const shortDate = (date) => date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 const clockTime = (date, zone = false) => date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", ...(zone && { timeZoneName: "short" }) });
+const zoneName = () => new Date().toLocaleTimeString(undefined, { timeZoneName: "short" }).split(" ").at(-1);
+
+// Summary cards jump to the records they count; the target takes focus so screen readers follow.
+function jumpTo(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  target.focus({ preventScroll: true });
+}
 
 // Re-render every minute so countdowns and "Up next" stay current while the page is open.
 function useNow() {
@@ -58,7 +71,8 @@ export default function CandidateInterviewPage() {
   const loading = profile.isPending || Boolean(candidate?.id && (sidebar.isPending || interviews.isPending));
   const error = !email ? new Error("Your login email is unavailable. Please sign in again.") : profile.error || interviews.error;
   const records = interviews.data || [];
-  const hasFirstRound = records.some((record) => isFirstRound({ description: record.round }));
+  const firstRound = records.find((record) => isFirstRound({ description: record.round }));
+  const hasFirstRound = Boolean(firstRound);
   const testInvitation = useQuery({
     queryKey: ["candidate-test-invitation", email, candidate?.id || ""],
     queryFn: ({ signal }) => fetchMyTestInvitation({ candidate, email, signal }),
@@ -72,6 +86,8 @@ export default function CandidateInterviewPage() {
   const now = useNow();
   const journey = interviewJourney(records, now);
   const ready = !error && !loading && Boolean(candidate?.id) && records.length > 0;
+  const invitation = testInvitation.data;
+  const testDue = invitation?.status === "pending" && invitation.url && Date.parse(invitation.expiresAt) > now;
 
   function refresh() {
     if (profile.isError || !candidate?.id) void profile.refetch();
@@ -81,23 +97,32 @@ export default function CandidateInterviewPage() {
     }
   }
 
+  const stats = ready ? [
+    journey.next
+      ? { label: "Next interview", value: shortDate(journey.next.date), hint: clockTime(journey.next.date), icon: CalendarClock, tone: "primary", onClick: () => jumpTo(`round-card-${journey.next.record.id}`) }
+      : { label: "Next interview", value: "None yet", hint: "HR will confirm dates", icon: CalendarClock, tone: "neutral", onClick: () => jumpTo("interview-upcoming") },
+    testDue
+      ? { label: "To do", value: 1, hint: timeUntil(new Date(invitation.expiresAt), now).replace(/^In /, "due in ").replace(/^Today.*/, "due today"), icon: ListTodo, tone: "attention", onClick: () => jumpTo("interview-todo") }
+      : { label: "To do", value: 0, hint: "nothing due", icon: ListTodo, tone: "success", onClick: () => jumpTo("interview-todo") },
+    { label: "Rounds completed", value: journey.completed, hint: `of ${journey.rounds.length}`, icon: CircleCheckBig, tone: "info", onClick: () => jumpTo("interview-past") },
+    { label: "Roles in interviews", value: new Set(records.map((record) => record.jobTitle).filter(Boolean)).size || 1, icon: BriefcaseBusiness, tone: "primary", to: "/job-application" },
+  ] : [];
+
   return (
-    <section className="relative min-w-0 flex-1 space-y-5 rounded-2xl bg-card/40 px-3 py-5 text-foreground sm:px-5 sm:py-7 xl:px-7" aria-labelledby="my-interviews-heading">
-      <header className="relative overflow-hidden rounded-3xl bg-linear-to-r from-sidebar-primary to-sidebar-secondary p-6 text-white sm:p-8">
-        <div aria-hidden="true" className="pointer-events-none absolute -top-32 -right-16 size-96 rounded-full border-50 border-white/5" />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-xl">
-            <p className="text-xs font-semibold tracking-[0.2em] text-white/70 uppercase">Career space</p>
-            <h1 id="my-interviews-heading" className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">My interviews</h1>
-            <p className="mt-3 text-sm leading-6 text-white/70">Your interview schedule and updates for each round.</p>
-            <Button variant="outline" onClick={refresh} disabled={refreshing} className="mt-5 h-10 gap-2 border-white/20 bg-white/10 px-3.5 text-xs text-white hover:bg-white/20 hover:text-white">
-              <RefreshCw size={15} className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} aria-hidden="true" />
-              Refresh
-            </Button>
-          </div>
-          {ready && <NextInterview next={journey.next} now={now} />}
-        </div>
-      </header>
+    <section className={candidateStyles.page} aria-labelledby="my-interviews-heading">
+      <CandidatePageHeader
+        icon={CalendarClock}
+        title="My interviews"
+        titleId="my-interviews-heading"
+        description="What you need to do, and when each round happens. This page updates as soon as HR changes anything."
+      >
+        <button type="button" onClick={refresh} disabled={refreshing} className={cn(onboardingStyles.secondary, "w-full sm:w-auto")}>
+          <RefreshCw size={15} className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} aria-hidden="true" />
+          Refresh
+        </button>
+      </CandidatePageHeader>
+
+      {ready && <CandidateStats items={stats} label="Interview summary" />}
 
       {error ? (
         <div role="alert" className="rounded-2xl border border-destructive/20 bg-destructive/5 p-5 text-sm text-destructive">
@@ -107,218 +132,210 @@ export default function CandidateInterviewPage() {
       ) : loading ? (
         <LoadingRounds />
       ) : !candidate?.id ? (
-        <div className="rounded-2xl border border-border bg-card px-5 py-12 text-center">
-          <h2 className="text-lg font-semibold">Complete your profile</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Save your candidate profile to see your interview details.</p>
-          <Link to="/profile" className="mt-4 inline-block rounded-sm text-sm font-medium text-primary underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">View profile</Link>
-        </div>
+        <EmptyState icon={CalendarClock} title="Complete your profile" description="Save your candidate profile to see your interview details.">
+          <Link to="/profile" className={onboardingStyles.primary}>View profile</Link>
+        </EmptyState>
       ) : !records.length ? (
-        <div className="rounded-2xl border border-border bg-card px-5 py-14 text-center">
-          <CalendarClock size={32} className="mx-auto text-muted-foreground" aria-hidden="true" />
-          <h2 className="mt-4 text-lg font-semibold">No interviews yet</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">Your interview rounds and schedule will appear here when HR adds them.</p>
-        </div>
+        <EmptyState icon={CalendarClock} title="No interviews yet" description="Your interview rounds and schedule will appear here when HR adds them.">
+          <Link to="/job-posting" className={onboardingStyles.secondary}>Browse open roles</Link>
+        </EmptyState>
       ) : (
-        <InterviewRounds journey={journey} busy={interviews.isFetching} testInvitation={testInvitation} now={now} />
+        <InterviewOverview journey={journey} busy={interviews.isFetching} testInvitation={testInvitation} testDue={testDue} firstRound={firstRound} now={now} />
       )}
     </section>
   );
 }
 
-function NextInterview({ next, now }) {
+function InterviewOverview({ journey, busy, testInvitation, testDue, firstRound, now }) {
+  const { rounds } = journey;
+  const { upcoming, unscheduled, past } = groupRounds(rounds);
+  const showJob = new Set(rounds.map((round) => round.record.jobTitle).filter(Boolean)).size > 1;
   return (
-    <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm sm:w-auto sm:min-w-80">
-      <p className="flex items-center gap-2 text-xs font-medium text-white/70"><CalendarClock size={15} aria-hidden="true" />Next interview</p>
-      {next ? (
-        <>
-          <p className="mt-2 text-xl font-semibold tracking-tight"><time dateTime={next.date.toISOString()}>{longDate(next.date, false)}</time></p>
-          <p className="mt-1 text-sm text-white/80">{clockTime(next.date, true)} · {next.record.round}</p>
-          <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold ring-1 ring-white/20">
-            <span className="size-1.5 rounded-full bg-highlight" aria-hidden="true" />
-            {timeUntil(next.date, now)}
-          </p>
-        </>
-      ) : (
-        <p className="mt-2 max-w-xs text-sm leading-6 text-white/80">No interview is scheduled right now. New dates will appear here as soon as HR confirms them.</p>
-      )}
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]" aria-busy={busy}>
+      <div className="min-w-0 space-y-7">
+        <section id="interview-todo" tabIndex={-1} aria-labelledby="interview-todo-heading" className="scroll-mt-6 space-y-3 outline-none">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="interview-todo-heading" className={candidateStyles.sectionTitle}>To do</h2>
+            <p className="text-[13px] text-muted-foreground">Tasks with a deadline</p>
+          </div>
+          {firstRound ? (
+            <CandidateTestInvitation query={testInvitation} roundLabel={firstRound.round} jobTitle={firstRound.jobTitle} />
+          ) : (
+            <p className={cn(candidateStyles.card, "flex items-center gap-2.5 px-4 py-3.5 text-sm text-muted-foreground")}>
+              <Check size={16} className="shrink-0 text-primary" aria-hidden="true" />
+              Nothing due right now.
+            </p>
+          )}
+        </section>
+
+        <section id="interview-upcoming" tabIndex={-1} aria-labelledby="interview-upcoming-heading" className="scroll-mt-6 space-y-3 outline-none">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="interview-upcoming-heading" className={candidateStyles.sectionTitle}>Upcoming</h2>
+            <p className="text-[13px] text-muted-foreground">All times in {zoneName()}</p>
+          </div>
+          {upcoming.length || unscheduled.length ? (
+            <div className="space-y-3">
+              {upcoming.map((round) => (
+                <UpcomingRound key={round.record.id} round={round} showJob={showJob} now={now} needsTest={testDue && isFirstRound({ description: round.record.round })} />
+              ))}
+              {unscheduled.map((round) => (
+                <article key={round.record.id} className={cn(candidateStyles.card, "flex items-start gap-3.5 border-dashed p-4 sm:p-5")}>
+                  <span className={cn(candidateStyles.tile, "size-12 rounded-[14px] bg-muted text-muted-foreground")}><CalendarClock size={20} aria-hidden="true" /></span>
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold">{round.record.round}</h3>
+                    {showJob && round.record.jobTitle && <p className="text-[13px] text-muted-foreground">{round.record.jobTitle}</p>}
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">Date and time to be confirmed. HR will confirm the schedule for this round.</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No interviews scheduled" description="New dates will appear here as soon as HR confirms them." />
+          )}
+        </section>
+
+        <section id="interview-past" tabIndex={-1} aria-labelledby="interview-past-heading" className="scroll-mt-6 space-y-3 outline-none">
+          <h2 id="interview-past-heading" className={candidateStyles.sectionTitle}>Past</h2>
+          {past.length ? (
+            <ul className={cn(candidateStyles.card, "divide-y divide-border overflow-hidden")}>
+              {past.map((round) => {
+                const chip = statusChips[round.status.key] || statusChips.pending;
+                return (
+                  <li key={round.record.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+                    <div className="min-w-0 flex-1 basis-48">
+                      <p className="font-semibold">{round.record.round}</p>
+                      {showJob && round.record.jobTitle && <p className="text-[13px] text-muted-foreground">{round.record.jobTitle}</p>}
+                    </div>
+                    {round.date && (
+                      <p className="text-[13px] text-muted-foreground">
+                        <time dateTime={round.date.toISOString()}>{shortDate(round.date)} · {clockTime(round.date)}</time>
+                      </p>
+                    )}
+                    <CandidateChip tone={chip.tone} icon={chip.icon}>{round.status.label}</CandidateChip>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <EmptyState title="No completed rounds yet" description="After each round, you'll see it here with its outcome." className="py-7" />
+          )}
+        </section>
+      </div>
+
+      <aside className="min-w-0 space-y-4">
+        <section aria-labelledby="interview-rounds-heading" className={cn(candidateStyles.card, "p-5")}>
+          <h2 id="interview-rounds-heading" className="text-base font-semibold">Your rounds</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{journey.completed} of {rounds.length} {rounds.length === 1 ? "round" : "rounds"} complete</p>
+          <ol className="mt-4">
+            {rounds.map((round, index) => {
+              const state = stepState(round);
+              const last = index === rounds.length - 1;
+              return (
+                <li key={round.record.id} className="flex gap-3" aria-current={state === "current" ? "step" : undefined}>
+                  <div className="flex flex-col items-center">
+                    <StepDot state={state === "closed" ? "done" : state} tone={state === "closed" ? "closed" : "progress"} index={index + 1} />
+                    {!last && <span aria-hidden="true" className={cn("my-1 w-0.5 flex-1", state === "done" ? "bg-primary" : "bg-border")} />}
+                  </div>
+                  <div className={cn("min-w-0 pt-0.5", !last && "pb-4")}>
+                    <p className="text-sm font-semibold">{round.record.round}</p>
+                    <p className={cn("text-[13px]", state === "current" ? "font-medium text-primary" : "text-muted-foreground")}>
+                      {state === "current" ? "Up next" : round.status.label}
+                      {round.date && ` · ${shortDate(round.date)}, ${clockTime(round.date)}`}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+        <section aria-labelledby="interview-help-heading" className="rounded-2xl border border-primary/15 bg-accent/60 p-5">
+          <h2 id="interview-help-heading" className="flex items-center gap-2 text-[15px] font-semibold">
+            <Info size={16} className="text-primary" aria-hidden="true" />
+            Can't make it?
+          </h2>
+          <p className="mt-1.5 text-[13px] leading-5 text-foreground/80">Ask to reschedule at least 24 hours before the interview. Reply to your interview email or contact HR.</p>
+        </section>
+      </aside>
     </div>
   );
 }
 
-function InterviewRounds({ journey, busy, testInvitation, now }) {
-  const [selectedId, setSelectedId] = useState("");
-  const triggers = useRef({});
-  const { rounds, completed } = journey;
-  // Follow the round that needs attention until the candidate picks one.
-  const selected = rounds.find((round) => round.record.id === selectedId) || rounds.find((round) => round.record.id === journey.focusId);
-  const showJob = new Set(rounds.map((round) => round.record.jobTitle).filter(Boolean)).size > 1;
-
-  // Move focus to the step, because the button that was clicked leaves with the old panel.
-  function select(id) {
-    setSelectedId(id);
-    triggers.current[id]?.focus();
-  }
-
+function UpcomingRound({ round, showJob, now, needsTest }) {
+  const { record, date } = round;
+  const countdown = timeUntil(date, now);
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-labelledby="interview-rounds-heading" aria-busy={busy}>
-      <TabsPrimitive.Root value={selected.record.id} onValueChange={setSelectedId}>
-        <div className="border-b border-border px-5 pt-5 sm:px-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id="interview-rounds-heading" className="text-base font-semibold">Interview rounds</h2>
-            <p className="text-xs text-muted-foreground">{completed} of {rounds.length} {rounds.length === 1 ? "round" : "rounds"} complete</p>
+    <article id={`round-card-${record.id}`} tabIndex={-1} className={cn(candidateStyles.card, "scroll-mt-6 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-ring")} aria-labelledby={`round-${record.id}`}>
+      <div className="flex flex-wrap gap-4 p-4 sm:gap-5 sm:p-5">
+        <DateTile date={date} />
+        <div className="min-w-0 flex-1 basis-60">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 id={`round-${record.id}`} className="text-lg font-semibold tracking-tight wrap-break-word">{record.round} interview</h3>
+              {showJob && record.jobTitle && <p className="text-[13px] text-muted-foreground wrap-break-word">{record.jobTitle}</p>}
+            </div>
+            {countdown && <CandidateChip tone="progress" icon={Timer}>{countdown}</CandidateChip>}
           </div>
-          <TabsPrimitive.List aria-label="Interview rounds" className="-mx-2 mt-3 flex overflow-x-auto pb-3">
-            {rounds.map((round, index) => (
-              <RoundStep key={round.record.id} triggerRef={(element) => { triggers.current[round.record.id] = element; }} round={round} last={index === rounds.length - 1} showJob={showJob} />
-            ))}
-          </TabsPrimitive.List>
-        </div>
-        {rounds.map((round, index) => (
-          <TabsPrimitive.Content key={round.record.id} value={round.record.id} className="animate-in p-5 duration-200 outline-none fade-in-0 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:p-6 motion-reduce:animate-none">
-            <RoundDetails round={round} step={index + 1} total={rounds.length} previous={rounds[index - 1]} following={rounds[index + 1]} onSelect={select} testInvitation={testInvitation} now={now} />
-          </TabsPrimitive.Content>
-        ))}
-      </TabsPrimitive.Root>
-    </section>
-  );
-}
-
-function RoundStep({ triggerRef, round, last, showJob }) {
-  const { record, date, status, upNext } = round;
-  const style = statusStyles[status.key];
-  const Icon = upNext ? CalendarClock : style.icon;
-  const done = ["passed", "completed"].includes(status.key);
-  return (
-    <TabsPrimitive.Trigger ref={triggerRef} value={record.id} className="group relative flex min-w-40 flex-1 basis-0 cursor-pointer flex-col items-start rounded-xl p-2 text-left outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset motion-reduce:transition-none">
-      <span className="flex w-full items-center gap-3">
-        <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-full border-2", upNext ? upNextStep : style.step)}>
-          <Icon size={16} aria-hidden="true" />
-        </span>
-        {!last && <span aria-hidden="true" className={cn("h-0.5 flex-1 rounded-full", done ? "bg-primary" : "bg-border")} />}
-      </span>
-      <span className="mt-3 text-sm font-semibold wrap-break-word group-data-[state=active]:text-primary">{record.round}</span>
-      {showJob && record.jobTitle && <span className="text-xs wrap-break-word text-muted-foreground">{record.jobTitle}</span>}
-      <span className={cn("mt-1 text-xs font-medium", upNext ? "text-primary" : "text-muted-foreground")}>{upNext ? "Up next" : status.label}</span>
-      {date && <span className="mt-0.5 text-xs text-muted-foreground">{shortDate(date)} · {clockTime(date)}</span>}
-      <span aria-hidden="true" className="absolute inset-x-2 -bottom-3 h-0.5 rounded-full bg-primary opacity-0 group-data-[state=active]:opacity-100" />
-    </TabsPrimitive.Trigger>
-  );
-}
-
-function RoundDetails({ round, step, total, previous, following, onSelect, testInvitation, now }) {
-  const { record, date, status, upNext } = round;
-  const style = statusStyles[status.key];
-  const StatusIcon = style.icon;
-  const countdown = status.key === "scheduled" ? timeUntil(date, now) : "";
-  const firstRound = isFirstRound({ description: record.round });
-
-  return (
-    <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">Step {step} of {total}</p>
-          <h3 className="mt-1 text-xl font-semibold tracking-tight wrap-break-word">{record.round}</h3>
-          {record.jobTitle && <p className="mt-1 text-sm wrap-break-word text-muted-foreground">{record.jobTitle}</p>}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {upNext && <span className="rounded-full bg-highlight px-2.5 py-1 text-[11px] font-bold text-highlight-foreground">Up next</span>}
-          <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium", style.chip)}>
-            <StatusIcon size={13} aria-hidden="true" />{status.label}
-          </span>
+          <ul className="mt-3 grid gap-x-5 gap-y-1.5 text-sm sm:grid-cols-2">
+            <li className="flex items-center gap-2 text-foreground/85">
+              <Clock3 size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+              <time dateTime={date.toISOString()}>{longDate(date)} · {clockTime(date, true)}</time>
+            </li>
+            {record.location && (
+              <li className="flex min-w-0 items-start gap-2 text-foreground/85">
+                <MapPin size={15} className="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="wrap-break-word"><span className="sr-only">Location: </span>{record.location}</span>
+              </li>
+            )}
+            {record.meetingUrl && (
+              <li className="flex items-center gap-2 text-foreground/85">
+                <Video size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                Video call
+              </li>
+            )}
+          </ul>
         </div>
       </div>
-
-      {date ? (
-        <div className="mt-5 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-linear-to-br from-card to-accent p-4 sm:p-5">
-          <DateTile date={date} />
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold sm:text-lg"><time dateTime={date.toISOString()}>{longDate(date)}</time></p>
-            <p className="mt-1 text-sm text-muted-foreground">{clockTime(date, true)}</p>
-          </div>
-          {countdown && (
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">
-              <Timer size={14} aria-hidden="true" />{countdown}
+      {(needsTest || record.meetingUrl) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/40 px-4 py-3 sm:px-5">
+          {needsTest ? (
+            <p className={cn("inline-flex items-center gap-2 text-[13px] font-medium", candidateStyles.attentionText)}>
+              <Info size={15} aria-hidden="true" />
+              Before this round: finish the {record.round} test
             </p>
-          )}
-        </div>
-      ) : (
-        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-dashed border-border p-4 sm:p-5">
-          <CalendarClock size={20} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-semibold">Date and time to be confirmed</p>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">HR will confirm the schedule for this round. Check back here for updates.</p>
-          </div>
-        </div>
-      )}
-      {date && status.key === "pending" && <p className="mt-3 text-sm leading-6 text-muted-foreground">The scheduled time for this round has passed. Your update will appear here once HR shares it.</p>}
-
-      {(record.location || record.meetingUrl) && (
-        <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
-          {record.location && (
-            <p className="flex min-w-0 items-start gap-2">
-              <MapPin size={17} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <span className="relative wrap-break-word"><span className="sr-only left-0 top-0">Location: </span>{record.location}</span>
-            </p>
-          )}
+          ) : <span />}
           {record.meetingUrl && (
-            <a href={record.meetingUrl} target="_blank" rel="noopener noreferrer" className={cn(firstRound ? onboardingStyles.secondary : onboardingStyles.primary, "relative w-full sm:w-auto")}>
-              <Video size={17} aria-hidden="true" />Join meeting<ExternalLink size={15} aria-hidden="true" /><span className="sr-only left-0 top-0"> (opens in a new tab)</span>
+            <a href={record.meetingUrl} target="_blank" rel="noopener noreferrer" className={cn(needsTest ? onboardingStyles.secondary : onboardingStyles.primary, "w-full sm:w-auto")}>
+              <Video size={16} aria-hidden="true" />
+              Join meeting
+              <ExternalLink size={14} aria-hidden="true" />
+              <span className="sr-only"> (opens in a new tab)</span>
             </a>
           )}
         </div>
       )}
-
-      {firstRound && <CandidateTestInvitation query={testInvitation} />}
-
-      {total > 1 && (
-        <nav aria-label="More rounds" className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          {previous && <RoundLink round={previous} direction="previous" onSelect={onSelect} />}
-          {following && <RoundLink round={following} direction="next" onSelect={onSelect} />}
-        </nav>
-      )}
-    </>
-  );
-}
-
-function RoundLink({ round, direction, onSelect }) {
-  const next = direction === "next";
-  return (
-    <button type="button" onClick={() => onSelect(round.record.id)} className={cn("inline-flex min-h-11 cursor-pointer items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none", next ? "ml-auto flex-row-reverse text-right" : "text-left")}>
-      {next ? <ArrowRight size={16} className="text-muted-foreground" aria-hidden="true" /> : <ArrowLeft size={16} className="text-muted-foreground" aria-hidden="true" />}
-      <span>
-        <span className="block text-[11px] text-muted-foreground">{next ? "Next round" : "Previous round"}</span>
-        <span className="block text-sm font-semibold">{round.record.round}</span>
-      </span>
-    </button>
+    </article>
   );
 }
 
 function DateTile({ date }) {
   return (
-    <div aria-hidden="true" className="flex w-16 shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-center shadow-sm">
-      <span className="bg-primary py-1 text-[11px] font-semibold tracking-wider text-primary-foreground uppercase">{date.toLocaleDateString(undefined, { month: "short" })}</span>
-      <span className="pt-1.5 text-2xl leading-none font-semibold tabular-nums">{date.toLocaleDateString(undefined, { day: "numeric" })}</span>
-      <span className="pt-1 pb-1.5 text-[11px] text-muted-foreground">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
+    <div aria-hidden="true" className="flex w-[4.75rem] shrink-0 flex-col overflow-hidden rounded-[14px] border border-border bg-card text-center">
+      <span className="bg-primary py-1 text-[11px] font-semibold tracking-[0.08em] text-primary-foreground uppercase">{date.toLocaleDateString(undefined, { month: "short" })}</span>
+      <span className="pt-1.5 text-[28px] leading-none font-semibold tabular-nums">{date.toLocaleDateString(undefined, { day: "numeric" })}</span>
+      <span className="pt-1 pb-2 text-[11px] text-muted-foreground">{date.toLocaleDateString(undefined, { weekday: "short" })}</span>
     </div>
   );
 }
 
 function LoadingRounds() {
   return (
-    <div role="status" className="relative rounded-2xl border border-border bg-card p-5 sm:p-6">
-      <span className="sr-only left-0 top-0">Loading your interviews…</span>
-      <div aria-hidden="true" className="animate-pulse space-y-5 motion-reduce:animate-none">
-        <div className="flex gap-3">
-          {[0, 1, 2].map((key) => (
-            <div key={key} className="flex flex-1 items-center gap-3">
-              <div className="size-9 shrink-0 rounded-full bg-muted" />
-              <div className="h-0.5 flex-1 rounded-full bg-muted" />
-            </div>
-          ))}
-        </div>
-        <div className="h-6 w-40 rounded-md bg-muted" />
-        <div className="h-24 rounded-2xl bg-muted" />
+    <div role="status" className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <span className="sr-only">Loading your interviews…</span>
+      <div aria-hidden="true" className="space-y-7 motion-safe:animate-pulse">
+        <div className="space-y-3"><div className="h-5 w-16 rounded bg-muted" /><div className={cn(candidateStyles.card, "h-24")} /></div>
+        <div className="space-y-3"><div className="h-5 w-24 rounded bg-muted" /><div className={cn(candidateStyles.card, "h-40")} /></div>
       </div>
+      <div aria-hidden="true" className={cn(candidateStyles.card, "h-56 motion-safe:animate-pulse")} />
     </div>
   );
 }
