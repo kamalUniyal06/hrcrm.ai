@@ -14,7 +14,7 @@ import {
 } from "../utils/sidebarLayout";
 import { useIsDesktop } from "../hooks/useMediaQuery";
 import { sidebarDestination } from "../utils/sidebarNavigation";
-import { filterAdminNavigation, selectIsAdmin } from "../utils/pageAccess";
+import { filterAdminNavigation, hideMergedRecruitmentNavigation, selectIsAdmin } from "../utils/pageAccess";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/Slices/userSlice";
 import ProfileImageCropper from "./ProfileImageCropper";
@@ -135,7 +135,7 @@ export function Sidebar() {
     });
 
     return {
-      visibleGroups: filterAdminNavigation(selectVisibleGroups(normalized), isAdmin),
+      visibleGroups: hideMergedRecruitmentNavigation(filterAdminNavigation(selectVisibleGroups(normalized), isAdmin), isAdmin),
       rankReports: reports,
     };
   }, [layoutData, isAdmin]);

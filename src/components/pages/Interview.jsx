@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { selectIsAdmin } from "../../utils/pageAccess";
 import CandidateInterviewPage from "./interviews/CandidateInterviewPage";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { BriefcaseBusiness, CalendarClock, ChevronRight, CircleAlert, GripVertical, LayoutDashboard, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { fetchAllRecords } from "./candidates/candidatesApi";
@@ -15,10 +15,11 @@ import { clean, groupInterviews, hasOutcome, interviewDate, isFirstRound } from 
 
 export default function Interview() {
   const isAdmin = useSelector(selectIsAdmin);
-  return isAdmin ? <AdminInterviews /> : <CandidateInterviewPage />;
+  // Admins manage interviews inside the Candidates workspace.
+  return isAdmin ? <Navigate to="/candidates?view=interviews" replace /> : <CandidateInterviewPage />;
 }
 
-function AdminInterviews() {
+export function AdminInterviews({ embedded = false }) {
   const [search, setSearch] = useState("");
   const [round, setRound] = useState("");
   const [status, setStatus] = useState("");
@@ -64,23 +65,23 @@ function AdminInterviews() {
     });
   }
 
-  return <section className="min-w-0 flex-1 rounded-2xl bg-card/40 px-3 py-5 text-foreground sm:px-5 sm:py-7 xl:px-7 2xl:px-9" aria-labelledby="interviews-heading">
-    <header className="mb-7 flex flex-wrap items-center justify-between gap-5">
+  return <section className={embedded ? "min-w-0 text-foreground" : "min-w-0 flex-1 rounded-2xl bg-card/40 px-3 py-5 text-foreground sm:px-5 sm:py-7 xl:px-7 2xl:px-9"} aria-labelledby="interviews-heading">
+    {!embedded && <header className="mb-7 flex flex-wrap items-center justify-between gap-5">
       <div>
         <p className="mb-2.5 flex items-center gap-2 text-[10px] font-semibold tracking-[.15em] text-muted-foreground uppercase"><BriefcaseBusiness size={13} aria-hidden="true" />Recruitment workspace</p>
         <h1 id="interviews-heading" tabIndex={-1} className="font-serif text-[32px] leading-tight tracking-[-.045em] outline-none sm:text-4xl">Interviews <span className="text-muted-foreground">& assessments</span></h1>
         <p className="mt-2.5 text-[13px] leading-relaxed text-muted-foreground">Plan interviews, record decisions, and share candidate test links.</p>
       </div>
       <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
-        <Button asChild variant="outline" className="h-10 flex-1 gap-2 bg-card px-4 text-xs sm:flex-none"><Link to="/shortlisted">View shortlist <ChevronRight size={15} aria-hidden="true" /></Link></Button>
+        <Button asChild variant="outline" className="h-10 flex-1 gap-2 bg-card px-4 text-xs sm:flex-none"><Link to="/candidates?view=shortlisted">View shortlist <ChevronRight size={15} aria-hidden="true" /></Link></Button>
       </div>
-    </header>
+    </header>}
 
     <InterviewStats total={all.length} scheduled={scheduledCount} unscheduled={unscheduledCount} rounds={groups.length} loading={interviews.isPending || (interviews.isError && !interviews.data)} />
     {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview || assessment.interview} onClose={() => setAssessment(null)} />}
 
     <div className="mb-4 flex items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-2.5"><LayoutDashboard size={18} strokeWidth={1.7} className="text-primary" aria-hidden="true" /><h2 className="text-base font-semibold tracking-tight">Round by round</h2><span className="ml-1 hidden border-l border-border pl-3 text-[10px] text-muted-foreground sm:inline">Interview board</span></div>
+      <div className="flex flex-wrap items-center gap-2.5"><LayoutDashboard size={18} strokeWidth={1.7} className="text-primary" aria-hidden="true" /><h2 id={embedded ? "interviews-heading" : undefined} tabIndex={embedded ? -1 : undefined} className="text-base font-semibold tracking-tight outline-none">Round by round</h2><span className="ml-1 hidden border-l border-border pl-3 text-[10px] text-muted-foreground sm:inline">Interview board</span></div>
       <p className="text-right text-[11px] text-muted-foreground tabular-nums" role="status" aria-live="polite">{interviews.isPending ? "Loading your pipeline…" : `${visibleCount} ${visibleCount === 1 ? "interview" : "interviews"}${filtered ? ` of ${all.length}` : ` across ${groups.length} ${groups.length === 1 ? "round" : "rounds"}`}`}</p>
     </div>
 
@@ -101,7 +102,7 @@ function AdminInterviews() {
       <span className="mx-auto mb-5 grid size-16 place-items-center rounded-2xl bg-secondary text-secondary-foreground"><CalendarClock size={30} strokeWidth={1.4} aria-hidden="true" /></span>
       <h2 className="font-serif text-2xl tracking-tight">{filtered ? "No interviews match these filters" : "Your interview pipeline starts here"}</h2>
       <p className="mx-auto mt-3 mb-5 max-w-md text-[13px] leading-relaxed text-muted-foreground">{filtered ? "Try another name, round or status to find your candidates." : "Schedule an interview from your shortlist, or share a candidate test link."}</p>
-      {filtered ? <Button onClick={clearFilters} variant="outline" className="h-10 bg-card text-xs">Clear filters</Button> : <Button asChild variant="outline" className="h-10 gap-2 bg-card text-xs"><Link to="/shortlisted">View shortlist <ChevronRight size={15} aria-hidden="true" /></Link></Button>}
+      {filtered ? <Button onClick={clearFilters} variant="outline" className="h-10 bg-card text-xs">Clear filters</Button> : <Button asChild variant="outline" className="h-10 gap-2 bg-card text-xs"><Link to="/candidates?view=shortlisted">View shortlist <ChevronRight size={15} aria-hidden="true" /></Link></Button>}
     </div> : <InterviewBoard groups={visibleGroups} candidates={candidates.data || []} statusOptions={statuses.data || []} jobMap={jobMap} canSchedule={candidates.isSuccess && statuses.isSuccess} canAssess={candidates.isSuccess} onAction={setSelected} onAssessment={openAssessment} />}
 
     {!interviews.isPending && (!interviews.isError || interviews.data) && <footer className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] leading-relaxed text-muted-foreground"><span className="inline-flex items-center gap-1.5"><GripVertical size={12} className="shrink-0" aria-hidden="true" />Drag a card's handle to another round to record feedback.</span><span>Completed rounds stay in candidate history.</span></footer>}

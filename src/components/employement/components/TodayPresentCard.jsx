@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -6,7 +6,6 @@ import { ensureSystemAlertsAnswered } from "../api/systemAlerts.api";
 import {
     AlertCircle,
     Coffee,
-    Fingerprint,
     LogOut,
     MessageSquareText,
     Play,
@@ -14,9 +13,8 @@ import {
     Users,
     X,
 } from "lucide-react";
-import morningScene from "../../../assets/attendance/workday-morning.png";
-import afternoonScene from "../../../assets/attendance/workday-afternoon.png";
-import eveningScene from "../../../assets/attendance/workday-evening.png";
+import CheckInShell, { Spinner, StatusPill } from "./home/CheckInShell";
+import { actionButton } from "./home/homeUi";
 
 const SHIFT_DURATION_SECONDS = 9 * 60 * 60;
 
@@ -116,6 +114,7 @@ const getWorkedSeconds = (login, logout) => {
 
 export default function TodayPresentCard({
     record,
+    shift,
     loginStartedAt,
     actionLoading,
     handleTakeBreak,
@@ -421,312 +420,149 @@ export default function TodayPresentCard({
         ? workedSeconds
         : shiftElapsedSeconds;
 
-    const statusClasses = breakOvertimeSeconds > 0 || isLunchOutLate
-        ? "border-destructive/20 bg-destructive/10 text-destructive"
-        : isOnBreak
-            ? "border-[var(--employee-orange)]/25 bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]"
-            : "border-[var(--employee-green)]/25 bg-[var(--employee-green-soft)] text-[var(--employee-green)]";
+    const shiftProgress = Math.min(displayedShiftSeconds / SHIFT_DURATION_SECONDS, 1) * 100;
+    const isLunchOverdue = isOnBreak && breakOvertimeSeconds > 0;
+    // In and out on separate lines so the narrow cell never cuts off the lunch-out time.
+    const lunchValue = record?.lunch_in ? (
+        <>
+            <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">In </span>{formatTime(record.lunch_in)}</span>
+            {record?.lunch_out && (
+                <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">Out </span>{formatTime(record.lunch_out)}</span>
+            )}
+        </>
+    ) : "--";
 
-    const currentHour = Number(
-        new Intl.DateTimeFormat("en-GB", {
-            timeZone: "Asia/Kolkata",
-            hour: "2-digit",
-            hourCycle: "h23",
-        }).format(new Date())
+    const statusPill = isOnBreak ? (
+        <StatusPill tone={isLunchOverdue ? "danger" : "warning"} pulse>
+            {isLunchOverdue ? "Lunch overdue" : "At lunch"}
+        </StatusPill>
+    ) : isCheckedOut ? (
+        <StatusPill>Completed</StatusPill>
+    ) : isLunchOutLate ? (
+        <StatusPill tone="danger">Late lunch out</StatusPill>
+    ) : (
+        <StatusPill tone="success" pulse>Present</StatusPill>
     );
-    const dayPeriod = currentHour < 12
-        ? "morning"
-        : currentHour < 17
-            ? "afternoon"
-            : "evening";
-    const sceneImage = dayPeriod === "morning"
-        ? morningScene
-        : dayPeriod === "afternoon"
-            ? afternoonScene
-            : eveningScene;
+
+    const locationBadge = record?.ip_address === "122.176.54.204" ? (
+        <span title="Logged in from the office network" className="rounded-full bg-[var(--employee-green-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--employee-green)]">
+            Office
+        </span>
+    ) : (
+        <span title="Logged in outside the office network" className="rounded-full bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
+            Outside office
+        </span>
+    );
+
     /**
      * ------------------------------------------------------------
      * RENDER
      * ------------------------------------------------------------
      */
     return (
-        <section className="relative row-span-2 flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden rounded-3xl border border-border/80 bg-card shadow-[0_16px_45px_-28px_rgba(15,23,42,0.45)]">
-            <div className="h-1 w-full shrink-0 bg-primary" />
-            <div className="flex flex-1 flex-col p-5 sm:p-6">
-                {/* HEADER */}
-
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/10">
-                            <Fingerprint size={20} />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="truncate font-semibold ">
-                                {isCheckedOut ? "Your workday is complete—time to recharge." : `Here's how your workday is going.`}
-                            </h2>
-                        </div>
-                    </div>
-                    <div className="ml-auto flex items-center gap-2 text-sm font-medium">
-  {record?.ip_address === "122.176.54.204" ? (
-    <span className="rounded-full bg-green-100 px-3 py-1 text-green-700 text-sm font-semibold">
-      Login from office
-    </span>
-  ) : (
-    <span className="flex items-center gap-2 rounded-full bg-red-100 px-3 py-1 font-semibold text-red-700 animate-pulse">
-      <span className="h-2 w-2 rounded-full bg-red-500" />
-      Login outside office
-    </span>
-  )}
-</div>
-
-                    <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide ${statusClasses}`}>
-                        {isOnBreak
-                            ? breakOvertimeSeconds > 0
-                                ? "Lunch Overdue"
-                                : "At Lunch"
-                            : isCheckedOut
-                                ? "Completed"
-                                : isLunchOutLate
-                                    ? "Late Lunch Out"
-                                    : "Present"}
-                    </span>
-                </div>
-
-                <div className="my-5 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-
-                <div className="relative mb-4 h-32 overflow-hidden rounded-2xl border border-border/70 shadow-sm sm:h-40">
-                    <img
-                        src={sceneImage}
-                        alt={`${dayPeriod} city illustration`}
-                        className="h-full w-full object-cover"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950/15 to-transparent" />
-                </div>
-
-                <div className="mb-4 grid grid-cols-2 overflow-hidden rounded-2xl border border-border/70 bg-card sm:grid-cols-4">
+        <>
+            <CheckInShell shift={shift} status={statusPill} badge={locationBadge}>
+                <dl className="grid grid-cols-3 gap-2 text-center">
                     {[
-                        { label: "Login", value: formatTime(record?.login), icon: Fingerprint, tone: "text-[var(--employee-green)] bg-[var(--employee-green-soft)]" },
-                        { label: "Lunch start", value: formatTime(record?.lunch_in) || "--", icon: Coffee, tone: "text-[var(--employee-orange)] bg-[var(--employee-break-soft)]" },
-                        { label: "Lunch end", value: formatTime(record?.lunch_out) || "--", icon: Coffee, tone: "text-[var(--employee-orange)] bg-[var(--employee-break-soft)]" },
-                        { label: isCheckedOut ? "Logout" : "Shift time", value: isCheckedOut ? formatTime(record?.logout) : formatDuration(displayedShiftSeconds), icon: isCheckedOut ? LogOut : TimerReset, tone: "text-primary bg-primary/10" },
-                    ].map(({ label, value, icon: MetricIcon, tone }) => (
-                        <div key={label} className="flex min-w-0 flex-col items-center border-b border-r border-border/60 px-2 py-3 text-center last:border-r-0 sm:border-b-0">
-                            <span className={`mb-2 flex h-8 w-8 items-center justify-center rounded-full ${tone}`}>
-                                {createElement(MetricIcon, { size: 15 })}
-                            </span>
-                            <strong className="truncate text-xs font-bold tabular-nums text-foreground sm:text-sm">{value || "--"}</strong>
-                            <span className="mt-0.5 text-[9px] font-medium text-muted-foreground sm:text-[10px]">{label}</span>
+                        ["Login", formatTime(record?.login), false],
+                        ["Lunch", lunchValue, isLunchOutLate],
+                        [isCheckedOut ? "Worked" : "Shift time", formatDuration(displayedShiftSeconds), false],
+                    ].map(([label, value, warn]) => (
+                        <div key={label} className="min-w-0 rounded-xl bg-muted/60 px-2 py-2">
+                            <dt className="text-[10px] font-medium text-muted-foreground">{label}</dt>
+                            <dd className={`mt-0.5 text-xs font-semibold tabular-nums ${typeof value === "string" ? "truncate" : ""} ${warn ? "text-destructive" : "text-foreground"}`}>
+                                {value}
+                            </dd>
                         </div>
                     ))}
-                </div>
+                </dl>
 
-                {/* BODY */}
-
-                <div className="grid w-full min-w-0 flex-1 grid-cols-1 gap-4">
-                    {/* LEFT CONTENT */}
-
-                    <div className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-gradient-to-br from-muted/45 via-card to-card p-4 sm:p-5">
-                        {isOnBreak ? (
-                            <>
-                                <div className="mb-2 flex items-center gap-2">
-                                    <Coffee
-                                        className="shrink-0"
-                                        style={{ color: "var(--employee-orange)" }}
-                                        size={27}
-                                    />
-
-                                    <span className="truncate text-sm font-medium">
-                                        You&apos;re at lunch
-                                    </span>
-                                </div>
-
-                                <p className="max-w-md text-sm leading-6 text-muted-foreground">
-                                    {breakOvertimeSeconds > 0
-                                        ? `Your ${lunchOutMinutes}-minute lunch time has ended. Please return to work.`
-                                        : `Your ${lunchOutMinutes}-minute lunch time is counting down.`}
-                                </p>
-
-                                <div className="mt-4 flex items-center gap-2">
-                                    <TimerReset
-                                        size={18}
-                                        className="shrink-0"
-                                        style={{ color: "var(--employee-orange)" }}
-                                    />
-
-                                    <span className="text-3xl font-bold tracking-tight tabular-nums">
-                                        {breakOvertimeSeconds > 0
-                                            ? `+${formatDuration(breakOvertimeSeconds)}`
-                                            : formatDuration(lunchSecondsLeft)}
-                                    </span>
-                                </div>
-
-                                {breakOvertimeSeconds > 0 && (
-                                    <div role="alert" className="mt-3 w-fit flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive">
-                                        <AlertCircle size={17} className="shrink-0" />
-                                        You are late returning from lunch.
-                                    </div>
-                                )}
-
-                                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                    <span>
-                                        Return by:{" "}
-                                        <strong className="text-foreground">
-                                            {breakReturnTime ?? "--"}
-                                        </strong>
-                                    </span>
-                                </div>
-                            </>
-                        ) : isCheckedOut ? (
-                            <>
-                                <div className="mb-4 flex items-center gap-3">
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--employee-green-soft)] text-[var(--employee-green)] ring-1 ring-[var(--employee-green)]/15">
-                                        <LogOut size={21} />
-                                    </span>
-
-                                    <div>
-                                        <span className="block text-base font-bold text-foreground">
-                                            Great work today!
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            Your attendance is complete
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-                                    You&apos;ve wrapped up your day after working{" "}
-                                    <strong className="text-foreground">
-                                        {workedTime}
-                                    </strong>. Take time to recharge you&apos;ve earned it.
-                                </p>
-
-
-                            </>
-                        ) : (
-                            <>
-
-
-                                <p className="max-w-md text-sm font-medium leading-6 text-foreground">
-                                    {hasCompletedShift
-                                        ? "You completed your 9-hour shift. Excellent work and dedication today!"
-                                        : "You're marked present today. Have a productive day!"}
-                                </p>
-
-
-                                <div className="mt-3 flex flex-col flex-wrap gap-4 text-sm text-muted-foreground">
-
-
-
-                                    {hasTakenBreak && (
-                                        <span>
-                                            Lunch duration: <strong className={isLunchOutLate ? "text-destructive" : "text-foreground"}>
-                                                {formatDuration(completedBreakSeconds)}
-                                                {isLunchOutLate ? " · Late" : ""}
-                                            </strong>
-                                        </span>
-                                    )}
-                                </div>
-                            </>
-                        )}
+                <div className="mt-3">
+                    <div
+                        role="progressbar"
+                        aria-label="Shift progress"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(shiftProgress)}
+                        className="h-1.5 overflow-hidden rounded-full bg-[var(--employee-track)]"
+                    >
+                        <div
+                            className={`h-full rounded-full transition-[width] duration-700 ${hasCompletedShift ? "bg-[var(--employee-green)]" : "bg-primary"}`}
+                            style={{ width: `${shiftProgress}%` }}
+                        />
                     </div>
-
+                    {/* <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        {isCheckedOut
+                            ? `Day complete — ${workedTime} worked. Time to recharge.`
+                            : hasCompletedShift
+                                ? "9-hour shift completed. Great work today!"
+                                : `${formatDuration(SHIFT_DURATION_SECONDS - displayedShiftSeconds)} left in your 9-hour shift`}
+                        {hasTakenBreak && !isOnBreak && (
+                            <span className={isLunchOutLate ? "text-destructive" : ""}>
+                                {` · Lunch ${formatDuration(completedBreakSeconds)}${isLunchOutLate ? " (late)" : ""}`}
+                            </span>
+                        )}
+                    </p> */}
                 </div>
 
-                {/* ACTION BUTTONS */}
+                {isOnBreak && (
+                    <div
+                        role={isLunchOverdue ? "alert" : undefined}
+                        className={`mt-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${isLunchOverdue
+                            ? "border-destructive/30 bg-destructive/10 text-destructive"
+                            : "border-[var(--employee-orange)]/25 bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]"
+                            }`}
+                    >
+                        <span className="flex min-w-0 items-center gap-2 text-xs font-medium">
+                            {isLunchOverdue ? <AlertCircle size={15} className="shrink-0" /> : <Coffee size={15} className="shrink-0" />}
+                            <span className="truncate">
+                                {isLunchOverdue
+                                    ? `Your ${lunchOutMinutes}-minute lunch is over`
+                                    : `Back by ${breakReturnTime ?? "--"}`}
+                            </span>
+                        </span>
+                        <span className="text-sm font-bold tabular-nums">
+                            {isLunchOverdue ? `+${formatDuration(breakOvertimeSeconds)}` : formatDuration(lunchSecondsLeft)}
+                        </span>
+                    </div>
+                )}
 
                 {!isCheckedOut && (
-                    <div className="mt-5 grid grid-cols-1 gap-3 border-t border-border/70 pt-5 sm:grid-cols-2">
-                        {/* BREAK / BACK */}
-
+                    <div className="mt-3 flex gap-2">
                         {isOnBreak ? (
                             <button
                                 type="button"
-                                disabled={
-                                    actionLoading === "back"
-                                }
-                                onClick={
-                                    handleBackFromBreak
-                                }
-                                className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-55"
+                                disabled={actionLoading === "back"}
+                                onClick={handleBackFromBreak}
+                                className={actionButton.primary}
                             >
-                                {actionLoading === "back" ? (
-                                    <>
-                                        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                        Updating...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Play
-                                            size={17}
-                                            className="shrink-0"
-                                        />
-                                        I&apos;m Back From Lunch
-                                    </>
-                                )}
+                                {actionLoading === "back" ? <><Spinner />Updating...</> : <><Play size={15} />I&apos;m Back</>}
                             </button>
                         ) : !hasTakenBreak ? (
                             <button
                                 type="button"
-                                disabled={
-                                    actionLoading === "break" ||
-                                    actionLoading === "checkout"
-                                }
-                                onClick={() =>
-                                    setIsBreakConfirmOpen(true)
-                                }
-                                className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--employee-orange)]/30 bg-[var(--employee-break-soft)] px-4 text-sm font-semibold text-[var(--employee-break-foreground)] shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--employee-orange)] disabled:cursor-not-allowed disabled:opacity-55"
+                                disabled={actionLoading === "break" || actionLoading === "checkout"}
+                                onClick={() => setIsBreakConfirmOpen(true)}
+                                className={actionButton.lunch}
                             >
-                                {actionLoading === "break" ? (
-                                    <>
-                                        <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                        Starting Lunch...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Coffee
-                                            size={17}
-                                            className="shrink-0"
-                                        />
-                                        Start Lunch
-                                    </>
-                                )}
+                                {actionLoading === "break" ? <><Spinner />Starting...</> : <><Coffee size={15} />Start Lunch</>}
                             </button>
                         ) : null}
 
-                        {/* CHECK OUT */}
-
                         <button
                             type="button"
-                            disabled={
-                                isOnBreak ||
-                                isCheckingAlerts ||
-                                actionLoading === "checkout"
-                            }
-                            onClick={() =>
-                                handleExitMeetingOpenChange(true)
-                            }
-                            className="flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-[var(--employee-red)]/40 bg-[var(--leave-red-soft)] px-4 text-sm font-semibold text-[var(--employee-red)] shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--employee-red)] disabled:cursor-not-allowed disabled:opacity-55"
+                            disabled={isOnBreak || isCheckingAlerts || actionLoading === "checkout"}
+                            title={isOnBreak ? "End your lunch before logging out" : undefined}
+                            onClick={() => handleExitMeetingOpenChange(true)}
+                            className={actionButton.danger}
                         >
-                            {actionLoading ===
-                                "checkout" ? (
-                                <>
-                                    <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                    Loging Out...
-                                </>
-                            ) : (
-                                <>
-                                    <LogOut
-                                        size={17}
-                                        className="shrink-0"
-                                    />
-                                    {isCheckingAlerts ? "Checking alerts..." : "Log Out"}
-                                </>
-                            )}
+                            {actionLoading === "checkout"
+                                ? <><Spinner />Logging Out...</>
+                                : <><LogOut size={15} />{isCheckingAlerts ? "Checking alerts..." : "Log Out"}</>}
                         </button>
                     </div>
                 )}
-
-            </div>
+            </CheckInShell>
 
             <Dialog.Root
                 open={isBreakConfirmOpen}
@@ -963,6 +799,6 @@ export default function TodayPresentCard({
                     </Dialog.Content>
                 </Dialog.Portal>
             </Dialog.Root>
-        </section>
+        </>
     );
 }

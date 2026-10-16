@@ -6,9 +6,10 @@ import {
   Pencil, Plus, RefreshCw, Search, Sparkles, X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
-  fetchAdminQuestions, fetchAdminReplies, fetchAdminRequest, fetchAdminRequests,
+  fetchAdminQuestions, fetchAdminReplies, fetchAdminRequest, fetchAdminRequests, fetchAdminRequestsByEmail,
   saveAdminQuestion,
 } from "../api/incrementAdmin.api";
 import {
@@ -133,13 +134,13 @@ function SectionCard({ children, label, className = "" }) {
   return <section aria-label={label} className={`overflow-hidden rounded-2xl border border-border bg-card shadow-sm shadow-black/[0.03] ${className}`}>{children}</section>;
 }
 
-function RequestList({ questions, onSelect, onQuestions }) {
+function RequestList({ questions, onSelect, onQuestions, initialCompletion = "all" }) {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [page, setPage] = useState(1);
-  const [completion, setCompletion] = useState("all");
+  const [completion, setCompletion] = useState(initialCompletion);
   const invalidRange = from && to && from > to;
 
   useEffect(() => {
@@ -369,6 +370,18 @@ export default function IncrementManagementPage() {
   const requestsButton = useRef(null);
   const questionsButton = useRef(null);
   const questions = useQuery({ queryKey: [...ROOT_KEY, "questions"], queryFn: fetchAdminQuestions });
+  // Deep links from the home dashboard: ?email= opens that employee's latest request, ?filter= preselects completion.
+  const [params, setParams] = useSearchParams();
+  const linkedEmail = clean(params.get("email"));
+  const linkedFilter = ["complete", "awaiting"].includes(params.get("filter")) ? params.get("filter") : "all";
+  const linked = useQuery({
+    queryKey: [...ROOT_KEY, "by-email", linkedEmail],
+    queryFn: () => fetchAdminRequestsByEmail(linkedEmail),
+    enabled: Boolean(linkedEmail),
+  });
+  const openId = selectedId || (linkedEmail ? linked.data?.[0]?.id : null) || null;
+  const clearLink = () => setParams((current) => { const next = new URLSearchParams(current); next.delete("email"); return next; }, { replace: true });
+  const closeDetail = () => { setSelectedId(null); clearLink(); requestsButton.current?.focus(); };
   const error = questions.error;
   const loading = questions.isPending;
 
@@ -391,7 +404,7 @@ export default function IncrementManagementPage() {
         {TABS.map(({ key, label, icon }) => {
           const Icon = icon;
           const active = tab === key;
-          return <button ref={key === "requests" ? requestsButton : questionsButton} key={key} type="button" aria-pressed={active} onClick={() => { setTab(key); setSelectedId(null); }} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${active ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}>
+          return <button ref={key === "requests" ? requestsButton : questionsButton} key={key} type="button" aria-pressed={active} onClick={() => { setTab(key); setSelectedId(null); clearLink(); }} className={`inline-flex min-h-10 items-center gap-2 rounded-lg px-4 text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${active ? "bg-card text-foreground shadow-sm ring-1 ring-border" : "text-muted-foreground hover:text-foreground"}`}>
             <Icon size={16} className={active ? "text-primary" : ""} aria-hidden="true" />{label}
             {key === "questions" && questions.data && <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${active ? "bg-primary/10 text-primary" : "bg-muted-foreground/10 text-muted-foreground"}`}>{questions.data.length}</span>}
           </button>;
@@ -400,8 +413,11 @@ export default function IncrementManagementPage() {
     </header>
     {error ? <ErrorMessage error={error} onRetry={() => questions.refetch()} /> : loading ? <SectionCard label="Loading"><Skeleton /></SectionCard> : <>
       <div hidden={tab !== "questions"}><QuestionList questions={questions.data} /></div>
-      <div hidden={tab !== "requests" || Boolean(selectedId)}><RequestList questions={questions.data} onSelect={setSelectedId} onQuestions={() => { setTab("questions"); setSelectedId(null); questionsButton.current?.focus(); }} /></div>
-      {tab === "requests" && selectedId && <RequestDetail key={selectedId} id={selectedId} questions={questions.data} onBack={() => { setSelectedId(null); requestsButton.current?.focus(); }} />}
+      {tab === "requests" && linkedEmail && !selectedId && (linked.isPending ? <SectionCard label="Loading request"><Skeleton rows={2} /></SectionCard>
+        : linked.isError ? <ErrorMessage error={linked.error} onRetry={() => linked.refetch()} />
+        : !openId && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">No increment request found for {linkedEmail}.<Button variant="outline" className="h-9 rounded-lg" onClick={clearLink}>Show all requests</Button></div>)}
+      <div hidden={tab !== "requests" || Boolean(openId) || (Boolean(linkedEmail) && linked.isPending)}><RequestList questions={questions.data} initialCompletion={linkedFilter} onSelect={setSelectedId} onQuestions={() => { setTab("questions"); setSelectedId(null); clearLink(); questionsButton.current?.focus(); }} /></div>
+      {tab === "requests" && openId && <RequestDetail key={openId} id={openId} questions={questions.data} onBack={closeDetail} />}
     </>}
   </div>;
 }

@@ -1,68 +1,159 @@
-import { AlarmClock, Clock3, LogIn, LogOut } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlarmClock, CalendarDays, Clock3, LogIn, LogOut, Palmtree } from "lucide-react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
-import DashboardHeader from "../components/DashboardHeader";
 import TodayAttendanceCard from "../components/TodayAttendanceCard";
-import MetricCard from "../components/MetricCard";
 import WorkingHistory from "../components/WorkingHistory";
-import AttendanceSummary from "../components/AttendanceSummary";
 import SystemAlertCarousel from "../components/SystemAlertCarousel";
+import HomeHeader from "../components/home/HomeHeader";
+import StatTile from "../components/home/StatTile";
+import AttendanceGauge from "../components/home/AttendanceGauge";
+import ScheduleCard from "../components/home/ScheduleCard";
+import TasksFeedCard from "../components/home/TasksFeedCard";
+import { headerAction } from "../components/home/homeUi";
+import { buildLeaveDays, calendarDateKey, dateKey } from "../components/attendance/adminAttendanceUtils";
+import {
+    buildFeed,
+    employeeAttendanceStats,
+    formatClock,
+    formatHours,
+} from "../components/home/homeDashboardUtils";
+import {
+    monthRange,
+    useAnnouncements,
+    useEmployeesDirectory,
+    useMyActivityRange,
+} from "../components/home/homeDashboard.queries";
+import { useEmployeeLeaves, usePublicHolidays } from "../queries/leaves.queries";
+import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
+
+const PERIODS = [["month", "This month"], ["30d", "Last 30 days"]];
+const recordsOf = (data) => (Array.isArray(data) ? data : data?.records || data?.data?.records || []);
 
 export default function EmployeHomePage() {
+    const navigate = useNavigate();
     const employeeId = useSelector((state) => state.user.userInfo?.id);
     const email = useSelector((state) => state.user.user?.email);
+    const limits = useAttendanceLimits();
+    const loginMinutes = timeToMinutes(limits.actualLoginTime) ?? 570;
+    const lateAfter = loginMinutes + limits.loginDelayMinutes;
+    const [period, setPeriod] = useState("month");
+    const today = dateKey(new Date());
+
+    const range = useMemo(() => {
+        if (period === "month") return monthRange();
+        const start = new Date();
+        start.setDate(start.getDate() - 29);
+        return { from: dateKey(start), to: today };
+    }, [period, today]);
+
+    const activity = useMyActivityRange({ email, ...range });
+    const leaves = useEmployeeLeaves({ employeeId, email });
+    const holidays = usePublicHolidays();
+    const employees = useEmployeesDirectory();
+    const announcements = useAnnouncements();
+
+    const leaveRecords = useMemo(() => recordsOf(leaves.data), [leaves.data]);
+    const holidayRecords = useMemo(() => recordsOf(holidays.data), [holidays.data]);
+
+    const stats = useMemo(() => {
+        // Every record here belongs to this employee, so keep only the date part of each key.
+        const leaveDays = new Set([...buildLeaveDays(leaveRecords)].map((key) => key.split("|")[1]));
+        const holidayDays = new Set(holidayRecords.map((holiday) => calendarDateKey(holiday.holiday_date)).filter(Boolean));
+        return employeeAttendanceStats({ records: activity.data || [], ...range, today, lateAfter, leaveDays, holidays: holidayDays });
+    }, [activity.data, holidayRecords, lateAfter, leaveRecords, range, today]);
+
+    const feed = useMemo(
+        () => buildFeed({ activity: activity.data || [], leaves: leaveRecords, alerts: announcements.data || [] }),
+        [activity.data, announcements.data, leaveRecords],
+    );
+
+    const scheduleSources = useMemo(() => ({
+        employees: employees.data || [],
+        holidays: holidayRecords,
+        leaves: leaveRecords,
+        leaveLabel: () => "You're on leave",
+    }), [employees.data, holidayRecords, leaveRecords]);
+
+    const loading = activity.isPending;
+    const periodLabel = PERIODS.find(([value]) => value === period)[1].toLowerCase();
 
     return (
         <main className="min-h-full w-full bg-background px-3 py-4 sm:px-5 lg:px-6">
-            <div className="mx-auto w-full max-w-[1800px]">
-                {/* Header */}
-                <DashboardHeader />
+            <div className="mx-auto w-full max-w-[1600px] space-y-4">
+                <HomeHeader
+                    subtitle="Here's your attendance overview and what's coming up."
+                    actions={
+                        <>
+                            <button type="button" onClick={() => navigate("/attendance")} className={headerAction}>
+                                <CalendarDays size={14} /> My attendance
+                            </button>
+                            <button type="button" onClick={() => navigate("/my-leaves")} className={headerAction}>
+                                <Palmtree size={14} /> Apply leave
+                            </button>
+                        </>
+                    }
+                />
 
                 <SystemAlertCarousel employeeId={employeeId} email={email} />
 
-                {/* Overview */}
-                <div className="mt-5 grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.85fr)]">
-                    {/* Today's Attendance */}
-                    <div className="min-w-0">
+                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                    <aside className="order-first min-w-0 space-y-4 xl:sticky xl:top-4 xl:order-0 xl:col-start-2 xl:row-start-1">
                         <TodayAttendanceCard />
-                    </div>
-
-                    {/* Compact metrics */}
-                    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:self-start">
-                        <MetricCard
-                            icon={Clock3}
-                            label="Average hours"
-                            value="7h 17mins"
+                        <ScheduleCard
+                            sources={scheduleSources}
+                            loading={holidays.isPending || leaves.isPending}
+                            announcements={announcements.data || []}
+                            announcementsLoading={announcements.isPending}
                         />
+                    </aside>
 
-                        <MetricCard
-                            icon={LogIn}
-                            label="Average check-in"
-                            value="10:33 AM"
-                        />
+                    <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <StatTile icon={Clock3} label="Average hours" value={formatHours(stats.avgWorked)} hint="per completed day" loading={loading} />
+                                <StatTile icon={LogIn} label="Average check-in" value={formatClock(stats.avgCheckIn)} hint={`Shift starts ${limits.actualLoginTime}`} color="var(--attendance-present)" loading={loading} />
+                                <StatTile
+                                    icon={AlarmClock}
+                                    label="On-time arrival"
+                                    value={stats.onTimeRate === null ? "—" : `${stats.onTimeRate}%`}
+                                    hint={`Late after ${formatClock(lateAfter)}`}
+                                    color="var(--attendance-late)"
+                                    loading={loading}
+                                />
+                                <StatTile icon={LogOut} label="Average check-out" value={formatClock(stats.avgCheckOut)} hint={`Shift ends ${formatClock(loginMinutes + 9 * 60)}`} color="var(--attendance-leave)" loading={loading} />
+                            </div>
 
-                        <MetricCard
-                            icon={AlarmClock}
-                            label="On-time arrival"
-                            value="98.56 %"
-                            tone="green"
-                        />
+                            <AttendanceGauge
+                                title="My Attendance"
+                                subtitle={`Working days ${periodLabel}`}
+                                counts={stats.counts}
+                                labels={{ present: "On time" }}
+                                loading={loading}
+                                error={activity.isError}
+                                onSelect={() => navigate("/attendance")}
+                                action={
+                                    <select
+                                        value={period}
+                                        onChange={(event) => setPeriod(event.target.value)}
+                                        aria-label="Attendance period"
+                                        className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    >
+                                        {PERIODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                    </select>
+                                }
+                            />
+                        </div>
 
-                        <MetricCard
-                            icon={LogOut}
-                            label="Average check-out"
-                            value="19:12 PM"
-                            tone="orange"
-                        />
-                        <AttendanceSummary />
-                    </div>
-                </div>
-
-                {/* Tables */}
-                <div className="mt-5 grid grid-cols-1 gap-4">
-                    {/* Working History */}
-                    <div className="min-w-0">
                         <WorkingHistory email={email} />
+
+                        <TasksFeedCard
+                            feed={feed}
+                            feedLoading={activity.isPending || announcements.isPending}
+                            feedError={activity.isError}
+                            today={today}
+                        />
                     </div>
                 </div>
             </div>

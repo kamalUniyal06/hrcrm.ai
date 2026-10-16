@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, RefreshCw, Search, LogOut, ChevronDown, CheckCircle2, Clock3, ClipboardCheck, Users } from "lucide-react";
 import { fetchAllRecords } from "../../pages/candidates/candidatesApi";
 import { employeeName } from "../../pages/employees/employeesApi";
@@ -58,8 +59,11 @@ function getState(record) {
 }
 
 export default function OffboardingPage() {
+  // Deep links from the home dashboard: ?status= preselects a filter, ?email= opens that case.
+  const [params] = useSearchParams();
+  const linkedEmail = clean(params.get("email")).toLowerCase();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState(() => (["pending", "progress", "complete"].includes(params.get("status")) ? params.get("status") : "all"));
   const queryClient = useQueryClient();
 
   const resignations = useQuery({
@@ -174,7 +178,7 @@ export default function OffboardingPage() {
             const email = employee?.email1 || record.name || "";
             const state = getState(record);
             const approvalsDone = APPROVALS.filter((item) => isComplete(record[item.field])).length;
-            return <details key={record.id} className="group">
+            return <details key={record.id} open={Boolean(linkedEmail) && clean(record.name).toLowerCase() === linkedEmail ? true : undefined} className="group">
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-4 p-5 transition hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-sm font-semibold text-primary">{name.slice(0, 2).toUpperCase()}</span>
                 <div className="min-w-0 flex-1 basis-48"><h3 className="break-words text-sm font-semibold">{name}</h3><p className="mt-1 break-all text-xs text-muted-foreground">{email}</p></div>

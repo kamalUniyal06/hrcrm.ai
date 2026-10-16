@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAdminNavigation, isAdminPage, selectIsAdmin } from "./pageAccess.js";
+import { filterAdminNavigation, hideMergedRecruitmentNavigation, isAdminPage, selectIsAdmin } from "./pageAccess.js";
 import { sidebarDestination } from "./sidebarNavigation.js";
 
 test("only authenticated admins receive admin access", () => {
@@ -64,4 +64,16 @@ test("increment management and its three modules are admin only while employee r
   const employeeLink = { name: "Increment request", module_name: "hrc_increment", navigation: "/increment-request" };
   assert.equal(sidebarDestination(employeeLink), "/increment-request");
   assert.deepEqual(filterAdminNavigation([{ data: [...items, employeeLink] }], false), [{ data: [employeeLink] }]);
+});
+
+test("admins see Shortlisted and Interviews merged into Candidates", () => {
+  const groups = [{ id: "recruitment", data: [
+    { name: "Candidates" },
+    { name: "Shortlisted" },
+    { name: "Interview", navigation: "/interviews" },
+    { name: "Job posting" },
+  ] }];
+  assert.deepEqual(hideMergedRecruitmentNavigation(groups, true)[0].data.map(item => item.name), ["Candidates", "Job posting"]);
+  assert.equal(hideMergedRecruitmentNavigation(groups, false), groups);
+  assert.deepEqual(hideMergedRecruitmentNavigation([{ data: [{ name: "Shortlisted" }] }], true), []);
 });
