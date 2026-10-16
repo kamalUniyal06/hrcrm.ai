@@ -248,8 +248,9 @@ export default function AdminHomePage() {
                                 loading={resignations.isPending || employees.isPending}
                                 error={resignations.isError}
                                 onRetry={() => resignations.refetch()}
-                                onOpen={() => navigate("/offboarding")}
+                                onOpen={(item) => navigate(item.email ? `/offboarding?email=${encodeURIComponent(item.email)}` : "/offboarding")}
                                 onViewAll={() => navigate("/offboarding")}
+                                onFilter={(status) => navigate(`/offboarding?status=${status}`)}
                             />
                             <TodayPeopleCard
                                 groups={groups}
@@ -274,6 +275,7 @@ export default function AdminHomePage() {
                                 onRetry={() => candidates.refetch()}
                                 onOpenCandidate={(candidate) => navigate(`/candidates?candidate=${candidate.id}`)}
                                 onViewAll={() => navigate("/candidates")}
+                                onViewShortlisted={() => navigate("/candidates?view=shortlisted")}
                                 onViewInterviews={() => navigate("/candidates?view=interviews")}
                             />
                             <IncrementRequestsCard
@@ -282,6 +284,8 @@ export default function AdminHomePage() {
                                 error={incrementRequests.isError || incrementQuestions.isError}
                                 onRetry={() => { incrementRequests.refetch(); incrementQuestions.refetch(); }}
                                 onViewAll={() => navigate("/increment-management")}
+                                onFilter={(filter) => navigate(`/increment-management?filter=${filter}`)}
+                                onOpen={(identity) => navigate(identity.email ? `/increment-management?email=${encodeURIComponent(identity.email)}` : "/increment-management")}
                             />
                         </div>
 

@@ -12,7 +12,7 @@ const stageColor = (label, index) => (/^(other|unassigned)$/i.test(label) ? "var
  * Hiring overview: candidates added this month by stage, newest candidates, and upcoming interviews.
  * `recent` items are { id, name, designation, stage, record }; `upcoming` items are { id, name, round, date }.
  */
-export default function HiringPipelineCard({ total, shortlisted, stages = [], recent = [], upcoming = [], loading, error, interviewsLoading, onRetry, onOpenCandidate, onViewAll, onViewInterviews }) {
+export default function HiringPipelineCard({ total, shortlisted, stages = [], recent = [], upcoming = [], loading, error, interviewsLoading, onRetry, onOpenCandidate, onViewAll, onViewShortlisted, onViewInterviews }) {
   const blank = loading || error;
 
   return (
@@ -25,7 +25,7 @@ export default function HiringPipelineCard({ total, shortlisted, stages = [], re
     >
       <div className="grid grid-cols-3 gap-2">
         <MiniMetric label="New candidates" value={blank ? "—" : total} color="var(--primary)" onClick={onViewAll} />
-        <MiniMetric label="Shortlisted" value={blank ? "—" : shortlisted} color="var(--attendance-present)" onClick={onViewAll} />
+        <MiniMetric label="Shortlisted" value={blank ? "—" : shortlisted} color="var(--attendance-present)" onClick={onViewShortlisted} />
         <MiniMetric label="Upcoming interviews" value={interviewsLoading ? "—" : upcoming.length} color="var(--attendance-leave)" onClick={onViewInterviews} />
       </div>
 

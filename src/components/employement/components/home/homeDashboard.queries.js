@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllRecords } from "../../../pages/candidates/candidatesApi";
+import { buildCandidateListRequest } from "../../../pages/candidates/candidateList";
 import { dateKey } from "../attendance/adminAttendanceUtils";
 import { getAllResignations } from "../../api/resignation.api";
 import { fetchAdminQuestions, fetchAdminRequests } from "../../api/incrementAdmin.api";
@@ -79,11 +80,12 @@ export const useIncrementQuestions = ({ enabled = true } = {}) =>
     staleTime: FIVE_MINUTES,
   });
 
-// Candidates added in a date range, excluding people already converted to employees.
+// Candidates added in a date range, with the same filters as the candidates
+// page's "All" list (no employees, no Unassigned stage/phase/status) so counts match.
 export const useCandidatesForRange = ({ from, to, enabled = true }) =>
   useQuery({
     queryKey: ["candidates", "home", from, to],
-    queryFn: () => fetchAllRecords("hrc_candidates", { field: "date_entered", from: `${from} 00:00:00`, to: `${to} 23:59:59` }, { employee: 0 }),
+    queryFn: () => fetchAllRecords("hrc_candidates", { field: "date_entered", from: `${from} 00:00:00`, to: `${to} 23:59:59` }, buildCandidateListRequest().filters),
     enabled: Boolean(enabled && from && to),
     staleTime: FIVE_MINUTES,
   });

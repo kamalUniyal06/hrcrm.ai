@@ -9,7 +9,7 @@ const AWAITING_COLOR = "var(--attendance-late)";
 const amountFormat = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
 /** Latest increment requests with questionnaire progress. `overview` comes from requestOverview(). */
-export default function IncrementRequestsCard({ overview, loading, error, onRetry, onViewAll, limit = 5 }) {
+export default function IncrementRequestsCard({ overview, loading, error, onRetry, onViewAll, onFilter, onOpen, limit = 5 }) {
   const rows = overview?.rows || [];
   const answeredShare = overview?.total ? Math.round((overview.complete / overview.total) * 100) : 0;
   const blank = loading || error;
@@ -24,9 +24,9 @@ export default function IncrementRequestsCard({ overview, loading, error, onRetr
       onViewAll={onViewAll}
     >
       <div className="grid grid-cols-3 gap-2">
-        <MiniMetric label="Total" value={blank ? "—" : overview.total} color="var(--primary)" />
-        <MiniMetric label="Answered" value={blank ? "—" : overview.complete} color={COMPLETE_COLOR} />
-        <MiniMetric label="Awaiting" value={blank ? "—" : overview.awaiting} color={AWAITING_COLOR} />
+        <MiniMetric label="Total" value={blank ? "—" : overview.total} color="var(--primary)" onClick={onViewAll} />
+        <MiniMetric label="Answered" value={blank ? "—" : overview.complete} color={COMPLETE_COLOR} onClick={() => onFilter("complete")} />
+        <MiniMetric label="Awaiting" value={blank ? "—" : overview.awaiting} color={AWAITING_COLOR} onClick={() => onFilter("awaiting")} />
       </div>
 
       {!blank && overview.total > 0 && (
@@ -59,7 +59,7 @@ export default function IncrementRequestsCard({ overview, loading, error, onRetr
                 <li key={record.id}>
                   <button
                     type="button"
-                    onClick={onViewAll}
+                    onClick={() => onOpen(identity)}
                     className="group flex w-full items-center gap-3 rounded-xl border border-transparent p-2 text-left transition hover:border-border hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <InsightAvatar name={identity.name} color="var(--attendance-present)" size="sm" />

@@ -7,6 +7,12 @@ export const fetchAdminQuestions = () => loadAll(request, INCREMENT_MODULES.ques
 
 export const fetchAdminRequests = (options) => loadRequestCollection(request, options);
 
+// Newest first, like the attendance detail: the gateway filters on the employee email.
+export const fetchAdminRequestsByEmail = (email) => {
+  if (!email) throw new Error("An employee email is required.");
+  return loadAll(request, INCREMENT_MODULES.requests, { filters: { [INCREMENT_FIELDS.requests.employeeEmail]: email } });
+};
+
 export const fetchAdminReplies = (id) => {
   if (!id) throw new Error("Select an increment request first.");
   return loadAll(request, INCREMENT_MODULES.replies, { filters: { [INCREMENT_FIELDS.replies.incrementId]: id }, order_dir: "ASC" });

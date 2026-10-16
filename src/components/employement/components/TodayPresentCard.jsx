@@ -422,9 +422,15 @@ export default function TodayPresentCard({
 
     const shiftProgress = Math.min(displayedShiftSeconds / SHIFT_DURATION_SECONDS, 1) * 100;
     const isLunchOverdue = isOnBreak && breakOvertimeSeconds > 0;
-    const lunchValue = record?.lunch_in
-        ? `${formatTime(record.lunch_in)}${record?.lunch_out ? ` – ${formatTime(record.lunch_out)}` : ""}`
-        : "--";
+    // In and out on separate lines so the narrow cell never cuts off the lunch-out time.
+    const lunchValue = record?.lunch_in ? (
+        <>
+            <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">In </span>{formatTime(record.lunch_in)}</span>
+            {record?.lunch_out && (
+                <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">Out </span>{formatTime(record.lunch_out)}</span>
+            )}
+        </>
+    ) : "--";
 
     const statusPill = isOnBreak ? (
         <StatusPill tone={isLunchOverdue ? "danger" : "warning"} pulse>
@@ -464,7 +470,7 @@ export default function TodayPresentCard({
                     ].map(([label, value, warn]) => (
                         <div key={label} className="min-w-0 rounded-xl bg-muted/60 px-2 py-2">
                             <dt className="text-[10px] font-medium text-muted-foreground">{label}</dt>
-                            <dd className={`mt-0.5 truncate text-xs font-semibold tabular-nums ${warn ? "text-destructive" : "text-foreground"}`}>
+                            <dd className={`mt-0.5 text-xs font-semibold tabular-nums ${typeof value === "string" ? "truncate" : ""} ${warn ? "text-destructive" : "text-foreground"}`}>
                                 {value}
                             </dd>
                         </div>

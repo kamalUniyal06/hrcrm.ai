@@ -20,7 +20,7 @@ function ProgressRing({ percent, color }) {
 }
 
 /** Employees with an open offboarding case, least progressed first. */
-export default function OffboardingCard({ cases = [], loading, error, onRetry, onOpen, onViewAll }) {
+export default function OffboardingCard({ cases = [], loading, error, onRetry, onOpen, onViewAll, onFilter }) {
   const awaiting = cases.filter((item) => !item.progress.approvalsReady).length;
   const checkout = cases.length - awaiting;
 
@@ -34,8 +34,8 @@ export default function OffboardingCard({ cases = [], loading, error, onRetry, o
       onViewAll={onViewAll}
     >
       <div className="grid grid-cols-2 gap-2">
-        <MiniMetric label="Awaiting approvals" value={loading || error ? "—" : awaiting} color={APPROVAL_COLOR} />
-        <MiniMetric label="Checkout in progress" value={loading || error ? "—" : checkout} color={CHECKOUT_COLOR} />
+        <MiniMetric label="Awaiting approvals" value={loading || error ? "—" : awaiting} color={APPROVAL_COLOR} onClick={() => onFilter("pending")} />
+        <MiniMetric label="Checkout in progress" value={loading || error ? "—" : checkout} color={CHECKOUT_COLOR} onClick={() => onFilter("progress")} />
       </div>
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
