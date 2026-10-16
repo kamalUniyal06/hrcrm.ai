@@ -18,6 +18,7 @@ import toast from "react-hot-toast";
 import { fetchAllRecords } from "../candidates/candidatesApi";
 import { deleteEmployee, employeeDate, employeeName } from "./employeesApi";
 import EmployeeDetails from "./EmployeeDetails";
+import { pageGutter } from "../../employement/components/home/homeUi";
 
 const clean = (value) => String(value || "").trim();
 const department = (record) =>
@@ -90,7 +91,7 @@ export default function EmployeesPage() {
 
   
   return (
-    <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
+    <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary p-6 text-white sm:p-8">
         <div
           aria-hidden="true"

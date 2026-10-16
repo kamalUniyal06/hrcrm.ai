@@ -36,7 +36,7 @@ import {
   normalizeCandidate,
 } from "../profile/candidateApi";
 import { candidateRelatedQueryKey } from "../profile/candidateRelated.js";
-import { fetchJobApplications, fetchJobPostings } from "../jobs/jobsApi";
+import { useCandidateApplications, useJobPostings } from "../../../queries/jobs.queries";
 import {
   fieldLabel,
   plainText,
@@ -114,16 +114,8 @@ export default function CandidateHomePage() {
   const experiences = useRelated(candidate?.id, "experiences");
   const education = useRelated(candidate?.id, "education");
   const skills = useRelated(candidate?.id, "skills");
-  const applications = useQuery({
-    queryKey: ["candidate-applications", candidate?.id],
-    queryFn: () => fetchJobApplications(candidate.id),
-    enabled: Boolean(candidate?.id),
-  });
-  const postings = useQuery({
-    queryKey: ["job-postings"],
-    queryFn: fetchJobPostings,
-    staleTime: 300000,
-  });
+  const applications = useCandidateApplications(candidate?.id);
+  const postings = useJobPostings();
   const sidebar = useSidebarLayout();
   const groups = Array.isArray(sidebar.data)
     ? sidebar.data

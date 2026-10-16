@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildAttendanceRows, dateKey, daySummary, parseActivityTime, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
+import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
 
 const sample = {
   id: "activity-1", name: "verm.jatin2004@gmail.com", login: "09/18/2026 17:59",
@@ -87,4 +87,26 @@ test("distinguishes missing, upcoming and incomplete records", () => {
 
 test("Monday-to-Sunday weeks cross month and year boundaries", () => {
   assert.deepEqual(weekDays(new Date(2027, 0, 3)).map(dateKey), ["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31", "2027-01-01", "2027-01-02", "2027-01-03"]);
+});
+
+test("builds get_stats queries for an Asia/Kolkata attendance day", () => {
+  assert.deepEqual(attendanceDayBounds("2026-10-15"), { from: "2026-10-14 18:30:00", to: "2026-10-15 18:29:59" });
+  const queries = buildAttendanceStatsQueries("2026-10-15");
+  assert.deepEqual(queries.map(query => query.key), ["employees_shown", "checked_in", "late_check_ins", "not_checked_in", "on_leave_full", "on_leave_half"]);
+  assert.deepEqual(queries[2], {
+    key: "late_check_ins", module: "hrc_daily_activity", ignore_email: true,
+    exclude_employee_phase_id: "4b140dcd-270a-3080-b367-6a9fa21e3ea4", filters: { late_login: 1 },
+    date_field: "login", date_range: "custom", date_from: "2026-10-14 18:30:00", date_to: "2026-10-15 18:29:59",
+  });
+  assert.equal(queries[3].not_checked_in_on, "2026-10-15");
+  assert.equal(queries[5].leave_duration, "half");
+});
+
+test("reads overview totals and derives on-time check-ins", () => {
+  const stats = Object.fromEntries(Object.entries({
+    employees_shown: 48, checked_in: 42, late_check_ins: "2", not_checked_in: 5, on_leave_full: 1, on_leave_half: 0,
+  }).map(([key, count]) => [key, { count }]));
+  assert.deepEqual(readAttendanceStats({ success: true, stats }), { all: 48, notCheckedIn: 5, leave: 1, late: 2, onTime: 40 });
+  assert.throws(() => readAttendanceStats({ success: true, stats: { ...stats, checked_in: { error: "Module 'x' not found" } } }), /not found/);
+  assert.throws(() => readAttendanceStats({ success: false, message: "Denied" }), /Denied/);
 });

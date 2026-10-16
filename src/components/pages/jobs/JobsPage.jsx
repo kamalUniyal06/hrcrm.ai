@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { NavLink, Link, Navigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-hot-toast";
 import {
   Archive,
@@ -18,13 +18,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "../profile/onboardingStyles";
-import { fetchCandidateRelated, findCandidate } from "../profile/candidateApi";
+import { fetchCandidateRelated } from "../profile/candidateApi";
 import { candidateRelatedQueryKey } from "../profile/candidateRelated.js";
 import { relatedEntryView } from "../profile/profileDisplay";
+import { useCandidateProfile } from "../../../queries/candidate.queries";
+import { jobsKeys, useApplyToJob, useCandidateApplications, useJobPostings } from "../../../queries/jobs.queries";
 import { CandidatePageHeader, CandidateStats, EmptyState } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { applicationStage, applicationSteps } from "../candidate/candidateStatus";
-import { applyToJob, fetchJobApplications, fetchJobPostings } from "./jobsApi";
 import JobList, { JobListSkeleton } from "./JobList";
 import JobDetailsDrawer from "./JobDetailsDrawer";
 import CreateJobDialog from "./CreateJobDialog";
@@ -57,58 +58,39 @@ export default function JobsPage({ applicationsOnly = false }) {
   );
 }
 
-function CandidateJobs({ email, applicationsOnly, isAdmin }) {
+function CandidateJobs({ applicationsOnly, isAdmin }) {
+  const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
-  const [candidate, setCandidate] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [applications, setApplications] = useState([]);
-  const [dropdowns, setDropdowns] = useState({});
-  const [jobDropdowns, setJobDropdowns] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [applyError, setApplyError] = useState("");
   const [notice, setNotice] = useState("");
-  const [pending, setPending] = useState("");
-  const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [selectedKey, setSelectedKey] = useState(null);
-  const locked = useRef(false);
-  const alive = useRef(true);
 
-  useEffect(() => {
-    let active = true;
-    alive.current = true;
-    setLoading(true);
-    setError("");
-    async function load() {
-      const [postings, profile] = await Promise.all([
-        fetchJobPostings(),
-        isAdmin ? Promise.resolve(null) : findCandidate(email),
-      ]);
-      const related = profile
-        ? await fetchJobApplications(profile.id)
-        : { records: [], dropdowns: {} };
-      if (!active) return;
-      setJobs(postings.records);
-      setJobDropdowns(postings.dropdowns);
-      setCandidate(profile);
-      setApplications(related.records);
-      setDropdowns(related.dropdowns);
+  // All three lists come from the shared query cache, so moving between the
+  // dashboard, Jobs and My applications does not refetch what is already loaded.
+  const profile = useCandidateProfile();
+  const candidate = isAdmin ? null : profile.data || null;
+  const postings = useJobPostings();
+  const applicationsQuery = useCandidateApplications(candidate?.id, { enabled: !isAdmin });
+  const jobs = postings.data?.records || [];
+  const jobDropdowns = postings.data?.dropdowns || {};
+  const applications = applicationsQuery.data?.records || [];
+  const dropdowns = applicationsQuery.data?.dropdowns || {};
+  const loading = postings.isPending || (!isAdmin && (profile.isPending || (Boolean(candidate?.id) && applicationsQuery.isPending)));
+  const error = postings.error?.message || (!isAdmin && (profile.error?.message || applicationsQuery.error?.message)) || "";
+  const refreshing = postings.isFetching || profile.isFetching || applicationsQuery.isFetching;
+  const refresh = () => {
+    void postings.refetch();
+    if (!isAdmin) {
+      void profile.refetch();
+      if (candidate?.id) void applicationsQuery.refetch();
     }
-    load()
-      .catch((err) => {
-        if (active) setError(err.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-      alive.current = false;
-    };
-  }, [email, retry, isAdmin]);
+  };
+
+  const applyMutation = useApplyToJob(candidate);
+  const pending = applyMutation.isPending ? applyMutation.variables : "";
+  const applyError = applyMutation.error?.message || "";
 
   // Shares the dashboard's cache, so the drawer can tick off skills already on the profile.
   const skills = useQuery({
@@ -121,29 +103,13 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
     ? skills.data.map((item) => relatedEntryView("skills", item).title).filter(Boolean)
     : undefined;
 
-  async function apply(jobId) {
-    if (locked.current || isAdmin) return;
-    locked.current = true;
-    setPending(jobId);
-    setApplyError("");
+  function apply(jobId) {
+    if (applyMutation.isPending || isAdmin) return;
     setNotice("");
-    try {
-      const records = await applyToJob(candidate, jobId);
-      if (alive.current) {
-        setApplications(records);
-        toast.success(
-          "Your application is saved. Follow its status in My applications.",
-        );
-      }
-    } catch (err) {
-      if (alive.current) {
-        setApplyError(err.message);
-        toast.error(err.message);
-      }
-    } finally {
-      locked.current = false;
-      if (alive.current) setPending("");
-    }
+    applyMutation.mutate(jobId, {
+      onSuccess: () => toast.success("Your application is saved. Follow its status in My applications."),
+      onError: (err) => toast.error(err.message),
+    });
   }
 
   const appliedIds = new Set(
@@ -196,7 +162,7 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
   const selectedIndex = rows.findIndex((row) => row.key === selectedKey);
   const selected = rows[selectedIndex];
   const openRow = (key) => {
-    setApplyError("");
+    applyMutation.reset();
     setSelectedKey(key);
   };
   const candidateName = candidate
@@ -322,13 +288,13 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
           )}
           <button
             type="button"
-            disabled={!!pending || loading}
+            disabled={!!pending || refreshing}
             aria-label="Refresh"
             title="Refresh"
             className={cn(candidateStyles.iconButton, "border border-border bg-card")}
-            onClick={() => setRetry((value) => value + 1)}
+            onClick={refresh}
           >
-            <RefreshCw size={16} className={cn(loading && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
+            <RefreshCw size={16} className={cn(refreshing && "animate-spin motion-reduce:animate-none")} aria-hidden="true" />
           </button>
         </div>
 
@@ -340,8 +306,8 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
             {error}
             <button
               type="button"
-              disabled={!!pending}
-              onClick={() => setRetry((value) => value + 1)}
+              disabled={!!pending || refreshing}
+              onClick={refresh}
               className="font-semibold underline underline-offset-4"
             >
               Reload
@@ -450,7 +416,10 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
           job={deleting}
           onClose={() => setDeleting(null)}
           onDeleted={id => {
-            setJobs(previous => previous.filter(job => job.id !== id));
+            queryClient.setQueryData(jobsKeys.postings, previous => previous && {
+              ...previous,
+              records: previous.records.filter(job => job.id !== id),
+            });
             setDeleting(null);
             setNotice("Job posting deleted successfully.");
           }}
@@ -464,7 +433,7 @@ function CandidateJobs({ email, applicationsOnly, isAdmin }) {
           onCreated={() => {
             setCreating(false);
             setNotice("Job posting created successfully.");
-            setRetry((value) => value + 1);
+            void queryClient.invalidateQueries({ queryKey: jobsKeys.postings });
           }}
         />
       )}

@@ -117,8 +117,8 @@ function Timeline({ query, kind }) {
  * Docked candidate profile with workflow, interview and profile actions.
  * `actions` comes from CandidatesPage so the list and the panel share one implementation.
  */
-export default function CandidatePanel({ id, listRecord, lookups, interviews, interviewsLoading, isAdmin, actions, onClose }) {
-  const [tab, setTab] = useState("overview");
+export default function CandidatePanel({ id, listRecord, lookups, interviews, interviewsLoading, isAdmin, actions, onClose, initialTab = "overview" }) {
+  const [tab, setTab] = useState(initialTab);
   const [savingKind, setSavingKind] = useState(null);
   const query = useQuery({
     queryKey: ["candidates", "detail", id],

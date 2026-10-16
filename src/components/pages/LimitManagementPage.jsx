@@ -13,6 +13,7 @@ import {
 import { fetchAllRecords } from "./candidates/candidatesApi";
 import PageAccessGuard from "../routing/PageAccessGuard";
 import { smartGateway } from "../../services/api";
+import { pageGutter } from "../employement/components/home/homeUi";
 
 const clean = (value) => String(value ?? "").trim();
 const columns = [
@@ -58,7 +59,7 @@ function LimitManagementRecords() {
   );
 
   return (
-    <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
+    <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
       <header className="rounded-3xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary p-6 text-white sm:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">
           People workspace
@@ -268,7 +269,7 @@ function LimitManagementEditor() {
   }
 
   return (
-    <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
+    <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
       <Link
         to="/limit-management"
         className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-indigo-600"

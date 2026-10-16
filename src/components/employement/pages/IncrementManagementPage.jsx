@@ -8,6 +8,7 @@ import {
 import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { pageGutter } from "../components/home/homeUi";
 import {
   fetchAdminQuestions, fetchAdminReplies, fetchAdminRequest, fetchAdminRequests, fetchAdminRequestsByEmail,
   saveAdminQuestion,
@@ -385,7 +386,7 @@ export default function IncrementManagementPage() {
   const error = questions.error;
   const loading = questions.isPending;
 
-  return <div className="mx-auto w-full max-w-[1600px] px-1 py-3 text-foreground sm:px-3 sm:py-5">
+  return <div className={`w-full text-foreground ${pageGutter}`}>
     <header className="relative mb-5 overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-sm shadow-black/[0.03] sm:p-7">
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-transparent" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full bg-primary/15 blur-3xl" />

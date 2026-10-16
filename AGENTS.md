@@ -30,45 +30,6 @@ To check your work without asking, use the commands under [Checks you can run](#
 
 HRCRM is an HR platform frontend: recruitment, candidate onboarding, interviews, employees, attendance, leave, salaries, and increments, plus a configurable CRM layer (dynamic entities, table, detail, and create views, sidebar layouts).
 
-| Area | Tech |
-|---|---|
-| Framework | React 18 + Vite 7, plain **JavaScript/JSX** (no TypeScript) |
-| Styling | Tailwind CSS v4 (CSS-first config in `src/index.css`, no `tailwind.config.js`) |
-| UI kit | shadcn/ui (`radix-nova` style, JSX) on Radix primitives, `lucide-react` icons |
-| Server state | TanStack Query (`src/queries/`) |
-| Client state | Redux Toolkit (`src/store/Slices/`) |
-| HTTP | Axios via `src/services/crmClient.js` + `src/services/api.js` |
-| Routing | `react-router-dom` v7 (`createBrowserRouter` in `src/App.jsx`) |
-| Tests | Node's built-in `node:test` runner |
-
-Import alias: `@/` → `src/` (configured in `vite.config.js` and `jsconfig.json`).
-
-## Directory map
-
-```
-src/
-  main.jsx            App entry: applies the theme, mounts providers
-  App.jsx             Router and route definitions
-  RootLayout.jsx      Authenticated shell (sidebar + top nav)
-  index.css           Tailwind setup, design tokens, all themes
-  api/                *.api.js — raw request functions per domain
-  queries/            *.queries.js — TanStack Query hooks + query keys wrapping api/
-  services/           api.js (apiRequest/http), crmClient.js (auth interceptors), recruitment API/session
-  engines/            Generic API and query engines (builders, client, methods)
-  store/              Redux store and slices (user, preferences)
-  context/            React contexts (recruitment, page, detail-edit)
-  hooks/              Shared hooks
-  utils/              Pure helpers (theme, page access, sidebar layout, ranking)
-  lib/                utils.js (cn), queryClient.js, TinyMCE setup
-  components/
-    ui/               shadcn and shared UI primitives
-    layouts/          Dynamic table, detail, and create views + layout sidebar
-    pages/            Feature pages (candidates, interviews, profile/onboarding, jobs, ...)
-    employement/      Attendance, leave, offboarding, increments
-    routing/          Route guards and dynamic route handlers
-docs/                 Backend field contracts and integration notes
-```
-
 Some folder and file names are misspelled (`employement`, `prefrences`). Keep them as they are, because imports depend on them.
 
 ## Conventions
@@ -121,11 +82,6 @@ npx eslint path/to/changed-file.jsx
 ```
 
 Don't fix unrelated lint errors in files you didn't otherwise touch.
-
-## Environment
-
-- Copy `.env.example` to `.env`. Client-side variables must start with `VITE_`.
-- The `dev` server, `build`, and `preview` scripts exist in `package.json`, but see the first rule: ask before running them.
 
 ## Further reading
 

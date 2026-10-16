@@ -124,27 +124,30 @@ function EmptySection({ section, editing }) {
   );
 }
 
+// Skill pills cycle through theme tints, so they follow the selected theme and stay readable.
+const skillTints = [
+  "border-primary/20 bg-primary/10 text-primary",
+  "border-highlight/60 bg-highlight/30 text-foreground",
+  "border-[var(--chart-5)]/30 bg-[var(--chart-5)]/12 text-foreground",
+  "border-secondary bg-secondary text-secondary-foreground",
+  "border-border bg-accent text-accent-foreground",
+];
+
+// Skills read as a tag cloud: the name, with experience or version as a quiet suffix.
 function SkillsView({ items }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="flex flex-wrap gap-2">
       {items.map((item, index) => {
         const entry = relatedEntryView("skills", item);
+        const meta = entry.details.map(([label, value]) => `${label === "Experience" ? "" : `${label} `}${value}`).join(" · ");
         return (
-          <li key={item.id || index} className="flex min-w-0 items-start gap-3 rounded-xl border border-border bg-card p-4">
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary">
-              <Sparkles size={16} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="break-words text-sm font-semibold">{entry.title || `Skill ${index + 1}`}</p>
-              {entry.details.length > 0 && (
-                <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                  {entry.details.map(([label, value]) => `${label === "Experience" ? "" : `${label} `}${value}`).join(" · ")}
-                </p>
-              )}
-              {entry.body.map((text) => (
-                <p key={text} className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{text}</p>
-              ))}
-            </div>
+          <li
+            key={item.id || index}
+            title={entry.body.join("\n") || undefined}
+            className={cn("inline-flex max-w-full items-baseline gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium", skillTints[index % skillTints.length])}
+          >
+            <span className="break-words">{entry.title || `Skill ${index + 1}`}</span>
+            {meta && <span className="text-xs font-normal opacity-75">{meta}</span>}
           </li>
         );
       })}

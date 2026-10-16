@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { Loader2, RefreshCw, Search, LogOut, ChevronDown, CheckCircle2, Clock3, ClipboardCheck, Users } from "lucide-react";
 import { fetchAllRecords } from "../../pages/candidates/candidatesApi";
 import { employeeName } from "../../pages/employees/employeesApi";
+import { pageGutter } from "../components/home/homeUi";
 import {
   getAllResignations,
   updateResignationRecord,
@@ -148,7 +149,7 @@ export default function OffboardingPage() {
     complete: records.filter((record) => getState(record).completed).length,
   };
   return (
-    <main className="min-w-0 space-y-6 pb-8 text-foreground">
+    <main className={`min-w-0 space-y-6 text-foreground ${pageGutter}`}>
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="rounded-2xl bg-primary/10 p-3 text-primary"><LogOut className="size-6" /></span>

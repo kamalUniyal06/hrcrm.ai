@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AlarmClock, CalendarDays, Clock3, LogIn, LogOut, Palmtree } from "lucide-react";
+import { CalendarDays, Palmtree } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
@@ -7,18 +7,12 @@ import TodayAttendanceCard from "../components/TodayAttendanceCard";
 import WorkingHistory from "../components/WorkingHistory";
 import SystemAlertCarousel from "../components/SystemAlertCarousel";
 import HomeHeader from "../components/home/HomeHeader";
-import StatTile from "../components/home/StatTile";
 import AttendanceGauge from "../components/home/AttendanceGauge";
 import ScheduleCard from "../components/home/ScheduleCard";
-import TasksFeedCard from "../components/home/TasksFeedCard";
-import { headerAction } from "../components/home/homeUi";
+import { FeedCard, TasksCard } from "../components/home/TasksFeedCard";
+import { headerAction, pageGutter } from "../components/home/homeUi";
 import { buildLeaveDays, calendarDateKey, dateKey } from "../components/attendance/adminAttendanceUtils";
-import {
-    buildFeed,
-    employeeAttendanceStats,
-    formatClock,
-    formatHours,
-} from "../components/home/homeDashboardUtils";
+import { buildFeed, employeeAttendanceStats } from "../components/home/homeDashboardUtils";
 import {
     monthRange,
     useAnnouncements,
@@ -80,8 +74,8 @@ export default function EmployeHomePage() {
     const periodLabel = PERIODS.find(([value]) => value === period)[1].toLowerCase();
 
     return (
-        <main className="min-h-full w-full bg-background px-3 py-4 sm:px-5 lg:px-6">
-            <div className="mx-auto w-full max-w-[1600px] space-y-4">
+        <main className={`min-h-full w-full bg-background ${pageGutter}`}>
+            <div className="w-full space-y-4">
                 <HomeHeader
                     subtitle="Here's your attendance overview and what's coming up."
                     actions={
@@ -110,49 +104,36 @@ export default function EmployeHomePage() {
                     </aside>
 
                     <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <StatTile icon={Clock3} label="Average hours" value={formatHours(stats.avgWorked)} hint="per completed day" loading={loading} />
-                                <StatTile icon={LogIn} label="Average check-in" value={formatClock(stats.avgCheckIn)} hint={`Shift starts ${limits.actualLoginTime}`} color="var(--attendance-present)" loading={loading} />
-                                <StatTile
-                                    icon={AlarmClock}
-                                    label="On-time arrival"
-                                    value={stats.onTimeRate === null ? "—" : `${stats.onTimeRate}%`}
-                                    hint={`Late after ${formatClock(lateAfter)}`}
-                                    color="var(--attendance-late)"
-                                    loading={loading}
-                                />
-                                <StatTile icon={LogOut} label="Average check-out" value={formatClock(stats.avgCheckOut)} hint={`Shift ends ${formatClock(loginMinutes + 9 * 60)}`} color="var(--attendance-leave)" loading={loading} />
-                            </div>
-
-                            <AttendanceGauge
-                                title="My Attendance"
-                                subtitle={`Working days ${periodLabel}`}
-                                counts={stats.counts}
-                                labels={{ present: "On time" }}
-                                loading={loading}
+                        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                            <TasksCard />
+                            <FeedCard
+                                feed={feed}
+                                loading={activity.isPending || announcements.isPending}
                                 error={activity.isError}
-                                onSelect={() => navigate("/attendance")}
-                                action={
-                                    <select
-                                        value={period}
-                                        onChange={(event) => setPeriod(event.target.value)}
-                                        aria-label="Attendance period"
-                                        className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                    >
-                                        {PERIODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                                    </select>
-                                }
+                                today={today}
                             />
                         </div>
 
                         <WorkingHistory email={email} />
 
-                        <TasksFeedCard
-                            feed={feed}
-                            feedLoading={activity.isPending || announcements.isPending}
-                            feedError={activity.isError}
-                            today={today}
+                        <AttendanceGauge
+                            title="My Attendance"
+                            subtitle={`Working days ${periodLabel}`}
+                            counts={stats.counts}
+                            labels={{ present: "On time" }}
+                            loading={loading}
+                            error={activity.isError}
+                            onSelect={() => navigate("/attendance")}
+                            action={
+                                <select
+                                    value={period}
+                                    onChange={(event) => setPeriod(event.target.value)}
+                                    aria-label="Attendance period"
+                                    className="rounded-lg border border-border bg-card px-2 py-1 text-xs font-medium text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {PERIODS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                                </select>
+                            }
                         />
                     </div>
                 </div>

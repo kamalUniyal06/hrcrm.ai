@@ -373,14 +373,6 @@ export default function TodayPresentCard({
         record?.logout,
     ]);
 
-    const workedTime = formatDuration(
-        workedSeconds
-    );
-
-    const hasCompletedShift =
-        (isCheckedOut ? workedSeconds : shiftElapsedSeconds) >=
-        SHIFT_DURATION_SECONDS;
-
     const breakOvertimeSeconds = Math.max(
         breakSeconds - breakDurationSeconds,
         0
@@ -420,7 +412,6 @@ export default function TodayPresentCard({
         ? workedSeconds
         : shiftElapsedSeconds;
 
-    const shiftProgress = Math.min(displayedShiftSeconds / SHIFT_DURATION_SECONDS, 1) * 100;
     const isLunchOverdue = isOnBreak && breakOvertimeSeconds > 0;
     // In and out on separate lines so the narrow cell never cuts off the lunch-out time.
     const lunchValue = record?.lunch_in ? (
@@ -476,34 +467,6 @@ export default function TodayPresentCard({
                         </div>
                     ))}
                 </dl>
-
-                <div className="mt-3">
-                    <div
-                        role="progressbar"
-                        aria-label="Shift progress"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(shiftProgress)}
-                        className="h-1.5 overflow-hidden rounded-full bg-[var(--employee-track)]"
-                    >
-                        <div
-                            className={`h-full rounded-full transition-[width] duration-700 ${hasCompletedShift ? "bg-[var(--employee-green)]" : "bg-primary"}`}
-                            style={{ width: `${shiftProgress}%` }}
-                        />
-                    </div>
-                    {/* <p className="mt-1.5 text-[11px] text-muted-foreground">
-                        {isCheckedOut
-                            ? `Day complete — ${workedTime} worked. Time to recharge.`
-                            : hasCompletedShift
-                                ? "9-hour shift completed. Great work today!"
-                                : `${formatDuration(SHIFT_DURATION_SECONDS - displayedShiftSeconds)} left in your 9-hour shift`}
-                        {hasTakenBreak && !isOnBreak && (
-                            <span className={isLunchOutLate ? "text-destructive" : ""}>
-                                {` · Lunch ${formatDuration(completedBreakSeconds)}${isLunchOutLate ? " (late)" : ""}`}
-                            </span>
-                        )}
-                    </p> */}
-                </div>
 
                 {isOnBreak && (
                     <div

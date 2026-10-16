@@ -10,6 +10,7 @@ import toast from "react-hot-toast";
 import DOMPurify from "dompurify";
 import he from "he";
 import { selectIsAdmin } from "@/utils/pageAccess";
+import { pageGutter } from "../components/home/homeUi";
 import {
   deleteSystemAlert,
   fetchSystemAlertResponses,
@@ -72,6 +73,7 @@ export default function SystemAlertsPage() {
   if (!isAdmin) return null;
 
   return (
+    <div className={pageGutter}>
     <div className="mb-6 grid h-screen overflow-hidden rounded-2xl border border-border bg-muted/20 lg:grid-cols-[230px_minmax(0,1fr)]">
       <aside className="border-b border-border bg-card lg:border-b-0 lg:border-r">
         <div className="flex items-center gap-3 border-b border-border p-5"><span className="rounded-xl bg-primary/10 p-2.5 text-primary"><BellRing className="size-5" /></span><div><p className="text-sm font-semibold">System alerts</p><p className="mt-1 text-xs text-muted-foreground">Employee communication</p></div></div>
@@ -439,6 +441,7 @@ export default function SystemAlertsPage() {
         </Dialog.Portal>
       </Dialog.Root>
     </section>
+    </div>
     </div>
   );
 }

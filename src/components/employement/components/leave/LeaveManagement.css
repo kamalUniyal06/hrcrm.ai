@@ -5,6 +5,10 @@
   color: var(--leave-text);
   box-sizing: border-box;
 }
+/* The employee leave page uses the shared employee page gutter (pageGutter in homeUi.js). */
+.leave-page.leave-page--flush {
+  padding: 0;
+}
 .leave-page * {
   box-sizing: border-box;
 }

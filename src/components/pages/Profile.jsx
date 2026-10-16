@@ -5,7 +5,7 @@ import { toast } from "react-hot-toast";
 import { resetPageScroll } from "../../utils/resetPageScroll";
 import { candidateSources, validatePersonalDetails } from "./profile/onboardingValidation";
 import { useSelector } from "react-redux";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   BadgeCheck,
   BriefcaseBusiness,
@@ -852,13 +852,6 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                       ))}
                     </ul>
                   </nav>
-                  {record?.id && !standalone && (
-                    <div className={cn(candidateStyles.card, "p-5")}>
-                      <h2 className="text-[15px] font-semibold">Where this profile is used</h2>
-                      <p className="mt-1 text-[13px] leading-5 text-muted-foreground">You apply to roles with these details. Changes apply to applications you send from now on.</p>
-                      <Link to="/job-application" className={cn(candidateStyles.ghost, "mt-2 -ml-2.5")}>View my applications</Link>
-                    </div>
-                  )}
                   {userPhase === "Employment" && <EmployeeOptions />}
                 </aside>
               </div>

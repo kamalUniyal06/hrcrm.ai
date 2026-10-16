@@ -41,6 +41,7 @@ import StatTile from "../../employement/components/home/StatTile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "../../ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { hasOutcome, interviewDate, uniqueInterviews } from "../interviews/interviewUtils";
+import { pageGutter } from "../../employement/components/home/homeUi";
 import {
   appliedDate,
   pageWindow,
@@ -107,6 +108,8 @@ export default function CandidatesPage() {
   const [params, setParams] = useSearchParams();
   const view = VIEWS.includes(params.get("view")) ? params.get("view") : "all";
   const selectedId = view === "interviews" ? null : params.get("candidate");
+  // The interview board opens profiles in a drawer so the board keeps its full width.
+  const interviewProfileId = view === "interviews" ? params.get("candidate") : null;
   const shortlistedOnly = view === "shortlisted";
 
   const [search, setSearch] = useState("");
@@ -121,6 +124,8 @@ export default function CandidatesPage() {
   const [editingId, setEditingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const panelDismissed = useRef(false);
+  const profileOpener = useRef(null);
+  const profileDrawer = useRef(null);
 
   const updateParams = useCallback((changes, options = {}) => {
     setParams((current) => {
@@ -191,6 +196,19 @@ export default function CandidatesPage() {
     panelDismissed.current = true;
     updateParams({ candidate: null });
   }, [updateParams]);
+
+  const openInterviewProfile = useCallback((id) => {
+    profileOpener.current = document.activeElement;
+    updateParams({ candidate: id });
+  }, [updateParams]);
+  const closeInterviewProfile = useCallback(() => {
+    updateParams({ candidate: null });
+    requestAnimationFrame(() => profileOpener.current?.focus?.());
+  }, [updateParams]);
+
+  useEffect(() => {
+    if (interviewProfileId) profileDrawer.current?.focus();
+  }, [interviewProfileId]);
 
   // Wide screens open the first candidate so the profile panel is never empty.
   useEffect(() => {
@@ -272,7 +290,7 @@ export default function CandidatesPage() {
   ])].filter((name) => name.trim() && name.trim().toLowerCase() !== "unassigned").sort();
 
   return (
-    <main className="min-h-full w-full space-y-5 bg-background px-3 py-4 sm:px-5 lg:px-6">
+    <main className={`min-h-full w-full space-y-5 bg-background ${pageGutter}`}>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Candidates</h1>
@@ -315,7 +333,28 @@ export default function CandidatesPage() {
 
       {view === "interviews" ? (
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <AdminInterviews embedded />
+          <AdminInterviews embedded onOpenCandidate={openInterviewProfile} />
+          {interviewProfileId && (
+            <div
+              className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-[1px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+              onClick={(event) => event.target === event.currentTarget && closeInterviewProfile()}
+            >
+              <div ref={profileDrawer} tabIndex={-1} className="h-full w-full max-w-md shadow-2xl outline-none motion-safe:animate-in motion-safe:slide-in-from-right-8 motion-safe:duration-200">
+                <CandidatePanel
+                  key={interviewProfileId}
+                  id={interviewProfileId}
+                  listRecord={client.getQueryData(["candidates", "list"])?.find((record) => String(record.id) === interviewProfileId)}
+                  lookups={lookups}
+                  interviews={interviews.data}
+                  interviewsLoading={interviews.isPending}
+                  isAdmin={isAdmin}
+                  actions={actions}
+                  initialTab="interviews"
+                  onClose={closeInterviewProfile}
+                />
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className={`grid grid-cols-1 items-start gap-4 ${selectedId ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>

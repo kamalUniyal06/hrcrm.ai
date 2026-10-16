@@ -90,3 +90,51 @@ export function groupInterviews(records) {
   }
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
 }
+
+// Board states, most urgent first. Passed rounds leave the board, so "decided" means failed.
+export const BOARD_STATES = ["due", "upcoming", "unscheduled", "decided"];
+
+export function boardState(record, now = Date.now()) {
+  if (hasOutcome(record)) return "decided";
+  const date = interviewDate(record.interview_datetime);
+  if (!date) return "unscheduled";
+  return date.getTime() < now ? "due" : "upcoming";
+}
+
+// Interviews waiting on a decision first, then the calendar in date order.
+export function sortForBoard(records, now = Date.now()) {
+  const time = (record) => interviewDate(record.interview_datetime)?.getTime() ?? 0;
+  const rank = (record) => BOARD_STATES.indexOf(boardState(record, now));
+  return [...records].sort((a, b) => rank(a) - rank(b) || time(a) - time(b));
+}
+
+// Calendar-day distance in local time: "Today", "Tomorrow", "In 3 days", "5 days ago".
+export function relativeDay(date, now = new Date()) {
+  const day = (value) => Date.UTC(value.getFullYear(), value.getMonth(), value.getDate());
+  const text = new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(Math.round((day(date) - day(now)) / 86400000), "day");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+// The standard rounds always show, so the board keeps its shape and each one is a drop target.
+// They come first in pipeline order; any custom rounds follow by name.
+export const PIPELINE_ROUNDS = ["Round 1", "Round 2", "Round 3"];
+
+export function withPipelineRounds(groups) {
+  const keys = new Set(groups.map((group) => group.key));
+  const missing = PIPELINE_ROUNDS.filter((name) => !keys.has(name.toLowerCase())).map((name) => ({ key: name.toLowerCase(), name, records: [] }));
+  const rank = (group) => {
+    const index = PIPELINE_ROUNDS.findIndex((name) => name.toLowerCase() === group.key);
+    return index < 0 ? PIPELINE_ROUNDS.length : index;
+  };
+  return [...groups, ...missing].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+}
+
+// Passing a pipeline round opens the next one; the last pipeline round and custom rounds end there.
+export function nextPipelineRound(record) {
+  const next = nextRoundName(record);
+  return PIPELINE_ROUNDS.find((name) => name.toLowerCase() === next.toLowerCase()) || "";
+}
+
+// Passing the last pipeline round hires the candidate.
+export const HIRED_WORKFLOW = { stage: "Joining", status: "Joining Confirmed" };
+export const isFinalRound = (record) => roundName(record).toLowerCase() === PIPELINE_ROUNDS[PIPELINE_ROUNDS.length - 1].toLowerCase();

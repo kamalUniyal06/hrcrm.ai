@@ -1,6 +1,19 @@
 export const DEFAULT_THEME = "hrcrm";
 
+// Stores the default theme last applied to everyone; see initializeTheme().
+const THEME_DEFAULT_KEY = "app-theme-default";
+
 export const THEMES = [
+    {
+        id: "hrcrm",
+        name: "HRCRM",
+        description: "Official HRCRM theme",
+        colors: {
+            primary: "#0b1310",
+            secondary: "#064030",
+            accent: "#d4fa3c",
+        },
+    },
     {
         id: "default",
         name: "Default",
@@ -49,16 +62,6 @@ export const THEMES = [
             primary: "#2e1065",
             secondary: "#6d28d9",
             accent: "#7c3aed",
-        },
-    },
-    {
-        id: "hrcrm",
-        name: "HRCRM",
-        description: "Official HRCRM brand workspace",
-        colors: {
-            primary: "#0b1310",
-            secondary: "#064030",
-            accent: "#d4fa3c",
         },
     },
 ];
@@ -114,6 +117,13 @@ export const getTheme = () => {
  * Initialize theme when application loads
  */
 export const initializeTheme = () => {
+    // One-time switch to the default theme for everyone, including users who
+    // picked another theme before it became the default. Later picks are kept.
+    if (localStorage.getItem(THEME_DEFAULT_KEY) !== DEFAULT_THEME) {
+        localStorage.setItem(THEME_DEFAULT_KEY, DEFAULT_THEME);
+        localStorage.removeItem("app-theme");
+    }
+
     const theme = getTheme();
 
     document.documentElement.setAttribute(

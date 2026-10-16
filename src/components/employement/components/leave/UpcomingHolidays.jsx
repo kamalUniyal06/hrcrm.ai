@@ -2,34 +2,7 @@ import { AlertCircle, CalendarDays, LoaderCircle } from "lucide-react";
 import he from "he";
 import { useEffect, useMemo, useRef } from "react";
 import { usePublicHolidays } from "../../queries/leaves.queries";
-
-const parseHolidayDate = (value) => {
-    const match = String(value || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!match) return null;
-
-    // The holidays API returns MM/DD/YYYY, for example 11/24/2026.
-    const [, monthValue, dayValue, yearValue] = match;
-    const month = Number(monthValue);
-    const day = Number(dayValue);
-    const year = Number(yearValue);
-
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-
-    const date = new Date(year, month - 1, day);
-
-    // Date normalizes invalid values (such as month 24) into another year.
-    // Compare every part so invalid API dates are rejected instead.
-    if (
-        Number.isNaN(date.getTime()) ||
-        date.getFullYear() !== year ||
-        date.getMonth() !== month - 1 ||
-        date.getDate() !== day
-    ) {
-        return null;
-    }
-
-    return date;
-};
+import { parseHolidayDate } from "./leaveCalendarUtils";
 
 const monthKey = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;

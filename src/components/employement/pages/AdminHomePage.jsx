@@ -13,7 +13,7 @@ import IncrementRequestsCard from "../components/home/IncrementRequestsCard";
 import HiringPipelineCard from "../components/home/HiringPipelineCard";
 import ScheduleCard from "../components/home/ScheduleCard";
 import TasksFeedCard from "../components/home/TasksFeedCard";
-import { headerAction } from "../components/home/homeUi";
+import { headerAction, pageGutter } from "../components/home/homeUi";
 import {
     buildAttendanceRows,
     buildLeaveDays,
@@ -196,8 +196,8 @@ export default function AdminHomePage() {
     const openAttendance = (filter) => navigate(`/attendance?filter=${filter}`);
 
     return (
-        <main className="min-h-full w-full bg-background px-3 py-4 sm:px-5 lg:px-6">
-            <div className="mx-auto w-full max-w-[1600px] space-y-4">
+        <main className={`min-h-full w-full bg-background ${pageGutter}`}>
+            <div className="w-full space-y-4">
                 <HomeHeader
                     subtitle="Attendance, hiring and people changes across the team, at a glance."
                     actions={

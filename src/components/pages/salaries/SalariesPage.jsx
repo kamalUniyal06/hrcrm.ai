@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Search, Wallet, X } from "lucide-react";
 import { fetchAllRecords } from "../candidates/candidatesApi";
 import { amount, clean, difference, formatAmount, salaryName } from "./salaryUtils";
+import { pageGutter } from "../../employement/components/home/homeUi";
 
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50";
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -38,7 +39,7 @@ export default function SalariesPage() {
     ["Description", selected.description],
   ] : [];
 
-  return <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
+  return <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
     <header className="rounded-3xl bg-gradient-to-r from-sidebar-primary to-sidebar-secondary p-6 text-white sm:p-8">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">People workspace</p>
       <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold"><Wallet aria-hidden="true" />Salary management</h1>

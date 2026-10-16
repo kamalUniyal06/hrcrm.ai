@@ -161,3 +161,52 @@ export function buildLeaveDays(leaves = []) {
 
 export const isRowOnLeave = (leaveDays, row, day) =>
   leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);
+
+// Employees in this phase (exited) are left out of every attendance total.
+const EXCLUDED_EMPLOYEE_PHASE_ID = "4b140dcd-270a-3080-b367-6a9fa21e3ea4";
+export const ATTENDANCE_TIMEZONE = "Asia/Kolkata";
+const ATTENDANCE_UTC_OFFSET_MINUTES = 330;
+const utcStamp = ms => new Date(ms).toISOString().slice(0, 19).replace("T", " ");
+
+// Start and end of a YYYY-MM-DD attendance day (Asia/Kolkata) as UTC "YYYY-MM-DD HH:mm:ss".
+export function attendanceDayBounds(day) {
+  const [year, month, date] = day.split("-").map(Number);
+  const start = Date.UTC(year, month - 1, date) - ATTENDANCE_UTC_OFFSET_MINUTES * 60000;
+  return { from: utcStamp(start), to: utcStamp(start + 86400000 - 1000) };
+}
+
+// smart_gateway get_stats queries for the admin attendance overview of one day.
+export function buildAttendanceStatsQueries(day) {
+  const base = { ignore_email: true, exclude_employee_phase_id: EXCLUDED_EMPLOYEE_PHASE_ID };
+  const { from, to } = attendanceDayBounds(day);
+  const loginRange = { date_field: "login", date_range: "custom", date_from: from, date_to: to };
+  const leave = duration => ({ ...base, module: "hrc_leaves", filters: { status: "Accepted" }, leave_on: day, leave_duration: duration });
+  return [
+    { key: "employees_shown", module: "hrc_employees", ...base },
+    { key: "checked_in", module: "hrc_daily_activity", ...base, ...loginRange },
+    { key: "late_check_ins", module: "hrc_daily_activity", ...base, filters: { late_login: 1 }, ...loginRange },
+    { key: "not_checked_in", module: "hrc_employees", ...base, not_checked_in_on: day, attendance_timezone: ATTENDANCE_TIMEZONE },
+    { key: "on_leave_full", ...leave("full") },
+    { key: "on_leave_half", ...leave("half") },
+  ];
+}
+
+// Turns a get_stats response into overview counts; throws if any requested stat is missing.
+export function readAttendanceStats(response) {
+  if (response?.success !== true) throw new Error(response?.message || "Could not load attendance totals.");
+  const count = key => {
+    const entry = response.stats?.[key];
+    const value = Number(entry?.count);
+    if (!entry || entry.error || !Number.isFinite(value)) throw new Error(entry?.error || `Attendance total "${key}" is missing.`);
+    return value;
+  };
+  const checkedIn = count("checked_in");
+  const late = count("late_check_ins");
+  return {
+    all: count("employees_shown"),
+    notCheckedIn: count("not_checked_in"),
+    leave: count("on_leave_full") + count("on_leave_half"),
+    late,
+    onTime: Math.max(checkedIn - late, 0),
+  };
+}

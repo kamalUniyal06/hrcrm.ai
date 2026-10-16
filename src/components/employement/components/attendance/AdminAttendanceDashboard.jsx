@@ -26,6 +26,8 @@ import {
   isRowOnLeave,
 } from "./adminAttendanceUtils";
 import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
+import { useAttendanceStats } from "../../../../queries/attendance.queries";
+import { pageGutter } from "../home/homeUi";
 
 const statuses = {
   onTime: {
@@ -111,6 +113,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     queryFn: () => fetchAllRecords("hrc_leaves", null, employeeId ? { employee_id: employeeId } : null),
     enabled: isAdmin,
   });
+  const attendanceStats = useAttendanceStats(dateKey(anchor), { enabled: isAdmin && !selectedPersonKey });
   const days = selectedPersonKey
     ? Array.from({ length: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate() }, (_, index) => new Date(anchor.getFullYear(), anchor.getMonth(), index + 1))
     : [anchor];
@@ -146,17 +149,6 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     if (overviewFilter === "leave") return status === "leave";
     return true;
   });
-  const attendanceDate = dateKey(anchor);
-  const notCheckedIn = rows.filter((row) =>
-    row.matched &&
-    !isOnLeave(row, attendanceDate) &&
-    !(row.days[attendanceDate] || []).some((record) =>
-      Boolean(String(record.login ?? "").trim()),
-    ) &&
-    [row.name, row.email, row.designation].some((value) =>
-      value.toLowerCase().includes(search.trim().toLowerCase()),
-    ),
-  );
   const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0, leave: 0 };
   matchingRows.forEach((row) =>
     days.forEach((day) => {
@@ -170,7 +162,10 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const missingEmployeeEmail = Boolean(employeeId) && !employees.isPending && !selectedEmployeeEmail;
   const loading = employees.isPending || leaves.isPending || ((!employeeId || selectedEmployeeEmail) && activity.isPending);
   const failed = employees.isError || activity.isError || leaves.isError || missingEmployeeEmail;
-  const fetching = employees.isFetching || activity.isFetching || leaves.isFetching;
+  const fetching = employees.isFetching || activity.isFetching || leaves.isFetching || attendanceStats.isFetching;
+  const overviewUnavailable = selectedPersonKey
+    ? loading || failed
+    : attendanceStats.isPending || attendanceStats.isError;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selectedRow?.days[selected?.date] || [];
   const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false, lateAfter);
@@ -188,11 +183,11 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       ["On leave", totals.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "all"],
     ]
     : [
-      ["Employees shown", matchingRows.length, Users, "text-indigo-600 bg-indigo-50", "all"],
-      ["Checked in", totals.onTime + totals.late, CalendarDays, "text-emerald-700 bg-emerald-50", "checkedIn"],
-      ["Late check-ins", totals.late, Clock3, "text-amber-600 bg-amber-50", "late"],
-      ["Not checked in", notCheckedIn.length, Users, "text-orange-600 bg-orange-50", "missing"],
-      ["On leave", totals.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
+      ["All employees", attendanceStats.data?.all, Users, "text-slate-700 bg-slate-100", "all"],
+      ["Not checked in", attendanceStats.data?.notCheckedIn, Users, "text-orange-600 bg-orange-50", "missing"],
+      ["On leave", attendanceStats.data?.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
+      ["Late check-ins", attendanceStats.data?.late, Clock3, "text-amber-600 bg-amber-50", "late"],
+      ["On time", attendanceStats.data?.onTime, Clock3, "text-white bg-emerald-600", "onTime", "border-emerald-200 bg-emerald-50"],
     ];
 
   function moveWeek(direction) {
@@ -205,6 +200,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     void employees.refetch();
     void activity.refetch();
     void leaves.refetch();
+    if (!selectedPersonKey) void attendanceStats.refetch();
   }
 
   if (!isAdmin)
@@ -215,7 +211,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     );
 
   return (
-    <main className="min-h-full space-y-6 rounded-2xl bg-slate-50 p-3 sm:p-6">
+    <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           {selectedPersonKey && (
@@ -259,7 +255,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
       >
         {overviewItems.map((item) => {
-          const [label, count, Icon, color, filter] = item;
+          const [label, count, Icon, color, filter, cardTone = "border-slate-200"] = item;
           return (
             <button
               key={label}
@@ -275,14 +271,14 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                 }
               }}
               aria-pressed={!selectedPersonKey && overviewFilter === filter}
-              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition enabled:hover:border-indigo-200 enabled:hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${!selectedPersonKey && overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"}`}
+              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition enabled:hover:border-indigo-200 enabled:hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${!selectedPersonKey && overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : cardTone}`}
             >
               <span className={`rounded-xl p-3 ${color}`}>
                 <Icon size={21} />
               </span>
               <div>
                 <p className="text-2xl font-semibold text-slate-900">
-                  {loading || failed ? "—" : count}
+                  {overviewUnavailable ? "—" : count}
                 </p>
                 <p className="text-xs text-slate-500">{label}</p>
               </div>
@@ -290,6 +286,15 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
           );
         })}
       </section>
+
+      {!selectedPersonKey && attendanceStats.isError && (
+        <p role="alert" className="text-sm text-red-700">
+          {attendanceStats.error?.message || "Could not load attendance totals."}{" "}
+          <button type="button" onClick={() => attendanceStats.refetch()} className="font-semibold underline">
+            Retry
+          </button>
+        </p>
+      )}
 
       {!selectedPersonKey && overviewFilter === "onTime" && (
         <div className="flex items-center gap-2 text-sm text-slate-600">

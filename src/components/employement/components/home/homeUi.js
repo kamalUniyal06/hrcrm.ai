@@ -17,5 +17,8 @@ export const actionButton = {
   danger: "inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-destructive/30 bg-card px-4 text-sm font-semibold text-destructive transition hover:bg-destructive/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-55",
 };
 
+// Page padding shared by the employee and admin screens (Home, Attendance, Leave, People, Hiring…), so their edges line up.
+export const pageGutter = "py-4 sm:px-2 lg:px-3";
+
 export const headerAction =
   "inline-flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-sm transition hover:border-primary/30 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";

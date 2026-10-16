@@ -7,6 +7,7 @@ import { AttendanceProvider } from "../context/AttendanceContext";
 
 import EmployeeAttendanceCalendar from "../components/attendance/EmployeeAttendanceCalendar";
 import AdminAttendanceDashboard from "../components/attendance/AdminAttendanceDashboard";
+import { pageGutter } from "../components/home/homeUi";
 
 const AttendanceDashboard = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const AttendanceDashboard = () => {
           onViewMyAttendance={() => setSearchParams({ view: "mine" })}
         />
       ) : (
-        <div className="space-y-4">
+        <div className={`space-y-4 ${pageGutter}`}>
           {showAdminAsEmployee && (
             <button
               type="button"

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { candidateId, groupInterviews, hasOutcome, interviewDate, isFirstRound, localInterviewTime, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
+import { boardState, candidateId, groupInterviews, isFinalRound, nextPipelineRound, withPipelineRounds, hasOutcome, interviewDate, isFirstRound, localInterviewTime, relativeDay, sortForBoard, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
 
 test("test-link generation only accepts the Round 1 label", () => {
   for (const description of ["Round 1", " round  1 ", "ROUND1", "Round\t1"])
@@ -144,4 +144,58 @@ test("recognizes completed outcomes and candidate relationship fallback", () => 
   for (const interview_status of ["Pass", " Fail ", "passed", "Failed"]) assert.equal(hasOutcome({ interview_status }), true);
   assert.equal(hasOutcome({ interview_status: "Scheduled" }), false);
   assert.equal(candidateId({ candidate_id: " ", hrc_candidates_hrc_interviews_1hrc_candidates_ida: " candidate-1 " }), "candidate-1");
+});
+
+test("board state separates past-due decisions from upcoming interviews", () => {
+  const now = Date.parse("2026-10-16T10:00:00Z");
+  assert.equal(boardState({ interview_datetime: "2026-10-15 09:00:00" }, now), "due");
+  assert.equal(boardState({ interview_datetime: "2026-10-17 09:00:00" }, now), "upcoming");
+  assert.equal(boardState({ interview_datetime: "" }, now), "unscheduled");
+  assert.equal(boardState({ interview_datetime: "2026-10-15 09:00:00", interview_status: "Fail" }, now), "decided");
+});
+
+test("board order puts decisions first, then dates soonest first, then unscheduled", () => {
+  const now = Date.parse("2026-10-16T10:00:00Z");
+  const sorted = sortForBoard([
+    { id: "failed", interview_datetime: "2026-10-01 09:00:00", interview_status: "Fail" },
+    { id: "none", interview_datetime: "" },
+    { id: "later", interview_datetime: "2026-11-01 09:00:00" },
+    { id: "soon", interview_datetime: "2026-10-17 09:00:00" },
+    { id: "older-due", interview_datetime: "2026-10-01 09:00:00" },
+    { id: "due", interview_datetime: "2026-10-11 09:00:00" },
+  ], now);
+  assert.deepEqual(sorted.map((record) => record.id), ["older-due", "due", "soon", "later", "none", "failed"]);
+});
+
+test("relative day counts calendar days, not 24-hour spans", () => {
+  const now = new Date(2026, 9, 16, 23, 30);
+  assert.equal(relativeDay(new Date(2026, 9, 16, 8, 0), now), "Today");
+  assert.equal(relativeDay(new Date(2026, 9, 17, 0, 30), now), "Tomorrow");
+  assert.equal(relativeDay(new Date(2026, 9, 21, 9, 0), now), "In 5 days");
+  assert.equal(relativeDay(new Date(2026, 9, 11, 9, 0), now), "5 days ago");
+});
+
+test("pipeline rounds always show first, with custom rounds after", () => {
+  const groups = withPipelineRounds(groupInterviews([
+    { id: "a", description: "Technical" },
+    { id: "b", description: "round 1" },
+    { id: "c", description: "Culture" },
+  ]));
+  assert.deepEqual(groups.map((group) => group.name), ["round 1", "Round 2", "Round 3", "Culture", "Technical"]);
+  assert.deepEqual(groups.map((group) => group.records.length), [1, 0, 0, 1, 1]);
+  assert.deepEqual(withPipelineRounds([]).map((group) => group.key), ["round 1", "round 2", "round 3"]);
+});
+
+test("passing advances through the three pipeline rounds and stops after the last", () => {
+  assert.equal(nextPipelineRound({ description: "Round 1" }), "Round 2");
+  assert.equal(nextPipelineRound({ description: " round  2 " }), "Round 3");
+  assert.equal(nextPipelineRound({ description: "Round 3" }), "");
+  assert.equal(nextPipelineRound({ description: "Technical" }), "");
+});
+
+test("only Round 3 is the final round", () => {
+  assert.equal(isFinalRound({ description: "Round 3" }), true);
+  assert.equal(isFinalRound({ description: " round  3 " }), true);
+  for (const description of ["Round 1", "Round 2", "Round 30", "Technical", ""])
+    assert.equal(isFinalRound({ description }), false);
 });

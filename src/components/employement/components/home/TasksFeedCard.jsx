@@ -112,6 +112,39 @@ function Feed({ items, loading, error, today }) {
   );
 }
 
+const sampleBadge = (
+  <span className="rounded-full border border-dashed border-border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    Sample data
+  </span>
+);
+
+function CardShell({ title, badge, bodyClassName = "", children }) {
+  return (
+    <section className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        {badge}
+      </div>
+      <div className={`mt-4 ${bodyClassName}`}>{children}</div>
+    </section>
+  );
+}
+
+export function TasksCard() {
+  return <CardShell title="Upcoming Tasks" badge={sampleBadge}><TaskTable /></CardShell>;
+}
+
+// The feed scrolls inside the card so it matches the height of the card beside it instead of stretching the row.
+export function FeedCard({ feed = [], loading, error, today }) {
+  return (
+    <CardShell title="Feed" bodyClassName="relative min-h-[260px] flex-1">
+      <div className="absolute inset-0 overflow-y-auto pr-1">
+        <Feed items={feed} loading={loading} error={error} today={today} />
+      </div>
+    </CardShell>
+  );
+}
+
 export default function TasksFeedCard({ feed = [], feedLoading, feedError, today }) {
   const [tab, setTab] = useState("tasks");
   return (
@@ -131,11 +164,7 @@ export default function TasksFeedCard({ feed = [], feedLoading, feedError, today
             </button>
           ))}
         </div>
-        {tab === "tasks" && (
-          <span className="rounded-full border border-dashed border-border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Sample data
-          </span>
-        )}
+        {tab === "tasks" && sampleBadge}
       </div>
       <div className="mt-4">
         {tab === "tasks" ? <TaskTable /> : <Feed items={feed} loading={feedLoading} error={feedError} today={today} />}

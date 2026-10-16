@@ -38,11 +38,11 @@ const AttendanceDayCell = ({
     }
 
     const dayType = leaveName
-        ? { label: leaveName, shortLabel: "On leave", icon: "IoCalendarOutline", isLeave: true }
+        ? { label: leaveName, shortLabel: "On leave", icon: "IoCalendarOutline", isLeave: true, badge: "bg-[var(--employee-blue-soft)] text-[var(--employee-blue)]" }
         : holidayName
-        ? { label: holidayName, shortLabel: "Public holiday", icon: "IoSparklesOutline" }
+        ? { label: holidayName, shortLabel: "Public holiday", icon: "IoFlagOutline", badge: "bg-[var(--primary)]/10 text-[var(--primary)]" }
         : isWeekend
-            ? { label: "Weekend", shortLabel: "Weekend", icon: "IoCafeOutline" }
+            ? { label: "Weekend", shortLabel: "Weekend", icon: "IoSunnyOutline", badge: "bg-[var(--employee-break-soft)] text-[var(--employee-break-foreground)]" }
             : null;
 
     return (
@@ -118,12 +118,9 @@ const AttendanceDayCell = ({
 
             {dayType && !attendance && (
                 <div className="mt-2 flex min-h-[48px] flex-col items-center justify-center gap-1 rounded-md border border-dashed border-[var(--border)] bg-[var(--card)]/65 px-1.5 py-2 text-center sm:min-h-[62px]">
-                    <Icon
-                        name={dayType.icon}
-                        library="io5"
-                        size={14}
-                        className={leaveName ? "text-indigo-600" : holidayName ? "text-emerald-600" : "text-amber-600"}
-                    />
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full sm:h-7 sm:w-7 ${dayType.badge}`}>
+                        <Icon name={dayType.icon} library="io5" size={15} aria-hidden="true" />
+                    </span>
                     <span className="text-[9px] font-semibold leading-tight text-[var(--foreground)] sm:text-[10px]">
                         {dayType.shortLabel}
                     </span>

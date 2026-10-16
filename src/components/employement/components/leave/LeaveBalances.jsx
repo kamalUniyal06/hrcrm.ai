@@ -1,12 +1,19 @@
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { CalendarDays, Palmtree, Thermometer } from "lucide-react";
 import { useLeave } from "../../context/LeaveContext";
+
+// Display details for the leave types LeaveContext provides; unknown types fall back to a calendar.
+const LEAVE_TYPES = {
+  "Annual Leave": { label: "Annual leave", hint: "Planned time off", Icon: Palmtree },
+  "Sick Leave": { label: "Sick leave", hint: "When you're unwell", Icon: Thermometer },
+};
 
 function BalanceSkeleton() {
   return (
-    <div className="flex animate-pulse flex-col items-center justify-center py-5">
-      <div className="h-20 w-20 rounded-full bg-[var(--leave-track)]" />
-      <div className="mt-4 h-4 w-24 rounded bg-[var(--leave-track)]" /><div className="mt-2 h-3 w-32 rounded bg-[var(--leave-track)]" />
-    </div>
+    <li className="flex animate-pulse items-center gap-4 rounded-xl border border-border p-4 motion-reduce:animate-none">
+      <div className="size-11 shrink-0 rounded-xl bg-[var(--leave-track)]" />
+      <div className="flex-1 space-y-2"><div className="h-3.5 w-24 rounded bg-[var(--leave-track)]" /><div className="h-3 w-32 rounded bg-[var(--leave-track)]" /></div>
+      <div className="h-8 w-10 rounded bg-[var(--leave-track)]" />
+    </li>
   );
 }
 
@@ -14,37 +21,38 @@ export default function LeaveBalances() {
   const { balances, leaveBalanceIsLoading } = useLeave();
 
   return (
-    <section className="rounded-2xl border border-border bg-[var(--leave-surface)] px-5 py-6 shadow-sm sm:px-7">
-      <div className="mb-4">
-        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-primary">Your balance</span>
-        <h2 className="mt-1 text-lg font-medium text-[var(--leave-text)]">Available leave</h2>
-      </div>
+    <section aria-labelledby="leave-balance-title" className="flex flex-1 flex-col rounded-2xl border border-border bg-[var(--leave-surface)] p-5 shadow-sm sm:p-6">
+      <h2 id="leave-balance-title" className="text-base font-semibold text-[var(--leave-text)]">Leave balance</h2>
+      <p className="pt-1 text-sm text-[var(--leave-muted)]">Days you can still apply for.</p>
 
-      <div className="grid sm:grid-cols-2">
-        {leaveBalanceIsLoading ? <><BalanceSkeleton /><BalanceSkeleton /></> : balances.map((item) => {
-          const available = Number(item.available || 0);
-          const total = Number(item.total || 0);
-          const hasBalance = available > 0 && total > 0;
-          const used = Math.max(total - available, 0);
+      {!leaveBalanceIsLoading && balances.length === 0 ? (
+        <div className="mt-4 flex flex-1 items-center justify-center rounded-xl border border-dashed border-border p-6 text-center text-sm text-[var(--leave-muted)]">
+          No leave balance found for your account. Ask HR to set it up.
+        </div>
+      ) : (
+        <ul className="mt-4 grid flex-1 content-center gap-3 sm:grid-cols-2">
+          {leaveBalanceIsLoading ? <><BalanceSkeleton /><BalanceSkeleton /></> : balances.map((item) => {
+            const { label, hint, Icon } = LEAVE_TYPES[item.type] ?? { label: item.type, Icon: CalendarDays };
+            const available = Number(item.available || 0);
 
-          return (
-            <article className="flex min-w-0 flex-col items-center justify-center px-4 py-4 text-center sm:min-h-40 sm:border-r sm:border-border sm:last:border-r-0" key={item.type}>
-              <div className="relative h-24 w-24 shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={hasBalance ? [{ value: available }, { value: used }] : [{ value: 1 }]} dataKey="value" innerRadius={34} outerRadius={43} startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>
-                      <Cell fill={hasBalance ? `var(--leave-${item.tone})` : "var(--leave-track)"} />
-                      {hasBalance && <Cell fill="var(--leave-track)" />}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <strong className="absolute inset-0 grid place-items-center text-2xl text-[var(--leave-text)]">{String(available).padStart(2, "0")}</strong>
-              </div>
-              <div className="mt-2 min-w-0"><h3 className="truncate text-sm font-medium text-[var(--leave-text)]">{item.type}</h3><p className="mt-1 text-[10px] text-[var(--leave-muted)]">{hasBalance ? `${available} of ${total} days remaining` : "No days available"}</p></div>
-            </article>
-          );
-        })}
-      </div>
+            return (
+              <li key={item.type} className="flex min-w-0 items-center gap-4 rounded-xl border border-border bg-[var(--leave-page)] p-4">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Icon size={20} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-semibold text-[var(--leave-text)]">{label}</h3>
+                  {hint && <p className="truncate text-xs text-[var(--leave-muted)]">{hint}</p>}
+                </div>
+                <p className="shrink-0 text-right">
+                  <span className={`block text-3xl font-semibold leading-none tabular-nums ${available > 0 ? "text-[var(--leave-text)]" : "text-[var(--leave-muted)]"}`}>{available}</span>
+                  <span className="mt-1 block text-xs text-[var(--leave-muted)]">{available > 0 ? (available === 1 ? "day left" : "days left") : "None left"}</span>
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

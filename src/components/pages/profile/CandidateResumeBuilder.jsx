@@ -327,7 +327,7 @@ export default function CandidateResumeBuilder({
     }
   };
   return (
-    <section ref={page} className="mx-auto max-w-4xl pb-6 pt-5 sm:pt-8">
+    <section ref={page} className="mx-auto w-full pb-6 pt-5 sm:pt-8">
       <OnboardingBackdrop containerRef={backdropRef} pointer={pointer} pattern="aurora" pinned />
       <div className="mb-5 flex items-center justify-between gap-4">
         {onBack && (
