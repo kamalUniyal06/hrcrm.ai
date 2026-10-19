@@ -13,7 +13,7 @@
  * Both paths:
  *   – Attach `Authorization: Bearer <token>` only for requests to
  *     https://flight.hrcrm.ai/index.php with an allowed entry point
- *     (smart_gateway, flexibility, sidebar, hrc).
+ *     (smart_gateway, flexibility, sidebar, hrc, teams_presence).
  *   – Strip the legacy `email` query param from Sidebar requests.
  *   – On a CRM 401, clear the cached token and retry exactly once.
  *   – Never retry 403 responses.
@@ -33,6 +33,7 @@ const ALLOWED_ENTRY_POINTS = new Set([
   "flexibility",
   "sidebar",
   "hrc",
+  "teams_presence",
 ]);
 
 /* ── UI module identity ─────────────────────────────────────────────────── */
