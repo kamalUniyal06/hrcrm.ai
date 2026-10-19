@@ -14,7 +14,7 @@ export default function ProfileSetupProgress({ active, completed, disabled, onSt
     <nav aria-label="Profile setup" className="mb-7 rounded-2xl border border-border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold">Your profile</p>
-        <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">{completed.length} of {steps.length} steps saved</p>
+        <p className="text-xs tabular-nums text-muted-foreground" aria-live="polite">{completed.length} of {steps.length} complete</p>
       </div>
       <div role="progressbar" aria-label="Profile completion" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={completed.length} aria-valuetext={`${completed.length} of ${steps.length} steps saved`} className="mt-3 grid grid-cols-5 gap-1.5">
         {steps.map((item, index) => <span key={item.label} className={cn("h-1.5 rounded-full bg-muted", completed.includes(index) && "bg-primary")} />)}
@@ -44,7 +44,7 @@ export default function ProfileSetupProgress({ active, completed, disabled, onSt
                 <span className={cn("text-[11px] leading-4 text-muted-foreground sm:text-xs", done && "text-foreground", current && "font-semibold text-primary")}>
                   <span className="sm:hidden">{short}</span><span className="hidden sm:inline">{label}</span>
                 </span>
-                <span className="hidden text-[11px] leading-4 text-muted-foreground sm:block">{current ? "In progress" : done ? "Saved" : "Upcoming"}</span>
+                <span className="hidden text-[11px] leading-4 text-muted-foreground sm:block">{current ? "In progress" : done ? "Done" : "To do"}</span>
               </button>
             </li>
           );

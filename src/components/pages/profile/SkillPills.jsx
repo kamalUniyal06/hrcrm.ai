@@ -57,7 +57,7 @@ export default function SkillPills({ items, entryError, onAdd, onUpdate, onRemov
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
-      <label htmlFor="candidate-skill-new" className={styles.label}>Add a skill</label>
+      <label htmlFor="candidate-skill-new" className={styles.label}>Add skills</label>
       <div className="mt-2 flex flex-col gap-2 sm:flex-row">
         <div className={cn(styles.inputIcon, "mt-0 flex-1")}>
           <Sparkles size={18} aria-hidden="true" />
@@ -91,7 +91,7 @@ export default function SkillPills({ items, entryError, onAdd, onUpdate, onRemov
         </button>
       </div>
       <p id="candidate-skill-new-hint" className={styles.help} aria-live="polite">
-        {notice || "Press Enter to add. Separate several skills with commas."}
+        {notice || "Press Enter to add. Use commas to add several."}
       </p>
 
       <div className="mt-6 flex items-center justify-between gap-3">
@@ -154,8 +154,8 @@ export default function SkillPills({ items, entryError, onAdd, onUpdate, onRemov
       ) : (
         <div className="mt-3 rounded-xl border border-dashed border-border px-4 py-6 text-center">
           <Sparkles size={22} className="mx-auto mb-2 text-primary" aria-hidden="true" />
-          <p className="text-sm font-medium">No skills added</p>
-          <p className="text-muted-foreground mt-1 text-xs">Add skills above, or continue if you have none to add.</p>
+          <p className="text-sm font-medium">No skills yet</p>
+          <p className="text-muted-foreground mt-1 text-xs">Add skills above, or continue.</p>
         </div>
       )}
 

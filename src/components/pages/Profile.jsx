@@ -241,7 +241,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     if (!file || !email || requestRef.current) return;
     setError("");
     if (!candidateSources.some(source => source.value === stage)) {
-      setError("Select how you found us.");
+      setError("Select how you heard about us.");
       return;
     }
     setBusy(true);
@@ -272,7 +272,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       if (!response.ok || json?.success !== true)
         throw new Error(
           json?.message ||
-          "Unable to parse this resume. Please try another file.",
+          "Couldn't read this resume. Try another file.",
         );
       if (!controller.signal.aborted && alive.current) setParsingPhase("fetching");
       const candidate = await findCandidate(email);
@@ -292,14 +292,12 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       setSection("personal");
       setDraft(parsed);
       setPhase("builder");
-      toast.success(
-        "Resume parsed. Review and edit your details, then save your profile.",
-      );
+      toast.success("Resume added. Review your details.");
     } catch (err) {
       if (alive.current)
         setError(
           err.name === "AbortError"
-            ? "Resume parsing timed out. Please try again."
+            ? "Resume upload timed out. Try again."
             : err.message,
         );
     } finally {
@@ -558,9 +556,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
               setRelatedRetry((value) => value + 1);
               setSection("personal");
               setPhase("view");
-              toast.success(
-                "Your profile is ready. You can update your details anytime.",
-              );
+              toast.success("Profile submitted. You can edit it anytime.");
               onComplete?.(saved);
               if (!standalone) window.location.replace("/");
             }}

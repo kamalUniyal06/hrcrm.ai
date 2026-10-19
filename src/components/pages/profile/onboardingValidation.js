@@ -10,7 +10,7 @@ export const requiredPersonalFields = {
   current_designation: "Professional title",
   primary_address_street: "Street address",
   primary_address_city: "City",
-  primary_address_state: "State",
+  primary_address_state: "State / region",
   primary_address_postalcode: "Postal code",
   primary_address_country: "Country",
   description: "About you",
@@ -145,7 +145,7 @@ export function validateRelatedEntries(section, rows, noExperience = false) {
       return {
         index,
         field: "name",
-        message: `Enter ${section === "education" ? "an education title" : section === "skills" ? "a skill" : "a role / job title"} for entry ${index + 1}.`,
+        message: `Enter ${section === "education" ? "an education title" : section === "skills" ? "a skill" : "a job title"} for entry ${index + 1}.`,
       };
     if (section === "experiences") {
       if (!row.joining_date)

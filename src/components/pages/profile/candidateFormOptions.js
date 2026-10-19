@@ -18,7 +18,7 @@ export const fieldIcons = {
   percentage: Hash, from_time: CalendarDays, to_time: CalendarDays, status: GraduationCap,
 };
 
-export const genderOptions = ["Male", "Female", "Other", "Prefer not to say"];
+export const genderOptions = ["Male", "Female", "Other"];
 
 export const relatedFieldLabels = {
   skills: {
@@ -27,7 +27,7 @@ export const relatedFieldLabels = {
     total_years_total_months: "Experience duration",
   },
   experiences: {
-    name: "Role / job title",
+    name: "Job title",
     company_name: "Company",
     company_location: "Location",
     joining_date: "Start date",

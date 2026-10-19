@@ -57,7 +57,7 @@ export default function ResumeLoading({
                 </Motion.span>
               )}
             </span>
-            {ready ? "Ready for the next step" : "Turning your resume into your profile"}
+            {ready ? "Done" : "Autofilling your profile"}
           </p>
         </Motion.div>
 
@@ -75,10 +75,10 @@ export default function ResumeLoading({
 
         <p role="status" aria-atomic="true" className="text-muted-foreground mx-auto mt-4 max-w-md text-[15px] leading-7">
           {ready
-            ? "Your resume has been processed. We are loading the details for your review."
+            ? "Resume processed. Opening your details for review."
             : seconds >= 45
-              ? "Your resume is taking a little longer to process. We are still working on it. Your details will appear here when ready."
-              : "We are organizing your contact details, skills, experience, and education. You can review everything next."}
+              ? "Taking longer than usual. Keep this page open."
+              : "Reading your contact info, skills, experience, and education."}
         </p>
 
         <Motion.div
@@ -92,7 +92,7 @@ export default function ResumeLoading({
             <div className="min-w-0 flex-1">
               <p className="break-all text-sm font-medium">{filename || "Your resume"}</p>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                {ready ? "Processed" : "Reading and organizing your details"}
+                {ready ? "Processed" : "Processing…"}
               </p>
             </div>
             <span

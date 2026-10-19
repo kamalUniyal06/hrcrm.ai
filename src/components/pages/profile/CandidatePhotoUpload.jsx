@@ -130,7 +130,7 @@ export default function CandidatePhotoUpload({
   const selectPhoto = (file) => {
     if (!file || locked) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type) || !file.size) {
-      toast.error("Please choose a non-empty JPG, PNG, or WebP image.");
+      toast.error("Choose a JPG, PNG, or WebP image.");
       return;
     }
     stopCamera();
@@ -143,7 +143,7 @@ export default function CandidatePhotoUpload({
 
   const startCamera = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast.error("Camera access is unavailable in this browser. Please choose a photo instead.");
+      toast.error("Camera isn't available in this browser. Choose a photo instead.");
       return;
     }
     const attempt = ++cameraAttemptRef.current;
@@ -165,7 +165,7 @@ export default function CandidatePhotoUpload({
     } catch {
       if (attempt !== cameraAttemptRef.current) return;
       stopCamera();
-      toast.error("Could not access your camera. Allow camera access or choose a photo instead.");
+      toast.error("Can't access your camera. Allow access, or choose a photo.");
     }
   };
 
@@ -192,21 +192,21 @@ export default function CandidatePhotoUpload({
   };
 
   const title = dragging
-    ? "Drop your photo to upload it"
+    ? "Drop to upload"
     : uploading
-      ? "Uploading your photo…"
+      ? "Uploading…"
       : status === "error"
-        ? "Your photo was not uploaded"
+        ? "Upload failed"
         : done
-          ? "Looking good"
-          : "Drag and drop your photo here";
+          ? "Photo added"
+          : "Drag and drop your photo";
   const subtitle = uploading
-    ? "This only takes a moment. Keep this page open."
+    ? "Keep this page open."
     : status === "error"
       ? errorMessage
       : done
-        ? "Your photo is uploaded. Drop or choose another to replace it."
-        : "Use a clear, front-facing photo. JPG, PNG, or WebP.";
+        ? "To replace it, drop or choose another."
+        : "Clear, front-facing photo. JPG, PNG, or WebP.";
 
   return (
     <section className={embedded ? "" : cn(styles.surface, "p-6")}>
@@ -350,7 +350,7 @@ export default function CandidatePhotoUpload({
                     </button>
                   ) : null}
                   <button type="button" onClick={() => inputRef.current?.click()} disabled={locked} className={cn(status === "error" || done ? styles.secondary : styles.primary, status === "error" || done ? "bg-card" : "")}>
-                    <ImagePlus size={16} aria-hidden="true" /> {shownUrl ? "Choose another" : "Choose photo"}
+                    <ImagePlus size={16} aria-hidden="true" /> {shownUrl ? "Replace photo" : "Choose photo"}
                   </button>
                   <button type="button" onClick={startCamera} disabled={locked} className={cn(styles.secondary, "bg-card")}>
                     <Camera size={16} aria-hidden="true" /> Take a photo

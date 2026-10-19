@@ -20,7 +20,7 @@ export default function GovernmentIdVerification({
       <h2 id="candidate-id-heading" className="text-base font-semibold">Government ID</h2>
       <div className="grid gap-5 sm:grid-cols-[0.85fr_1.15fr]">
         <div>
-          <label htmlFor="candidate-id-type" className={styles.label}>Government ID <span className="text-primary">*</span></label>
+          <label htmlFor="candidate-id-type" className={styles.label}>ID type <span className="text-primary">*</span></label>
           <div className={styles.inputIcon}>
             <IdCard size={18} aria-hidden="true" />
             <select id="candidate-id-type" required value={governmentIdType}

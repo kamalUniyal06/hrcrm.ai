@@ -51,32 +51,32 @@ const stepSections = [null, "skills", "experiences", "education", null];
 const photoStep = steps.length - 1;
 const titles = [
   "Personal details",
-  "Skills and proficiency",
+  "Skills",
   "Work experience",
   "Education",
-  "Photo and government ID",
+  "Photo and ID",
 ];
 const hints = [
-  "Review your information and complete all required fields.",
-  "Add your skills. You can include how long you have used each one.",
-  "Add employment dates for each role, or confirm that you have no work experience yet.",
-  "Review education from your resume, or add your qualifications manually.",
-  "Add your profile photo and verify your government ID to complete registration.",
+  "Review and complete the required fields.",
+  "Add your key skills.",
+  "Add your past and current roles.",
+  "Add your degrees and qualifications.",
+  "Add a photo and verify your ID to finish.",
 ];
 const entryLabels = {
   skills: "skill",
-  experiences: "experience",
+  experiences: "role",
   education: "education",
 };
 const emptyTitles = {
-  skills: "No skills added",
-  experiences: "No work experience added",
-  education: "No education added",
+  skills: "No skills yet",
+  experiences: "No work experience yet",
+  education: "No education yet",
 };
 const emptyHints = {
-  skills: "Add a skill below, or continue if you have none to add.",
-  experiences: "Add a role below, or confirm that you have no work experience yet.",
-  education: "Add your education below, or continue if you have none to add.",
+  skills: "Add a skill, or continue.",
+  experiences: "Add a role, or select “I have no work experience yet”.",
+  education: "Add your education, or continue.",
 };
 
 export default function CandidateResumeBuilder({
@@ -160,7 +160,7 @@ export default function CandidateResumeBuilder({
         setDocumentScan({ file: governmentDocumentFile, type: governmentIdType, number });
     } catch (err) {
       if (documentRequestRef.current === controller)
-        setDocumentScanError(err.name === "AbortError" ? "Document scanning timed out. Please try again." : err.message);
+        setDocumentScanError(err.name === "AbortError" ? "Verification timed out. Try again." : err.message);
     } finally {
       clearTimeout(timeout);
       if (documentRequestRef.current === controller) {
@@ -225,30 +225,28 @@ export default function CandidateResumeBuilder({
       if (Object.keys(errors).length) {
         setFieldErrors(errors);
         setStep(0);
-        toast.error(
-          "Complete the highlighted personal details before continuing.",
-        );
+        toast.error("Fix the highlighted fields to continue.");
         focusField(`candidate-${Object.keys(errors)[0]}`);
         return;
       }
       if (step === photoStep) {
         const idError = governmentIdError(governmentIdType, governmentIdNumber);
         if (idError || !documentMatches) {
-          setDocumentScanError(idError || "Verify your government ID before completing registration.");
+          setDocumentScanError(idError || "Verify your ID to continue.");
           focusField(idError ? "candidate-id-number" : "government-document-file");
           return;
         }
       }
       if (step === photoStep && !draft.profile_image) {
         setPhotoMissing(true);
-        toast.error("Add your profile photo to complete registration.");
+        toast.error("Add a profile photo to continue.");
         focusField("candidate-photo-dropzone");
         return;
       }
     } else {
       // A skill typed into the add box but not added yet would not be saved.
       if (section === "skills" && document.getElementById("candidate-skill-new")?.value.trim()) {
-        toast.error("Press Enter to add the skill you typed, or clear it, before continuing.");
+        toast.error("Press Enter to add the skill you typed, or clear it.");
         focusField("candidate-skill-new");
         return;
       }
@@ -284,7 +282,7 @@ export default function CandidateResumeBuilder({
         if (!current.id) current = await findCandidate(email);
         if (!current?.id)
           throw new Error(
-            "Could not confirm your saved profile. Please retry.",
+            "Couldn't confirm your profile was saved. Try again.",
           );
         setRecord(current);
         rememberOnboardingStarted(current);
@@ -320,7 +318,7 @@ export default function CandidateResumeBuilder({
         toast.success(`${steps[step]} saved.`);
       }
     } catch (err) {
-      toast.error(err.message || "Could not save this step. Please retry.");
+      toast.error(err.message || "Couldn't save. Try again.");
     } finally {
       lock.current = false;
       setBusy(false);
@@ -337,7 +335,7 @@ export default function CandidateResumeBuilder({
             onClick={onBack}
             className="text-muted-foreground flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium"
           >
-            <ArrowLeft size={16} /> Back to options
+            <ArrowLeft size={16} /> Back
           </button>
         )}
         <span className="ml-auto text-xs font-medium tabular-nums text-muted-foreground" aria-live="polite">
@@ -361,7 +359,7 @@ export default function CandidateResumeBuilder({
           </h1>
           <p className="text-muted-foreground mt-2 text-sm leading-6">{hints[step]}</p>
           <p className="text-muted-foreground mt-3 text-xs">
-            Fields marked <span className="text-primary">*</span> are required.
+            <span className="text-primary">*</span> Required
           </p>
         </header>
         {step === photoStep && (
@@ -381,7 +379,7 @@ export default function CandidateResumeBuilder({
               }}
             />
             {photoMissing && !draft.profile_image && (
-              <p className="mt-3 text-xs leading-5 text-destructive">Add your profile photo to complete registration.</p>
+              <p className="mt-3 text-xs leading-5 text-destructive">Add a profile photo to continue.</p>
             )}
           </div>
         )}
@@ -476,7 +474,7 @@ export default function CandidateResumeBuilder({
                                 row.qualification,
                                 row.institution || row.university || row.school,
                                 [row.from_time, row.to_time].filter(Boolean).join(" to "),
-                              ].filter(Boolean).join(" / ") || "Add your qualification and institution"
+                              ].filter(Boolean).join(" / ") || "Add qualification and institution"
                             : [
                                 row.company_name,
                                 row.joining_date &&
@@ -484,7 +482,7 @@ export default function CandidateResumeBuilder({
                               ]
                                 .filter(Boolean)
                                 .join(" / ") ||
-                              "Add role details and employment dates"}
+                              "Add company and dates"}
                         </span>
                       </span>
                       <ChevronDown
@@ -598,8 +596,7 @@ export default function CandidateResumeBuilder({
                                 </div>
                                 {key === "total_years_total_months" && (
                                   <p id={`${id}-hint`} className={styles.help}>
-                                    Include years or months if you want to add
-                                    your experience duration.
+                                    Years and months, if known.
                                   </p>
                                 )}
                                 {invalid && (
@@ -646,7 +643,7 @@ export default function CandidateResumeBuilder({
                             }));
                           }}
                         >
-                          <Trash2 size={15} /> Remove entry
+                          <Trash2 size={15} /> Remove
                         </button>
                       )}
                     </div>
@@ -686,8 +683,8 @@ export default function CandidateResumeBuilder({
         <div className="flex min-w-0 items-center gap-3">
           <span className="text-muted-foreground hidden text-xs sm:block">
             {step === photoStep
-              ? !documentMatches ? "Verify your ID to finish" : draft.profile_image ? "Photo and ID are ready" : "Add a photo to finish"
-              : "Changes save when you continue"}
+              ? !documentMatches ? "Verify your ID to finish" : draft.profile_image ? "Ready to submit" : "Add a photo to finish"
+              : "Saved when you continue"}
           </span>
           <button
             type="submit"
@@ -705,7 +702,7 @@ export default function CandidateResumeBuilder({
               </>
             ) : (
               <>
-                {step === photoStep ? "Complete registration" : "Save and continue"}
+                {step === photoStep ? "Submit profile" : "Save and continue"}
                 <ArrowRight size={16} />
               </>
             )}

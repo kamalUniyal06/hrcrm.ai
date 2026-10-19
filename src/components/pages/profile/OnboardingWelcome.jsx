@@ -24,27 +24,27 @@ const workspaceTones = {
 const onboardingOptions = [
   {
     title: "Organization",
-    description: "Bring your team together and manage hiring in one place.",
+    description: "Manage hiring for your team.",
     icon: Building2,
     tone: "blue",
   },
   {
     title: "College",
-    description: "Connect students with employers and campus placements.",
+    description: "Manage campus placements.",
     icon: GraduationCap,
     tone: "green",
   },
   {
     title: "Demo Organization",
-    description: "Explore a sample workspace before setting up your own.",
+    description: "Try a sample workspace.",
     icon: Presentation,
     tone: "amber",
   },
 ];
 
 const candidatePerks = [
-  "Start with your resume or build from scratch",
-  "Review your details before you finish",
+  "Autofill from your resume, or enter your details",
+  "Review before you submit",
 ];
 
 function CandidateCard({ onCandidate }) {
@@ -80,15 +80,15 @@ function CandidateCard({ onCandidate }) {
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--employee-green)] opacity-60 motion-reduce:animate-none" />
             <span className="relative inline-flex size-2 rounded-full bg-[var(--employee-green)]" />
           </span>
-          Ready to get started
+          Available
         </span>
       </div>
 
       <div className="mt-7 lg:mt-5 [&>h2]:text-2xl [&>h2]:font-semibold [&>h2]:leading-tight [&>h2]:tracking-tight lg:[&>h2]:text-[26px]">
-        <p className="mb-2 text-xs font-medium text-primary lg:mb-1.5">For your next career move</p>
-        <h2>Here as a candidate?</h2>
+        <p className="mb-2 text-xs font-medium text-primary lg:mb-1.5">For job seekers</p>
+        <h2>Candidate</h2>
         <p className="text-muted-foreground mt-3 max-w-md text-sm leading-6 lg:mt-2">
-          Create a profile that brings your skills, experience, and ambitions together. Let our recruitment team get to know you.
+          Create your profile and apply for roles.
         </p>
       </div>
 
@@ -110,7 +110,7 @@ function CandidateCard({ onCandidate }) {
         className={cn(styles.primary, "group/cta relative mt-auto min-h-12 w-full overflow-hidden shadow-[0_14px_30px_-16px_color-mix(in_srgb,var(--primary)_80%,transparent)] [&>svg]:ml-auto")}
       >
         <span aria-hidden="true" className={styles.shine} />
-        Continue as a candidate
+        Continue as candidate
         <ArrowRight size={18} aria-hidden="true" className="transition-transform duration-300 group-hover/cta:translate-x-1 motion-reduce:transition-none" />
       </Motion.button>
     </Motion.article>
@@ -162,14 +162,14 @@ export default function OnboardingWelcome({ onCandidate, fillViewport = false })
               variants={rise}
               className={cn(styles.display, "lg:text-[length:clamp(2.25rem,5.6vh,3.25rem)]")}
             >
-              How would you like<br className="hidden sm:block" /> to{" "}
+              How do you want<br className="hidden sm:block" /> to{" "}
               <span className="relative isolate inline-block">
                 get started?
                 <Motion.span aria-hidden="true" variants={marker} className={styles.marker} />
               </span>
             </Motion.h1>
             <Motion.p variants={rise} className="text-muted-foreground mt-4 max-w-xl text-base leading-7 lg:mt-3">
-              Your next opportunity, your team, your campus. Find your place and make your next move.
+              Choose an account type to continue.
             </Motion.p>
           </header>
           <CandidateCard onCandidate={onCandidate} />
@@ -179,7 +179,7 @@ export default function OnboardingWelcome({ onCandidate, fillViewport = false })
           <OnboardingJourneyPreview pointer={pointer} />
           <Motion.div variants={stagger(0.15, 0.1)} className="flex flex-col gap-3 lg:flex-1 lg:gap-2.5">
             <Motion.h2 variants={rise} className="mt-0.5 mb-0.5 ml-0.5 text-[13px] font-semibold text-muted-foreground">
-              A space for every journey
+              Other account types
             </Motion.h2>
             {onboardingOptions.map(({ title, description, icon, tone }) => {
               const Icon = icon;

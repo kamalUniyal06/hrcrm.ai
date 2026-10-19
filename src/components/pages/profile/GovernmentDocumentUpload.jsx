@@ -31,7 +31,7 @@ export default function GovernmentDocumentUpload({
   return (
     <div className="border-t border-border pt-6">
       <label htmlFor="government-document-file" className={styles.label}>{label} document <span className="text-primary">*</span></label>
-      <p id="government-document-hint" className={styles.help}>Use a clear image with the ID number visible. JPG, PNG, or WEBP, up to 10 MB.</p>
+      <p id="government-document-hint" className={styles.help}>Clear image, ID number visible. JPG, PNG, or WebP · Max 10 MB</p>
       <div
         role="group"
         aria-label={`Upload ${label} document`}
@@ -102,7 +102,7 @@ export default function GovernmentDocumentUpload({
             )}
           </Motion.figure>
         )}
-        {previewFailed && <p className="mb-4 text-sm text-destructive">This image could not be previewed. Choose another JPG, PNG, or WEBP image.</p>}
+        {previewFailed && <p className="mb-4 text-sm text-destructive">Can't preview this image. Choose a JPG, PNG, or WebP file.</p>}
         <div className="flex flex-wrap items-center gap-3">
           <Motion.span
             aria-hidden="true"
@@ -115,8 +115,8 @@ export default function GovernmentDocumentUpload({
             {file ? <FileImage size={22} /> : <UploadCloud size={24} />}
           </Motion.span>
           <div className="min-w-0 flex-1 basis-40">
-            <p className="break-all text-sm font-medium">{showDropHint ? "Drop your ID image here" : file ? file.name : "Drag and drop your ID image"}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · ${scanning ? "Verification in progress" : "Drop another image to replace it"}` : "Or choose an image from your device."}</p>
+            <p className="break-all text-sm font-medium">{showDropHint ? "Drop to upload" : file ? file.name : "Drag and drop your ID image"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · ${scanning ? "Verifying…" : "Drop a new image to replace"}` : "or choose an image"}</p>
           </div>
           {file && <button type="button" aria-label="Remove selected ID document" disabled={scanning} onClick={() => onFileChange(null)} className="grid size-11 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-accent disabled:opacity-50"><X size={18} /></button>}
           <button type="button" disabled={scanning} onClick={() => input.current?.click()} className={cn(styles.secondary, "bg-card")}>
@@ -144,7 +144,7 @@ export default function GovernmentDocumentUpload({
       </Motion.button>
       <div id="government-document-status" role="status" aria-live="polite" aria-atomic="true">
         {scanning ? (
-          <p className={styles.help}>Scanning your document to verify your ID. Keep this page open.</p>
+          <p className={styles.help}>Verifying your ID. Keep this page open.</p>
         ) : error ? (
           <p className={cn(styles.help, `text-destructive`)}>{error}</p>
         ) : matches ? (
@@ -163,12 +163,12 @@ export default function GovernmentDocumentUpload({
             >
               <Check size={14} strokeWidth={3} />
             </Motion.span>
-            ID verified. You can continue.
+            ID verified
           </Motion.p>
         ) : scanned ? (
-          <p className={cn(styles.help, "text-destructive")}>We couldn't verify this ID. Check the entered number and use the correct document, then try again.</p>
+          <p className={cn(styles.help, "text-destructive")}>Couldn't verify. Check the ID number and image, then try again.</p>
         ) : (
-          <p className={styles.help}>Verify your ID to complete registration.</p>
+          <p className={styles.help}>Upload your ID image, then select Verify ID.</p>
         )}
       </div>
     </div>

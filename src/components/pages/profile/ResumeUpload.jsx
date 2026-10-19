@@ -45,7 +45,7 @@ export default function ResumeUpload({
         <div className="lg:sticky lg:top-[clamp(1.5rem,6vh,4.5rem)] lg:pt-2">
           <Motion.div variants={rise}>
             <button type="button" onClick={onBack} className={cn(styles.back, "group/back -ml-1")}>
-              <ArrowLeft size={16} aria-hidden="true" className="transition-transform duration-300 group-hover/back:-translate-x-1 motion-reduce:transition-none" /> Back to options
+              <ArrowLeft size={16} aria-hidden="true" className="transition-transform duration-300 group-hover/back:-translate-x-1 motion-reduce:transition-none" /> Back
             </button>
           </Motion.div>
 
@@ -54,7 +54,7 @@ export default function ResumeUpload({
               <span className={styles.eyebrowBadge}>
                 <Sparkles size={12} aria-hidden="true" />
               </span>
-              Add your resume
+              Autofill
             </p>
             <h1 id="resume-step-heading" className="mt-5 text-[30px] leading-[1.12] font-semibold tracking-[-0.035em] outline-none sm:text-4xl lg:text-[42px] [&>span]:text-primary">
               Upload your{" "}
@@ -64,7 +64,7 @@ export default function ResumeUpload({
               </span>
             </h1>
             <p className="text-muted-foreground mt-4 max-w-sm text-[15px] leading-7">
-              Add your resume to fill in your profile. You can review every detail next.
+              We fill in your profile from it. You can edit everything next.
             </p>
           </Motion.header>
         </div>
@@ -87,7 +87,7 @@ export default function ResumeUpload({
                   <Mail size={18} aria-hidden="true" />
                   <input id="resume-email" type="email" value={email} readOnly className={styles.input} aria-describedby="resume-email-hint" />
                 </div>
-                <p id="resume-email-hint" className={styles.help}>Your resume will be linked to this account.</p>
+                <p id="resume-email-hint" className={styles.help}>Your resume is linked to this account.</p>
               </div>
               <div>
                 <label className={styles.label} htmlFor="resume-file">Resume <span className="text-primary">*</span></label>
@@ -109,13 +109,13 @@ export default function ResumeUpload({
                       >
                         <UploadCloud size={28} />
                       </Motion.span>
-                      <p className="mt-4 text-sm font-semibold">{dragging ? "Drop your resume to upload" : "Drag and drop your resume here"}</p>
-                      <p className="text-muted-foreground mt-1 text-xs">We'll read it and fill in your profile for you.</p>
+                      <p className="mt-4 text-sm font-semibold">{dragging ? "Drop to upload" : "Drag and drop your resume"}</p>
+                      <p className="text-muted-foreground mt-1 text-xs">or choose a file</p>
                     </>
                   )}
-                  <p id="resume-file-hint" className={styles.help}>PDF, DOC, or DOCX. Up to 10 MB.</p>
+                  <p id="resume-file-hint" className={styles.help}>PDF, DOC, or DOCX · Max 10 MB</p>
                   <button type="button" onClick={() => input.current?.click()} className={cn(styles.secondary, `mt-5 bg-card`)}>
-                    <UploadCloud size={17} aria-hidden="true" /> {file ? "Choose another file" : "Choose resume"}
+                    <UploadCloud size={17} aria-hidden="true" /> {file ? "Replace file" : "Choose file"}
                   </button>
                   <input ref={input} id="resume-file" type="file" accept=".pdf,.doc,.docx"
                     aria-describedby="resume-file-hint" className="sr-only" tabIndex={-1}
@@ -141,11 +141,11 @@ export default function ResumeUpload({
                 )}
               </div>
               <div>
-                <label htmlFor="resume-source" className={styles.label}>How did you find us? <span className="text-primary">*</span></label>
+                <label htmlFor="resume-source" className={styles.label}>How did you hear about us? <span className="text-primary">*</span></label>
                 <div className={styles.inputIcon}>
                   <Megaphone size={18} aria-hidden="true" />
                   <select id="resume-source" required value={stage} onChange={(event) => onStageChange(event.target.value)} className={styles.input}>
-                    <option value="" disabled>Select a source</option>
+                    <option value="" disabled>Select an option</option>
                     {candidateSources.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}
                   </select>
                 </div>
@@ -165,12 +165,12 @@ export default function ResumeUpload({
                   )}
                 >
                   <span aria-hidden="true" className={cn(styles.shine, "group-disabled/cta:hidden")} />
-                  Upload and review details
+                  Upload and continue
                   <ArrowRight size={16} aria-hidden="true" className="transition-transform duration-300 group-hover/cta:translate-x-1 group-disabled/cta:translate-x-0 motion-reduce:transition-none" />
                 </Motion.button>
               </div>
               <p className={cn(styles.help, `sm:text-right`)}>
-                {!file ? "Choose a resume to continue." : !sourceReady ? "Select how you found us to continue." : "Next, review and edit your profile details."}
+                {!file ? "Add your resume to continue." : !sourceReady ? "Select how you heard about us." : "Next: review your details."}
               </p>
             </footer>
           </form>

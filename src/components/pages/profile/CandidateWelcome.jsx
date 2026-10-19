@@ -115,7 +115,7 @@ export default function CandidateWelcome({ onUpload, onCreate, onBack, fillViewp
           <Motion.div variants={rise}>
             <button type="button" onClick={onBack} className={cn(styles.back, "group/back")}>
               <ArrowLeft size={16} aria-hidden="true" className="transition-transform duration-300 group-hover/back:-translate-x-1 motion-reduce:transition-none" />
-              Back to getting started
+              Back
             </button>
           </Motion.div>
         )}
@@ -125,7 +125,7 @@ export default function CandidateWelcome({ onUpload, onCreate, onBack, fillViewp
             <span className={styles.eyebrowBadge}>
               <PencilLine size={12} aria-hidden="true" />
             </span>
-            Candidate registration
+            Candidate profile
           </Motion.p>
           <Motion.h1
             id="candidate-welcome-title"
@@ -134,12 +134,12 @@ export default function CandidateWelcome({ onUpload, onCreate, onBack, fillViewp
           >
             Create your{" "}
             <span className="relative isolate inline-block">
-              candidate profile
+              profile
               <Motion.span aria-hidden="true" variants={marker} className={styles.marker} />
             </span>
           </Motion.h1>
           <Motion.p variants={rise} className="text-muted-foreground mt-4 max-w-xl text-base leading-7 lg:mt-3">
-            Choose how you would like to add your details. You can review everything before you finish.
+            Choose how to add your details.
           </Motion.p>
         </header>
 
@@ -155,18 +155,18 @@ export default function CandidateWelcome({ onUpload, onCreate, onBack, fillViewp
                 Recommended
               </span>
             )}
-            title="Upload a resume"
-            description="Give yourself a head start. We will fill in your profile from your resume, then you can fine-tune the details."
+            title="Autofill with resume"
+            description="Upload your resume. We fill in your profile, you review it."
             action="Upload resume"
-            note="PDF, DOC, or DOCX, up to 10 MB"
+            note="PDF, DOC, or DOCX · Max 10 MB"
             onClick={onUpload}
           />
           <OptionCard
             icon={PencilLine}
-            title="Enter details manually"
-            description="Start with a clean slate. Add your personal details, skills, experience, and education at your own pace."
-            action="Create profile"
-            note="No resume needed to get started"
+            title="Enter your details"
+            description="Fill in your profile step by step."
+            action="Start"
+            note="No resume needed"
             onClick={onCreate}
           />
         </Motion.div>
@@ -175,7 +175,7 @@ export default function CandidateWelcome({ onUpload, onCreate, onBack, fillViewp
           variants={rise}
           className="mt-6 flex items-start gap-2 text-[13px] leading-relaxed text-muted-foreground lg:mt-[clamp(0.75rem,2.5vh,1.5rem)] [&>svg]:mt-0.5 [&>svg]:shrink-0 [&>svg]:text-[var(--employee-green)]"
         >
-          <Check size={16} aria-hidden="true" /> You are in control. Review your information before completing registration.
+          <Check size={16} aria-hidden="true" /> You can review everything before you submit.
         </Motion.p>
       </Motion.section>
     </MotionConfig>
