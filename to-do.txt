@@ -9,10 +9,10 @@ Rounds shall:
 6. Enter details manually → change.-Done
 7. Upload resume.-Done
 8. "Prefer not to say" option → in resume, in gender.-Done
-9. Resume parsing data is not coming.-Assigned to Backend
+9. Resume parsing data is not coming.-Done
 10. Country & State dropdown needed by default.-Done
-11. Profile strength → has to be removed.
-12. Apply for role – Home Page.
+11. Profile strength → has to be removed.-Done
+12. Apply for role – Home Page.-Done
 13. Recruitment dashboard – already have, no need to take it again.
 14. Show dummy salary in it.
 15. Awaiting leaves should be shown for all the months.-Jatin
