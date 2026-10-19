@@ -49,7 +49,6 @@ import {
   experienceDateRange,
   hiringProgress,
   nextInterview,
-  profileStrength,
 } from "./candidateDashboard";
 
 const card =
@@ -145,11 +144,6 @@ export default function CandidateHomePage() {
     candidate,
     applications: applicationRecords,
     interviews: interviewRecords,
-  });
-  const strength = profileStrength(draft, {
-    experiences: experiences.data?.length,
-    education: education.data?.length,
-    skills: skills.data?.length,
   });
   const name =
     [draft.first_name, draft.last_name].filter(Boolean).join(" ") ||
@@ -344,54 +338,6 @@ export default function CandidateHomePage() {
           </div>
 
           <div className="space-y-4 lg:col-start-2 xl:col-start-auto">
-            <section className={card} aria-labelledby="strength-heading">
-              <h2 id="strength-heading" className={cardTitle}>
-                Profile strength
-              </h2>
-              <div className="mt-4 rounded-xl bg-muted/70 p-4">
-                <p className="text-xs text-muted-foreground">Overall score</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums">
-                  {strength.score}%{" "}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    complete
-                  </span>
-                </p>
-              </div>
-              <ul className="mt-4 space-y-3.5">
-                {strength.items.map((item) => (
-                  <li key={item.key}>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium">{item.label}</span>
-                      <span className="tabular-nums text-muted-foreground">
-                        {item.value}/{item.max}
-                      </span>
-                    </div>
-                    <div
-                      className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted"
-                      role="progressbar"
-                      aria-label={item.label}
-                      aria-valuemin={0}
-                      aria-valuemax={item.max}
-                      aria-valuenow={item.value}
-                    >
-                      <div
-                        className="h-full rounded-full bg-primary/70 transition-[width] duration-500"
-                        style={{ width: `${(item.value / item.max) * 100}%` }}
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              {strength.score < 100 && (
-                <Link
-                  to="/profile"
-                  className="mt-4 inline-flex text-xs font-semibold text-primary hover:underline"
-                >
-                  Complete your profile
-                </Link>
-              )}
-            </section>
-
             <UpcomingSchedule
               query={interviews}
               pending={sidebar.isPending}
@@ -421,6 +367,9 @@ function ProfileCard({ candidate, draft, name, applied, interviews }) {
   const status = plainText(
     candidate?.hrc_stages_id_c_name || candidate?.status,
   );
+  // Until the first application, the card's primary action points at open
+  // roles instead of an empty list.
+  const noApplications = applied === 0;
   const created = String(candidate?.date_entered || "").trim();
   const createdDate = created ? new Date(created.replace(" ", "T")) : null;
 
@@ -513,13 +462,14 @@ function ProfileCard({ candidate, draft, name, applied, interviews }) {
           <Pencil size={15} aria-hidden="true" />
         </Link>
         <Link
-          to="/job-application"
+          to={noApplications ? "/job-posting" : "/job-application"}
           className={cn(
             linkButton,
             "bg-primary text-primary-foreground hover:bg-primary/90",
+            noApplications && "spin-border",
           )}
         >
-          My applications
+          {noApplications ? "Find your first role" : "My applications"}
         </Link>
       </div>
     </section>

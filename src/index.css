@@ -536,6 +536,71 @@ html {
   }
 }
 
+/* Rainbow ring that rotates around a rounded button, with a soft glow outside
+   it. Put the class on the button itself and set --spin-radius to the
+   button's own border radius (defaults to rounded-xl). The hue cycle is
+   deliberate, so the ring is not tied to theme tokens. */
+@property --spin-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes spin-border {
+  to {
+    --spin-angle: 1turn;
+  }
+}
+.spin-border {
+  --spin-radius: 0.75rem;
+  --spin-width: 2px;
+  --spin-glow: 5px;
+  position: relative;
+  isolation: isolate;
+}
+.spin-border::before,
+.spin-border::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  background: conic-gradient(
+    from var(--spin-angle) in hsl longer hue,
+    hsl(0 80% 58%) 0 100%
+  );
+  animation: spin-border 6s linear infinite;
+  pointer-events: none;
+}
+/* Mask away the middle so only the ring (and nothing over the button) shows. */
+.spin-border::before,
+.spin-border::after {
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+/* Outer radius grows with the offset so the ring hugs the button's corners. */
+.spin-border::before {
+  inset: calc(-1 * var(--spin-width));
+  padding: var(--spin-width);
+  border-radius: calc(var(--spin-radius) + var(--spin-width));
+}
+.spin-border::after {
+  inset: calc(-1 * var(--spin-glow));
+  padding: var(--spin-glow);
+  border-radius: calc(var(--spin-radius) + var(--spin-glow));
+  filter: blur(4px);
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .spin-border::before,
+  .spin-border::after {
+    animation: none;
+  }
+}
+
 .animate-enter {
   animation: toast-enter 0.35s ease forwards;
 }

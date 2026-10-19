@@ -21,11 +21,6 @@ export function experienceDateRange(item) {
   return `${start} – ${end || "Present"}`;
 }
 
-export const personalFields = [
-  "first_name", "last_name", "email1", "phone_mobile",
-  "current_designation", "primary_address_city", "description", "profile_image",
-];
-
 /** Derive the candidate-facing hiring stepper from CRM status, applications and interviews. */
 export function hiringProgress({ candidate, applications = [], interviews = [] }) {
   const candidateStates = [lower(candidate?.status), lower(candidate?.hrc_stages_id_c_name)];
@@ -59,18 +54,6 @@ export function hiringProgress({ candidate, applications = [], interviews = [] }
     : candidate?.id ? "Your profile has been received. Apply to an open role to move forward."
     : "Apply to an open role to start your hiring journey.";
   return { steps, message };
-}
-
-/** Score how complete the candidate profile is, out of 100. */
-export function profileStrength(draft, counts = {}) {
-  const items = [
-    { key: "personal", label: "Personal details", value: personalFields.filter((key) => draft?.[key]).length, max: personalFields.length },
-    { key: "experiences", label: "Work experience", value: Math.min(counts.experiences ?? 0, 2), max: 2 },
-    { key: "education", label: "Education", value: Math.min(counts.education ?? 0, 1), max: 1 },
-    { key: "skills", label: "Skills", value: Math.min(counts.skills ?? 0, 5), max: 5 },
-  ];
-  const score = Math.round(items.reduce((total, item) => total + item.value / item.max, 0) / items.length * 100);
-  return { score, items };
 }
 
 export { nextInterview } from "../interviews/candidateInterviewData.js";

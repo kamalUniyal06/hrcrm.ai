@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { QueryClient } from "@tanstack/react-query";
-import { experienceDateRange, hiringProgress, nextInterview, profileStrength } from "./candidateDashboard.js";
+import { experienceDateRange, hiringProgress, nextInterview } from "./candidateDashboard.js";
 import { candidateRelatedQueryKey, loadCandidateRelated } from "../profile/candidateRelated.js";
 
 const states = (progress) => progress.steps.map((step) => step.state);
@@ -102,16 +102,6 @@ test("hiring progress shows the final outcome", () => {
   const declined = hiringProgress({ candidate: {}, applications: [{ status: "applied" }], interviews: [{ status: "Fail", scheduledAt: "" }] });
   assert.deepEqual(states(declined), ["done", "done", "done", "declined"]);
   assert.equal(declined.steps[3].label, "Not selected");
-});
-
-test("profile strength averages each section and caps counts", () => {
-  assert.equal(profileStrength({}, {}).score, 0);
-  const full = profileStrength(
-    { first_name: "A", last_name: "B", email1: "a@b.c", phone_mobile: "1", current_designation: "Dev", primary_address_city: "X", description: "Hi", profile_image: "https://x" },
-    { experiences: 9, education: 3, skills: 12 },
-  );
-  assert.equal(full.score, 100);
-  assert.deepEqual(full.items.map((item) => item.value), [8, 2, 1, 5]);
 });
 
 test("next interview picks the earliest future scheduled round", () => {
