@@ -1,6 +1,14 @@
 import { motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { AUTH_URL } from "../../store/constants.js";
-import {logo} from "../../assets/assets.js";
+
+const loginBenefits = [
+  "Get live AI news",
+  "Get the latest projects",
+  "Get customized content for your website",
+  "Add your custom feeds",
+  "Select and buy a domain",
+];
 
 export default function Login() {
   const currentUrl = window.location.href;
@@ -31,22 +39,39 @@ export default function Login() {
         transition={{ duration: 0.6 }}
         className="flex flex-1 flex-col items-center justify-center px-6 md:px-10"
       >
-        {/* Logo */}
-        <img
-          src={logo}
-          alt="GuestPostCRM"
-          className="w-56 mb-10 select-none"
-        />
+        {/* Product message */}
+        <div className="mb-10 text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-purple-700">
+            Get your live feeds
+          </p>
+          <p className="mt-2 text-lg font-medium text-gray-600">
+            AI Powered Platform
+          </p>
+        </div>
 
         {/* Heading */}
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 text-center">
           Login to your account
         </h1>
 
+        <ul className="mt-7 w-full max-w-sm space-y-3" aria-label="Account benefits">
+          {loginBenefits.map((benefit) => (
+            <li
+              key={benefit}
+              className="flex items-center gap-3 text-sm font-medium text-gray-700"
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-700">
+                <Check size={15} strokeWidth={2.5} aria-hidden="true" />
+              </span>
+              <span>{benefit}</span>
+            </li>
+          ))}
+        </ul>
+
         {/* Google Login */}
         <button
           onClick={handleLoginWithGoogle}
-          className="mt-8 w-full max-w-xs flex items-center justify-center gap-3 rounded-full px-4 py-3 border border-gray-300 bg-white shadow-sm hover:bg-gray-100 transition-all duration-300"
+          className="mt-8 w-full max-w-sm flex items-center justify-center gap-3 rounded-full px-4 py-3 border border-gray-300 bg-white shadow-sm hover:bg-gray-100 transition-all duration-300"
         >
           <img
             src="https://www.svgrepo.com/show/475656/google-color.svg"
@@ -61,7 +86,7 @@ export default function Login() {
         {/* Microsoft Login */}
         <button
           onClick={handleLoginWithMicrosoft}
-          className="mt-4 w-full max-w-xs flex items-center justify-center gap-3 rounded-full px-4 py-3 border border-gray-300 bg-black text-white shadow-sm hover:bg-gray-900 transition-all duration-300"
+          className="mt-4 w-full max-w-sm flex items-center justify-center gap-3 rounded-full px-4 py-3 border border-gray-300 bg-black text-white shadow-sm hover:bg-gray-900 transition-all duration-300"
         >
           <img
             src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg"

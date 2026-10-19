@@ -76,31 +76,40 @@ export default function AdminLeaveBoard() {
     dateField: DATE_FIELDS[dateMode],
     email: searchedEmail || undefined,
   }), [range, dateMode, searchedEmail]);
-  const leaveQueryKey = [...ADMIN_LEAVE_QUERY_KEY, leaveRequest];
   const leaves = useQuery({
-    queryKey: leaveQueryKey,
+    queryKey: [...ADMIN_LEAVE_QUERY_KEY, leaveRequest],
     queryFn: () => getAllLeaves(leaveRequest),
+    enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
+  });
+  // Pending requests ignore the date range so nothing awaiting a decision is hidden; only search narrows them.
+  const pendingRequest = useMemo(() => ({ email: searchedEmail || undefined }), [searchedEmail]);
+  const pending = useQuery({
+    queryKey: [...ADMIN_LEAVE_QUERY_KEY, pendingRequest],
+    queryFn: () => getAllLeaves(pendingRequest),
     enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
   });
   const mutation = useMutation({
     mutationFn: ({ id, status }) => updateLeaveStatus(id, status),
     onMutate: async ({ id, status }) => {
-      await queryClient.cancelQueries({ queryKey: leaveQueryKey });
-      const previous = queryClient.getQueryData(leaveQueryKey);
-      queryClient.setQueryData(leaveQueryKey, (current) => current ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, date_modified: new Date().toISOString() } : record) } : current);
+      await queryClient.cancelQueries({ queryKey: ADMIN_LEAVE_QUERY_KEY });
+      const previous = queryClient.getQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY });
+      queryClient.setQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY }, (current) => current?.records ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, date_modified: new Date().toISOString() } : record) } : current);
       return { previous };
     },
-    onError: (_error, _variables, context) => context?.previous && queryClient.setQueryData(leaveQueryKey, context.previous),
+    onError: (_error, _variables, context) => context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data)),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ADMIN_LEAVE_QUERY_KEY }),
   });
 
   const employeeMap = useMemo(() => new Map((employees.data || []).map((employee) => [employee.id, employee])), [employees.data]);
   const rangeRecords = useMemo(() => {
-    const records = leaves.data?.records || [];
-    return dateMode === "approved"
-      ? records.filter((record) => statusOf(record) === "Accepted")
-      : records;
-  }, [leaves.data, dateMode]);
+    const decided = (leaves.data?.records || []).filter((record) => statusOf(record) !== "Applied");
+    const inRange = dateMode === "approved"
+      ? decided.filter((record) => statusOf(record) === "Accepted")
+      : decided;
+    const awaiting = (pending.data?.records || []).filter((record) => statusOf(record) === "Applied");
+    const awaitingIds = new Set(awaiting.map((record) => String(record.id)));
+    return [...awaiting, ...inRange.filter((record) => !awaitingIds.has(String(record.id)))];
+  }, [leaves.data, pending.data, dateMode]);
   const counts = useMemo(() => ({
     All: rangeRecords.length,
     ...Object.fromEntries(["Applied", "Accepted", "Rejected"].map((status) => [status, rangeRecords.filter((record) => statusOf(record) === status).length])),
@@ -110,9 +119,9 @@ export default function AdminLeaveBoard() {
   ), [rangeRecords, statusFilter]);
 
   if (!isAdmin) return null;
-  const loading = employees.isPending || (hasEmployeeMatch && leaves.isPending);
-  const failed = leaves.isError || employees.isError;
-  const refresh = () => { leaves.refetch(); employees.refetch(); };
+  const loading = employees.isPending || (hasEmployeeMatch && (leaves.isPending || pending.isPending));
+  const failed = leaves.isError || pending.isError || employees.isError;
+  const refresh = () => { leaves.refetch(); pending.refetch(); employees.refetch(); };
 
   return (
     <section className="mx-auto min-h-full max-w-[1600px] space-y-5 pb-8 text-foreground">
@@ -120,7 +129,7 @@ export default function AdminLeaveBoard() {
         <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">People operations</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Leave approvals</h1><p className="mt-1 max-w-xl text-sm text-muted-foreground">Review pending requests, then drag them into Approved or Rejected.</p></div>
         <div className="flex items-center gap-2 self-start xl:self-auto">
           <button type="button" onClick={() => navigate("/my-leaves")} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><Palmtree size={17} />My leave &amp; apply</button>
-          <button type="button" onClick={refresh} disabled={leaves.isFetching || employees.isFetching} className="rounded-xl border border-border p-2.5 text-muted-foreground transition hover:bg-muted disabled:opacity-50" aria-label="Refresh leave requests"><RefreshCw size={17} className={leaves.isFetching ? "animate-spin" : ""} /></button>
+          <button type="button" onClick={refresh} disabled={leaves.isFetching || pending.isFetching || employees.isFetching} className="rounded-xl border border-border p-2.5 text-muted-foreground transition hover:bg-muted disabled:opacity-50" aria-label="Refresh leave requests"><RefreshCw size={17} className={leaves.isFetching || pending.isFetching ? "animate-spin" : ""} /></button>
         </div>
       </header>
 

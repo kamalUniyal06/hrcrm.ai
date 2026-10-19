@@ -43,10 +43,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
 import { hasOutcome, interviewDate, uniqueInterviews } from "../interviews/interviewUtils";
 import { pageGutter } from "../../employement/components/home/homeUi";
 import {
+  acceptedScore,
   appliedDate,
   pageWindow,
   positionTone,
-  profileCompleteness,
   workflowTone,
 } from "./candidateView";
 import {
@@ -422,7 +422,7 @@ export default function CandidatesPage() {
                     <th scope="col" className="px-4 py-3 font-medium">Position</th>
                     <SortHeader label="Stage" sortKey="stage" sort={sort} onSort={onSort} />
                     <SortHeader label="Status" sortKey="status" sort={sort} onSort={onSort} />
-                    <th scope="col" className="px-4 py-3 font-medium">Profile</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Score</th>
                     <SortHeader label="Applied" sortKey="date_entered" sort={sort} onSort={onSort} />
                     <th scope="col" className="w-12 px-4 py-3"><span className="sr-only">Actions</span></th>
                   </tr>
@@ -435,7 +435,7 @@ export default function CandidatesPage() {
                     const tone = positionTone(department || designation);
                     const stage = value(record, "stage");
                     const status = value(record, "status");
-                    const score = profileCompleteness(record);
+                    const score = acceptedScore(record);
                     const rejected = status.toLowerCase() === "rejected";
                     return (
                       <tr
@@ -464,12 +464,16 @@ export default function CandidatesPage() {
                         <td className="px-4 py-3"><Pill color={workflowTone(stage)}>{stage}</Pill></td>
                         <td className="px-4 py-3"><Pill color={workflowTone(status)}>{status}</Pill></td>
                         <td className="px-4 py-3">
-                          <div className="w-24">
-                            <span className="text-xs font-semibold tabular-nums text-foreground">{score}%</span>
-                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--employee-track)]">
-                              <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
+                          {score === null ? (
+                            <span className="text-xs text-muted-foreground">Not scored</span>
+                          ) : (
+                            <div className="w-24">
+                              <span className="text-xs font-semibold tabular-nums text-foreground">{score}%</span>
+                              <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--employee-track)]">
+                                <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{appliedDate(record)}</td>
                         <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>

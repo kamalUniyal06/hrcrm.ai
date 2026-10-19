@@ -25,17 +25,19 @@ import { candidateName, fetchCandidateRecord, workflowValue } from "./candidates
 import { fetchCandidateRelated } from "../profile/candidateApi";
 import { readResumeSections } from "../profile/resumeSections";
 import {
+  acceptedScore,
   appliedDate,
   candidateLocation,
-  completenessLabel,
   friendlyDateTime,
   interviewsForCandidate,
+  isoDate,
   positionTone,
-  profileCompleteness,
   readableSource,
+  scoreLabel,
   upcomingInterview,
   workflowTone,
 } from "./candidateView";
+import { experienceDuration, formatDateRange } from "../profile/profileDisplay";
 import { isFirstRound } from "../interviews/interviewUtils";
 
 const clean = (value) => he.decode(String(value ?? "")).trim();
@@ -54,17 +56,17 @@ export function Pill({ children, color }) {
 function ScoreRing({ score }) {
   const radius = 20;
   const circumference = 2 * Math.PI * radius;
-  const color = score >= 80 ? "var(--attendance-present)" : score >= 50 ? "var(--primary)" : "var(--attendance-late)";
+  const color = score === null ? "var(--muted-foreground)" : score >= 80 ? "var(--attendance-present)" : score >= 50 ? "var(--primary)" : "var(--attendance-late)";
   return (
     <div className="flex items-center gap-2.5">
       <svg viewBox="0 0 48 48" className="h-12 w-12 -rotate-90" aria-hidden="true">
         <circle cx="24" cy="24" r={radius} fill="none" stroke="var(--employee-track)" strokeWidth="5" />
-        <circle cx="24" cy="24" r={radius} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${(score / 100) * circumference} ${circumference}`} className="transition-[stroke-dasharray] duration-700" />
-        <text x="24" y="24" textAnchor="middle" dominantBaseline="central" transform="rotate(90 24 24)" className="fill-foreground text-[11px] font-bold">{score}%</text>
+        <circle cx="24" cy="24" r={radius} fill="none" stroke={color} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${((score ?? 0) / 100) * circumference} ${circumference}`} className="transition-[stroke-dasharray] duration-700" />
+        <text x="24" y="24" textAnchor="middle" dominantBaseline="central" transform="rotate(90 24 24)" className="fill-foreground text-[11px] font-bold">{score === null ? "—" : `${score}%`}</text>
       </svg>
       <div className="leading-tight">
-        <p className="text-[11px] text-muted-foreground">Profile score</p>
-        <p className="text-xs font-semibold" style={{ color }}>{completenessLabel(score)}</p>
+        <p className="text-[11px] text-muted-foreground">Accepted score</p>
+        <p className="text-xs font-semibold" style={{ color }}>{scoreLabel(score)}</p>
       </div>
     </div>
   );
@@ -90,10 +92,16 @@ function Timeline({ query, kind }) {
   return (
     <ol className="relative space-y-3 before:absolute before:bottom-2 before:left-[15px] before:top-2 before:w-px before:bg-border">
       {records.map((record, index) => {
-        const title = clean(isExperience ? record.position || record.designation || record.name : record.qualification || record.name);
-        const subtitle = clean(isExperience ? record.company_name || record.company : record.institution || record.university || record.school);
-        const from = clean(isExperience ? record.joining_date : record.from_time);
-        const to = clean(isExperience ? record.leaving_date : record.to_time);
+        // Experience records keep the company in `name` and the role in `position`.
+        const role = clean(record.position || record.designation);
+        const company = clean(record.company_name || record.company || record.name);
+        const title = isExperience ? role || company : clean(record.qualification || record.name);
+        const subtitle = isExperience ? (role ? company : "") : clean(record.institution || record.university || record.school);
+        const location = isExperience ? clean(record.company_location) : "";
+        const from = isoDate(isExperience ? record.joining_date : record.from_time);
+        const to = isoDate(isExperience ? record.leaving_date : record.to_time);
+        const period = formatDateRange(from, to, isExperience ? "Present" : "");
+        const tenure = isExperience ? experienceDuration(from, to) : "";
         const extra = clean(isExperience ? record.description || record.responsibilities : record.specialization || (record.percentage && `Score: ${record.percentage}`));
         return (
           <li key={record.id || index} className="relative flex gap-3">
@@ -101,9 +109,19 @@ function Timeline({ query, kind }) {
               {isExperience ? <BriefcaseBusiness size={14} /> : <GraduationCap size={14} />}
             </span>
             <div className="min-w-0 flex-1 rounded-xl border border-border p-3">
-              <p className="text-sm font-semibold text-foreground">{title || "Untitled"}</p>
-              {subtitle && <p className="text-xs text-primary">{subtitle}</p>}
-              {(from || to) && <p className="mt-0.5 text-[11px] text-muted-foreground">{from || "—"} – {to || (isExperience ? "Present" : "—")}</p>}
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{title || "Untitled"}</p>
+                  {subtitle && <p className="text-xs font-medium text-primary">{subtitle}</p>}
+                </div>
+                {tenure && <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{tenure}</span>}
+              </div>
+              {(period || location) && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                  {period && <span className="inline-flex items-center gap-1"><CalendarClock size={12} />{period}</span>}
+                  {location && <span className="inline-flex items-center gap-1"><MapPin size={12} />{location}</span>}
+                </p>
+              )}
               {extra && <p className="mt-1.5 line-clamp-3 text-xs text-muted-foreground">{extra}</p>}
             </div>
           </li>
@@ -144,7 +162,7 @@ export default function CandidatePanel({ id, listRecord, lookups, interviews, in
   const record = useMemo(() => query.data || listRecord || {}, [query.data, listRecord]);
   const items = useMemo(() => interviewsForCandidate(interviews || [], record), [interviews, record]);
   const next = upcomingInterview(items);
-  const score = profileCompleteness(record);
+  const score = acceptedScore(record);
   const designation = clean(record.current_designation || record.title);
   const department = clean(record.department);
   const about = readResumeSections(record.description || "").about?.trim();

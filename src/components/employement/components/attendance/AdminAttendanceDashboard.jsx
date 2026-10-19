@@ -1,10 +1,10 @@
-import { Fragment, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
-  ArrowLeft,
+  CalendarClock,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -23,11 +23,13 @@ import {
   dateKey,
   daySummary,
   formatMinutes,
+  isHalfDayLeave,
   isRowOnLeave,
 } from "./adminAttendanceUtils";
 import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
 import { useAttendanceStats } from "../../../../queries/attendance.queries";
 import { pageGutter } from "../home/homeUi";
+import EmployeeAttendanceDrawer from "./EmployeeAttendanceDrawer";
 
 const statuses = {
   onTime: {
@@ -60,16 +62,86 @@ const statuses = {
     color: "border-l-transparent bg-white text-slate-300",
     dot: "bg-slate-200",
   },
+  halfDay: {
+    label: "Half-day leave",
+    color: "border-l-sky-300 bg-sky-50/70 text-sky-800",
+    dot: "bg-sky-500",
+  },
 };
 const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 disabled:opacity-40";
+const headerCell = "border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700";
+const bodyCell = "border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700";
 const PAGE_SIZE = 50;
-const OVERVIEW_FILTERS = ["all", "checkedIn", "onTime", "late", "missing", "leave"];
+const OVERVIEW_FILTERS = ["all", "checkedIn", "onTime", "late", "missing", "leave", "halfDay"];
+
+// "09:30 AM ●─ 8h 12m ─● 06:42 PM": a start time, an end time and the gap between them.
+function TimeSpan({ start, end, middle, startClass = "text-slate-800", endClass = "text-slate-800", open = false }) {
+  const line = `h-px w-3 ${open ? "border-t border-dashed border-slate-300" : "bg-slate-200"}`;
+  return (
+    <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+      <span className={`font-semibold ${startClass}`}>{start}</span>
+      <span className="inline-flex items-center">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-300" />
+        <span className={line} />
+        <span className="px-1 text-[11px] text-slate-400">{middle}</span>
+        <span className={line} />
+        <span className={`h-1.5 w-1.5 rounded-full ${open ? "bg-orange-300" : "bg-slate-300"}`} />
+      </span>
+      <span className={endClass}>{end}</span>
+    </div>
+  );
+}
+
+// Late arrivals and missing clock-outs are highlighted.
+function ClockInOut({ summary, isToday }) {
+  if (!summary.first) return <span className="text-slate-400">—</span>;
+  const logouts = summary.sessions.map((session) => session.logout).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
+  const lastLogout = logouts.at(-1);
+  const stillIn = summary.sessions.some((session) => session.login && !session.logout);
+  const closed = lastLogout && !stillIn;
+  return (
+    <TimeSpan
+      start={summary.first.time}
+      startClass={summary.status === "late" ? "text-amber-600" : "text-slate-800"}
+      middle={summary.inOffice !== null ? formatMinutes(summary.inOffice) : stillIn && isToday ? "In office" : "—"}
+      end={closed ? lastLogout.time : isToday ? "Working" : "No clock-out"}
+      endClass={closed ? "font-semibold text-slate-800" : `text-xs font-medium ${isToday ? "text-emerald-600" : "text-orange-600"}`}
+      open={!closed}
+    />
+  );
+}
+
+// First lunch in, last lunch out and the total break across the day's sessions.
+// Lunch longer than the configured limit is highlighted.
+function LunchInOut({ sessions, limit }) {
+  const lunches = sessions.filter((session) => session.lunchIn || session.lunchOut);
+  if (!lunches.length) return <span className="text-slate-400">—</span>;
+  const lunchIns = lunches.map((session) => session.lunchIn).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
+  const lunchOuts = lunches.map((session) => session.lunchOut).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
+  const onLunch = lunches.some((session) => session.lunchIn && !session.lunchOut);
+  const totalBreak = lunches.reduce((sum, session) =>
+    session.lunchIn && session.lunchOut && session.lunchOut.stamp >= session.lunchIn.stamp
+      ? sum + (session.lunchOut.stamp - session.lunchIn.stamp) / 60000
+      : sum, 0);
+  const longLunch = totalBreak > limit;
+  return (
+    <TimeSpan
+      start={lunchIns[0]?.time || "—"}
+      middle={totalBreak || !onLunch ? `${formatMinutes(totalBreak)} break` : "—"}
+      end={onLunch ? "On lunch" : lunchOuts.at(-1)?.time || "—"}
+      endClass={onLunch ? "text-xs font-medium text-orange-600" : `font-semibold ${longLunch ? "text-amber-600" : "text-slate-800"}`}
+      open={onLunch}
+    />
+  );
+}
+
 export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const isAdmin = useSelector(selectIsAdmin);
   const navigate = useNavigate();
   const { employeeId } = useParams();
-  const selectedPersonKey = employeeId ? `employee:${employeeId}` : null;
+  // /attendance/:employeeId opens the monthly drawer for that employee on top of the day list.
+  const [drawerKey, setDrawerKey] = useState(() => (employeeId ? `employee:${employeeId}` : null));
   const [anchor, setAnchor] = useState(() => new Date());
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -82,125 +154,101 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   });
   const limits = useAttendanceLimits();
   const lateAfter = (timeToMinutes(limits.actualLoginTime) ?? 570) + limits.loginDelayMinutes;
-  const activityFrom = selectedPersonKey
-    ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
-    : dateKey(anchor);
-  const activityTo = selectedPersonKey
-    ? dateKey(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0))
-    : dateKey(anchor);
+  const activityDay = dateKey(anchor);
   const employees = useQuery({
-    queryKey: ["employees", employeeId || "list"],
-    queryFn: () => fetchAllRecords("hrc_employees", null, employeeId ? { id: employeeId } : null),
+    queryKey: ["employees", "list"],
+    queryFn: () => fetchAllRecords("hrc_employees"),
     enabled: isAdmin,
   });
-  const selectedEmployeeEmail = employeeId
-    ? String(
-      employees.data?.find((employee) => String(employee.id) === String(employeeId))?.email1 ?? "",
-    ).trim().toLowerCase()
-    : "";
   const activity = useQuery({
-    queryKey: ["dailyActivity", "admin", selectedEmployeeEmail || "all", activityFrom, activityTo],
+    queryKey: ["dailyActivity", "admin", "all", activityDay, activityDay],
     queryFn: () => fetchAllRecords("hrc_daily_activity", {
       field: "date_entered",
-      from: `${activityFrom} 00:00:00`,
-      to: `${activityTo} 23:59:59`,
-    }, employeeId ? { name: selectedEmployeeEmail } : null),
-    enabled: isAdmin && (!employeeId || Boolean(selectedEmployeeEmail)),
+      from: `${activityDay} 00:00:00`,
+      to: `${activityDay} 23:59:59`,
+    }),
+    enabled: isAdmin,
     refetchInterval: 60000,
   });
   const leaves = useQuery({
-    queryKey: ["leaves", "attendance", employeeId || "all"],
-    queryFn: () => fetchAllRecords("hrc_leaves", null, employeeId ? { employee_id: employeeId } : null),
+    queryKey: ["leaves", "attendance", "all"],
+    queryFn: () => fetchAllRecords("hrc_leaves"),
     enabled: isAdmin,
   });
-  const attendanceStats = useAttendanceStats(dateKey(anchor), { enabled: isAdmin && !selectedPersonKey });
-  const days = selectedPersonKey
-    ? Array.from({ length: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0).getDate() }, (_, index) => new Date(anchor.getFullYear(), anchor.getMonth(), index + 1))
-    : [anchor];
+  const attendanceStats = useAttendanceStats(activityDay, { enabled: isAdmin });
   const today = dateKey(new Date());
-  const start = dateKey(days[0]);
-  const end = dateKey(days[days.length - 1]);
   const rows = useMemo(
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
   );
   const leaveDays = useMemo(() => buildLeaveDays(leaves.data || []), [leaves.data]);
-  const isOnLeave = (row, day) => isRowOnLeave(leaveDays, row, day);
+  const isOnLeave = useCallback((row, day) => isRowOnLeave(leaveDays, row, day), [leaveDays]);
+  // Half-day leave comes straight from hrc_leaves for the selected day; "On leave" means a full day.
+  const halfDayLeaveDays = useMemo(() => buildLeaveDays((leaves.data || []).filter(isHalfDayLeave)), [leaves.data]);
+  const isOnHalfDay = useCallback((row) => isRowOnLeave(halfDayLeaveDays, row, activityDay), [halfDayLeaveDays, activityDay]);
+  const halfDayCount = leaves.isPending ? undefined : rows.filter((row) => row.matched && isOnHalfDay(row)).length;
   const matchingRows = rows.filter(
     (row) =>
-      (!selectedPersonKey || row.key === selectedPersonKey) &&
-      (selectedPersonKey || row.matched ||
-        Object.keys(row.days).some((day) => day >= start && day <= end)) &&
+      (row.matched || Boolean(row.days[activityDay])) &&
       [row.name, row.email, row.designation].some((value) =>
         value.toLowerCase().includes(search.trim().toLowerCase()),
       ),
   );
   const visible = matchingRows.filter((row) => {
-    if (selectedPersonKey) return true;
     if (overviewFilter === "all") return true;
-    const records = row.days[dateKey(anchor)] || [];
+    const records = row.days[activityDay] || [];
     if (overviewFilter === "missing") {
-      return row.matched && !isOnLeave(row, dateKey(anchor)) && !records.some((record) => Boolean(String(record.login ?? "").trim()));
+      return row.matched && !isOnLeave(row, activityDay) && !records.some((record) => Boolean(String(record.login ?? "").trim()));
     }
-    const status = daySummary(records, dateKey(anchor), today, isOnLeave(row, dateKey(anchor)), lateAfter).status;
+    // Half-day leave applies whether or not the employee also checked in for the other half.
+    if (overviewFilter === "halfDay") return row.matched && isOnHalfDay(row);
+    const status = daySummary(records, activityDay, today, isOnLeave(row, activityDay), lateAfter).status;
     if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
     if (overviewFilter === "onTime") return status === "onTime";
     if (overviewFilter === "late") return status === "late";
-    if (overviewFilter === "leave") return status === "leave";
+    if (overviewFilter === "leave") return status === "leave" && !isOnHalfDay(row);
     return true;
   });
-  const totals = { onTime: 0, late: 0, incomplete: 0, missing: 0, upcoming: 0, leave: 0 };
-  matchingRows.forEach((row) =>
-    days.forEach((day) => {
-      const key = dateKey(day);
-      totals[daySummary(row.days[key], key, today, isOnLeave(row, key), lateAfter).status] += 1;
-    }),
-  );
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
-  const missingEmployeeEmail = Boolean(employeeId) && !employees.isPending && !selectedEmployeeEmail;
-  const loading = employees.isPending || leaves.isPending || ((!employeeId || selectedEmployeeEmail) && activity.isPending);
-  const failed = employees.isError || activity.isError || leaves.isError || missingEmployeeEmail;
+  const loading = employees.isPending || leaves.isPending || activity.isPending;
+  const failed = employees.isError || activity.isError || leaves.isError;
   const fetching = employees.isFetching || activity.isFetching || leaves.isFetching || attendanceStats.isFetching;
-  const overviewUnavailable = selectedPersonKey
-    ? loading || failed
-    : attendanceStats.isPending || attendanceStats.isError;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
-  const selectedRecords = selectedRow?.days[selected?.date] || [];
+  const selectedRecords = selected?.records || selectedRow?.days[selected?.date] || [];
   const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false, lateAfter);
   const effectiveMinutes = selectedSummary.worked;
   const breakMinutes = selectedSummary.sessions.every((session) => session.breakMinutes !== null)
     ? selectedSummary.sessions.reduce((sum, session) => sum + session.breakMinutes, 0)
     : null;
   const targetProgress = effectiveMinutes === null ? 0 : Math.min(Math.round((effectiveMinutes / 540) * 100), 100);
-  const overviewItems = selectedPersonKey
-    ? [
-      ["Days in month", days.length, CalendarDays, "text-indigo-600 bg-indigo-50", "all"],
-      ["On-time days", totals.onTime, Clock3, "text-emerald-700 bg-emerald-50", "all"],
-      ["Late days", totals.late, Clock3, "text-amber-600 bg-amber-50", "all"],
-      ["No record", totals.missing, Users, "text-slate-600 bg-slate-100", "all"],
-      ["On leave", totals.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "all"],
-    ]
-    : [
-      ["All employees", attendanceStats.data?.all, Users, "text-slate-700 bg-slate-100", "all"],
-      ["Not checked in", attendanceStats.data?.notCheckedIn, Users, "text-orange-600 bg-orange-50", "missing"],
-      ["On leave", attendanceStats.data?.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
-      ["Late check-ins", attendanceStats.data?.late, Clock3, "text-amber-600 bg-amber-50", "late"],
-      ["On time", attendanceStats.data?.onTime, Clock3, "text-white bg-emerald-600", "onTime", "border-emerald-200 bg-emerald-50"],
-    ];
+  const overviewItems = [
+    ["All employees", attendanceStats.data?.all, Users, "text-slate-700 bg-slate-100", "all"],
+    ["Not checked in", attendanceStats.data?.notCheckedIn, Users, "text-orange-600 bg-orange-50", "missing"],
+    ["On leave", attendanceStats.data?.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
+    ["Half-day leave", halfDayCount, CalendarClock, "text-sky-600 bg-sky-50", "halfDay"],
+    ["Late check-ins", attendanceStats.data?.late, Clock3, "text-amber-600 bg-amber-50", "late"],
+    ["On time", attendanceStats.data?.onTime, Clock3, "text-white bg-emerald-600", "onTime", "border-emerald-200 bg-emerald-50"],
+  ];
+  // Employees the drawer can step through with its previous/next buttons.
+  const drawerRows = visible.filter((row) => row.matched);
+  const drawerRow = drawerKey ? rows.find((row) => row.key === drawerKey) : null;
+  const drawerIndex = drawerRows.findIndex((row) => row.key === drawerKey);
 
-  function moveWeek(direction) {
-    setAnchor(selectedPersonKey
-      ? new Date(anchor.getFullYear(), anchor.getMonth() + direction, 1)
-      : new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + direction));
+  function moveDay(direction) {
+    setAnchor(new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + direction));
     setPage(1);
+  }
+  function closeDrawer() {
+    setDrawerKey(null);
+    if (employeeId) navigate("/attendance", { replace: true });
   }
   function refresh() {
     void employees.refetch();
     void activity.refetch();
     void leaves.refetch();
-    if (!selectedPersonKey) void attendanceStats.refetch();
+    void attendanceStats.refetch();
   }
 
   if (!isAdmin)
@@ -214,16 +262,6 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     <main className={`min-h-full space-y-6 rounded-2xl bg-slate-50 ${pageGutter}`}>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          {selectedPersonKey && (
-            <button
-              type="button"
-              onClick={() => navigate("/attendance")}
-              className="mb-4 inline-flex items-center gap-2 rounded-lg text-sm font-medium text-slate-600 transition hover:text-indigo-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
-            >
-              <ArrowLeft size={16} />
-              Back to all employees
-            </button>
-          )}
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
             People workspace
           </p>
@@ -231,9 +269,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             Employee attendance
           </h1>
           <p className="mt-2 text-sm text-slate-500">
-            {selectedPersonKey
-              ? "Monthly attendance for the selected employee. Select a day to view its report."
-              : "Today's attendance for every employee. Select a person to review their month."}
+            Today&apos;s attendance for every employee. Select a person to review their month.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -252,7 +288,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
 
       <section
         aria-label="Attendance overview"
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6"
       >
         {overviewItems.map((item) => {
           const [label, count, Icon, color, filter, cardTone = "border-slate-200"] = item;
@@ -260,25 +296,21 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             <button
               key={label}
               type="button"
-              disabled={Boolean(selectedPersonKey)}
               onClick={() => {
-                if (filter === "missing") {
-                  setOverviewFilter("missing");
-                  setPage(1);
-                } else {
-                  setOverviewFilter(filter);
-                  setPage(1);
-                }
+                setOverviewFilter(filter);
+                // Re-read hrc_leaves so the half-day list reflects leaves approved since the page loaded.
+                if (filter === "halfDay") void leaves.refetch();
+                setPage(1);
               }}
-              aria-pressed={!selectedPersonKey && overviewFilter === filter}
-              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition enabled:hover:border-indigo-200 enabled:hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${!selectedPersonKey && overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : cardTone}`}
+              aria-pressed={overviewFilter === filter}
+              className={`flex items-center gap-4 rounded-2xl border px-5 py-4 text-left transition enabled:hover:border-indigo-200 enabled:hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${overviewFilter === filter ? "border-indigo-300 ring-1 ring-indigo-100" : cardTone}`}
             >
               <span className={`rounded-xl p-3 ${color}`}>
                 <Icon size={21} />
               </span>
               <div>
                 <p className="text-2xl font-semibold text-slate-900">
-                  {overviewUnavailable ? "—" : count}
+                  {count ?? "—"}
                 </p>
                 <p className="text-xs text-slate-500">{label}</p>
               </div>
@@ -287,7 +319,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         })}
       </section>
 
-      {!selectedPersonKey && attendanceStats.isError && (
+      {attendanceStats.isError && (
         <p role="alert" className="text-sm text-red-700">
           {attendanceStats.error?.message || "Could not load attendance totals."}{" "}
           <button type="button" onClick={() => attendanceStats.refetch()} className="font-semibold underline">
@@ -296,7 +328,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         </p>
       )}
 
-      {!selectedPersonKey && overviewFilter === "onTime" && (
+      {overviewFilter === "onTime" && (
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-800">
             Showing on-time check-ins
@@ -308,24 +340,18 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       )}
 
       <section
-        aria-label="Employee attendance grid"
+        aria-label="Employee attendance list"
         className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
       >
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 p-4 sm:p-5">
           <div className="flex flex-wrap items-center gap-2">
-
-            <button
-              aria-label={selectedPersonKey ? "Previous month" : "Previous day"}
-              onClick={() => moveWeek(-1)}
-              className={buttonClass}
-            >
+            <button aria-label="Previous day" onClick={() => moveDay(-1)} className={buttonClass}>
               <ChevronLeft size={16} />
             </button>
-            <button
-              aria-label={selectedPersonKey ? "Next month" : "Next day"}
-              onClick={() => moveWeek(1)}
-              className={buttonClass}
-            >
+            <p className="min-w-44 text-center text-sm font-semibold text-slate-800">
+              {anchor.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+            </p>
+            <button aria-label="Next day" onClick={() => moveDay(1)} className={buttonClass}>
               <ChevronRight size={16} />
             </button>
             <button
@@ -338,14 +364,12 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
               Today
             </button>
             <input
-              type={selectedPersonKey ? "month" : "date"}
-              aria-label={selectedPersonKey ? "Choose a month for this employee" : "Choose an attendance date"}
-              value={selectedPersonKey ? dateKey(anchor).slice(0, 7) : dateKey(anchor)}
+              type="date"
+              aria-label="Choose an attendance date"
+              value={activityDay}
               onChange={(event) => {
                 if (!event.target.value) return;
-                const [year, month, day = 1] = event.target.value
-                  .split("-")
-                  .map(Number);
+                const [year, month, day] = event.target.value.split("-").map(Number);
                 setAnchor(new Date(year, month - 1, day));
                 setPage(1);
               }}
@@ -353,7 +377,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             />
           </div>
           <div className="flex flex-wrap gap-3" aria-label="Attendance legend">
-            {["onTime", "late", "incomplete", "leave", "missing"].map((status) => (
+            {["onTime", "late", "incomplete", "leave", "halfDay", "missing"].map((status) => (
               <span
                 key={status}
                 className="inline-flex items-center gap-1.5 text-xs text-slate-500"
@@ -367,7 +391,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-          {!selectedPersonKey && <label className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 sm:max-w-sm">
+          <label className="flex w-full items-center gap-2 rounded-xl border border-slate-200 px-3 sm:max-w-sm">
             <Search size={16} className="text-slate-400" />
             <input
               type="search"
@@ -380,9 +404,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
               }}
               className="w-full bg-transparent py-2.5 text-sm outline-none"
             />
-          </label>}
+          </label>
           <p className="text-xs text-slate-400">
-            {selectedPersonKey ? "Select a day to open its attendance report" : "Click an employee to view their monthly attendance"}
+            Click an employee to view their monthly attendance
           </p>
         </div>
 
@@ -394,7 +418,6 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             <p>
               {employees.error?.message ||
                 activity.error?.message ||
-                (missingEmployeeEmail && "This employee does not have an email address for matching attendance.") ||
                 "Could not load attendance."}
             </p>
             <button onClick={refresh} className="mt-2 font-semibold underline">
@@ -425,151 +448,106 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[860px] border-separate border-spacing-0 text-left text-sm">
               <caption className="sr-only">
-                Employee attendance from {start} to {end}
+                Employee attendance for {activityDay}
               </caption>
-              <thead className="sticky top-0 z-20 bg-white">
+              <thead className="sticky top-0 z-20 bg-slate-50">
                 <tr>
                   <th
                     scope="col"
-                    className="sticky left-0 z-30 w-56 min-w-56 border-y border-r border-slate-100 bg-white px-4 py-3 text-xs font-semibold text-slate-700"
+                    className="sticky left-0 z-30 w-56 min-w-56 border-y border-r border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold text-slate-700"
                   >
                     Employee profile
                   </th>
-                  {selectedPersonKey ? days.map((day) => (
-                    <th
-                      key={dateKey(day)}
-                      scope="col"
-                      aria-current={dateKey(day) === today ? "date" : undefined}
-                      className={`min-w-28 border-y border-r border-slate-100 px-2 py-2 text-center ${dateKey(day) === today ? "bg-indigo-50" : "bg-white"}`}
-                    >
-                      <span
-                        className={`text-sm font-semibold ${dateKey(day) === today ? "text-indigo-600" : "text-slate-800"}`}
-                      >
-                        {day.getDate()}
-                      </span>
-                      <span className="mt-1 block text-[11px] font-normal text-slate-400">
-                        {day.toLocaleDateString("en-GB", { weekday: "long" })}
-                      </span>
-                    </th>
-                  )) : <>
-                    <th scope="col" className="border-y border-r border-slate-100 bg-indigo-50 px-4 py-3 text-left text-xs font-semibold text-slate-700">Status</th>
-                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-in</th>
-                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Check-out</th>
-                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Login from</th>
-                    <th scope="col" className="border-y border-r border-slate-100 px-4 py-3 text-left text-xs font-semibold text-slate-700">Work time</th>
-                  </>}
+                  <th scope="col" className={headerCell}>Status</th>
+                  <th scope="col" className={headerCell}>Clock-in &amp; out</th>
+                  <th scope="col" className={headerCell}>Lunch in &amp; out</th>
+                  <th scope="col" className={headerCell}>Login from</th>
                 </tr>
               </thead>
               <tbody>
-                {pageRows.map((row) => (
-                  <tr key={row.key}>
-                    <th
-                      scope="row"
-                      className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-4 py-2 font-normal"
+                {pageRows.map((row) => {
+                  const records = row.days[activityDay] || [];
+                  const summary = daySummary(records, activityDay, today, isOnLeave(row, activityDay), lateAfter);
+                  const halfDay = isOnHalfDay(row);
+                  const style = statuses[summary.status === "leave" && halfDay ? "halfDay" : summary.status];
+                  return (
+                    <tr
+                      key={row.key}
+                      onClick={row.matched ? () => setDrawerKey(row.key) : undefined}
+                      className={`transition ${drawerKey === row.key ? "bg-indigo-50/60" : ""} ${row.matched ? "cursor-pointer hover:bg-slate-50" : ""}`}
                     >
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-semibold text-indigo-600">
-                          {row.name
-                            .split(/\s+/)
-                            .slice(0, 2)
-                            .map((part) => part[0])
-                            .join("")
-                            .toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <button
-                            type="button"
-                            disabled={!row.matched || Boolean(selectedPersonKey)}
-                            onClick={() => navigate(`/attendance/${encodeURIComponent(row.key.replace(/^employee:/, ""))}`)}
-                            className="max-w-44 truncate font-medium text-slate-800 transition hover:text-indigo-600 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-default disabled:hover:text-slate-800"
-                            title={row.name}
-                          >
-                            {row.name}
-                          </button>
-                          <p
-                            className="mt-1 max-w-44 truncate text-[11px] text-slate-400"
-                            title={row.email || row.designation}
-                          >
-                            {row.email || row.designation || "Employee"}
-                          </p>
-                          {!row.matched && (
-                            <p className="mt-1 text-[10px] text-amber-600">
-                              Employee not linked
+                      <th
+                        scope="row"
+                        className="sticky left-0 z-10 border-b border-r border-slate-100 bg-white px-4 py-2 font-normal"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-semibold text-indigo-600">
+                            {row.name
+                              .split(/\s+/)
+                              .slice(0, 2)
+                              .map((part) => part[0])
+                              .join("")
+                              .toUpperCase()}
+                          </span>
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              disabled={!row.matched}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setDrawerKey(row.key);
+                              }}
+                              className="max-w-44 truncate font-medium text-slate-800 transition hover:text-indigo-600 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 disabled:cursor-default disabled:hover:text-slate-800"
+                              title={row.name}
+                            >
+                              {row.name}
+                            </button>
+                            <p
+                              className="mt-1 max-w-44 truncate text-[11px] text-slate-400"
+                              title={row.email || row.designation}
+                            >
+                              {row.email || row.designation || "Employee"}
                             </p>
-                          )}
+                            {!row.matched && (
+                              <p className="mt-1 text-[10px] text-amber-600">
+                                Employee not linked
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </th>
-                    {selectedPersonKey ? days.map((day) => {
-                      const key = dateKey(day);
-                      const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today, isOnLeave(row, key), lateAfter);
-                      const style = statuses[summary.status];
-                      return (
-                        <td
-                          key={key}
-                          className="border-b border-r border-slate-100 p-0"
+                      </th>
+                      <td className="border-b border-r border-slate-100 px-3 py-2">
+                        <button
+                          type="button"
+                          disabled={!records.length}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected({ key: row.key, date: activityDay });
+                          }}
+                          className={`inline-flex min-w-24 items-center justify-center gap-2 rounded-lg border-l-[3px] px-3 py-2 text-xs font-medium disabled:cursor-default ${style.color}`}
                         >
-                          <button
-                            disabled={!records.length}
-                            onClick={() =>
-                              setSelected({ key: row.key, date: key })
-                            }
-                            aria-label={`${row.name}, ${key}: ${style.label}${records.length ? ", view attendance details" : ""}`}
-                            className={`flex min-h-16 w-full flex-col items-center justify-center border-l-[3px] px-1.5 py-2 text-center text-xs transition enabled:hover:brightness-95 focus-visible:outline-indigo-500 ${style.color}`}
-                          >
-                            <span className="font-medium">{style.label}</span>
-                            {summary.first && (
-                              <span className="mt-1 text-[10px] opacity-70">
-                                {summary.first.time}
-                              </span>
-                            )}
-                            {summary.inOffice !== null ? (
-                              <span className="mt-1 text-[10px] opacity-60">
-                                {formatMinutes(summary.inOffice)} in office
-                              </span>
-                            ) : (
-                              summary.first && (
-                                <span className="mt-1 text-[10px] opacity-60">
-                                  {summary.sessions.some(
-                                    (session) =>
-                                      session.login && !session.logout,
-                                  )
-                                    ? "Not checked out"
-                                    : "Incomplete times"}
-                                </span>
-                              )
-                            )}
-                            {records.length > 1 && (
-                              <span className="mt-1 text-[10px] opacity-60">
-                                {records.length} sessions
-                              </span>
-                            )}
-                          </button>
-                        </td>
-                      );
-                    }) : (() => {
-                      const key = dateKey(anchor);
-                      const records = row.days[key] || [];
-                      const summary = daySummary(records, key, today, isOnLeave(row, key), lateAfter);
-                      const style = statuses[summary.status];
-                      const logouts = summary.sessions.map((session) => session.logout).filter(Boolean).sort((a, b) => a.stamp - b.stamp);
-                      return <Fragment key={row.key}>
-                        <td className="border-b border-r border-slate-100 px-3 py-2">
-                          <button type="button" disabled={!records.length} onClick={() => setSelected({ key: row.key, date: key })} className={`inline-flex min-w-24 items-center justify-center gap-2 rounded-lg border-l-[3px] px-3 py-2 text-xs font-medium disabled:cursor-default ${style.color}`}>
-                            <span className={`h-2 w-2 rounded-full ${style.dot}`} />{style.label}
-                          </button>
-                        </td>
-                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.first?.time || "—"}</td>
-                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{logouts.at(-1)?.time || (summary.first ? "Not checked out" : "—")}</td>
-                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{records[0]?.ip_address === "122.176.54.204" ? "Office" : "Remote"}</td>
-                        <td className="border-b border-r border-slate-100 px-4 py-3 text-sm text-slate-700">{summary.worked === null ? "—" : formatMinutes(summary.worked)}</td>
-                      </Fragment>;
-                    })()}
-                  </tr>
-                ))}
+                          <span className={`h-2 w-2 rounded-full ${style.dot}`} />{style.label}
+                        </button>
+                        {halfDay && summary.status !== "leave" && (
+                          <span className="mt-1 block w-fit rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
+                            Half-day leave
+                          </span>
+                        )}
+                      </td>
+                      <td className={bodyCell}>
+                        <ClockInOut summary={summary} isToday={activityDay === today} />
+                      </td>
+                      <td className={bodyCell}>
+                        <LunchInOut sessions={summary.sessions} limit={limits.lunchOutMinutes} />
+                      </td>
+                      <td className={bodyCell}>
+                        {records.length ? (records[0]?.ip_address === "122.176.54.204" ? "Office" : "Remote") : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -609,6 +587,18 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         recorded lunch time is shown separately and is not deducted.
       </p>
 
+      <EmployeeAttendanceDrawer
+        key={drawerKey || "closed"}
+        row={drawerRow}
+        position={drawerIndex + 1}
+        total={drawerRows.length}
+        onPrevious={() => drawerIndex > 0 && setDrawerKey(drawerRows[drawerIndex - 1].key)}
+        onNext={() => drawerIndex < drawerRows.length - 1 && setDrawerKey(drawerRows[drawerIndex + 1].key)}
+        onClose={closeDrawer}
+        onSelectDay={(date, records) => setSelected({ key: drawerKey, date, records })}
+        lateAfter={lateAfter}
+      />
+
       <Dialog.Root
         open={!!selected}
         onOpenChange={(open) => {
@@ -616,7 +606,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm" />
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-slate-950/40 backdrop-blur-sm" />
           <Dialog.Content className="fixed left-1/2 top-1/2 z-999 max-h-[85vh] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4">
               <div>
