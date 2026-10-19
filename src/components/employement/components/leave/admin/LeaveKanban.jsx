@@ -3,7 +3,7 @@ import LeaveCard from "./LeaveCard";
 import { statusOf } from "./leaveAdminUtils";
 
 const COLUMNS = [
-  { id: "Applied", label: "Awaiting review", hint: "Drag a request to make a decision", surface: "border-amber-200 bg-amber-50/70", dot: "bg-amber-500", count: "text-amber-800 ring-amber-200" },
+  { id: "Applied", label: "Awaiting review", hint: "All pending requests · drag one to decide", surface: "border-amber-200 bg-amber-50/70", dot: "bg-amber-500", count: "text-amber-800 ring-amber-200" },
   { id: "Accepted", label: "Approved", hint: "Approved leave requests", surface: "border-emerald-200 bg-emerald-50/70", dot: "bg-emerald-500", count: "text-emerald-800 ring-emerald-200" },
   { id: "Rejected", label: "Rejected", hint: "Declined leave requests", surface: "border-rose-200 bg-rose-50/70", dot: "bg-rose-500", count: "text-rose-800 ring-rose-200" },
 ];

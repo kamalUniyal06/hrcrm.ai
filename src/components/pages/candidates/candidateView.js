@@ -4,22 +4,26 @@ import { candidateId, hasOutcome, interviewDate, roundName } from "../interviews
 const clean = (value) => String(value ?? "").trim();
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Fields a recruiter needs before deciding on a candidate.
-const PROFILE_FIELDS = [
-  "first_name", "last_name", "email1", "phone_mobile", "current_designation", "department",
-  "primary_address_city", "primary_address_country", "description", "linkedin_url", "profile_image", "dob",
-];
-
-/** Percentage of key profile fields that are filled in, from the list record alone. */
-export function profileCompleteness(record = {}) {
-  const filled = PROFILE_FIELDS.filter((key) => clean(record[key])).length;
-  return Math.round((filled / PROFILE_FIELDS.length) * 100);
+/** The candidate's accepted_score as a whole 0–100 percentage, or null when it hasn't been scored. */
+export function acceptedScore(record = {}) {
+  const text = clean(record.accepted_score).replace(/%$/, "");
+  const value = text ? Number(text) : NaN;
+  return Number.isFinite(value) ? Math.round(Math.min(Math.max(value, 0), 100)) : null;
 }
 
-export function completenessLabel(score) {
-  if (score >= 80) return "Strong profile";
-  if (score >= 50) return "Good profile";
-  return "Needs details";
+export function scoreLabel(score) {
+  if (score === null) return "Not scored";
+  if (score >= 80) return "Strong match";
+  if (score >= 50) return "Good match";
+  return "Low match";
+}
+
+/** "MM/DD/YYYY ..." or ISO -> "YYYY-MM-DD"; anything else is returned as entered. */
+export function isoDate(value) {
+  const text = clean(value);
+  const crm = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (crm) return `${crm[3]}-${crm[1].padStart(2, "0")}-${crm[2].padStart(2, "0")}`;
+  return text.match(/^\d{4}-\d{2}-\d{2}/)?.[0] || text;
 }
 
 // Workflow names are data-driven, so tone is matched on keywords.

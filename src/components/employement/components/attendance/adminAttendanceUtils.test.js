@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
+import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, isHalfDayLeave, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
 
 const sample = {
   id: "activity-1", name: "verm.jatin2004@gmail.com", login: "09/18/2026 17:59",
@@ -104,9 +104,16 @@ test("builds get_stats queries for an Asia/Kolkata attendance day", () => {
 
 test("reads overview totals and derives on-time check-ins", () => {
   const stats = Object.fromEntries(Object.entries({
-    employees_shown: 48, checked_in: 42, late_check_ins: "2", not_checked_in: 5, on_leave_full: 1, on_leave_half: 0,
+    employees_shown: 48, checked_in: 42, late_check_ins: "2", not_checked_in: 5, on_leave_full: 1, on_leave_half: 3,
   }).map(([key, count]) => [key, { count }]));
   assert.deepEqual(readAttendanceStats({ success: true, stats }), { all: 48, notCheckedIn: 5, leave: 1, late: 2, onTime: 40 });
   assert.throws(() => readAttendanceStats({ success: true, stats: { ...stats, checked_in: { error: "Module 'x' not found" } } }), /not found/);
   assert.throws(() => readAttendanceStats({ success: false, message: "Denied" }), /Denied/);
+});
+
+test("half-day leave is read from leave_type, the leave name or 0.5 days", () => {
+  assert.equal(isHalfDayLeave({ leave_type: "^half_day^" }), true);
+  assert.equal(isHalfDayLeave({ type_of_leave: "Half Day Sick Leave" }), true);
+  assert.equal(isHalfDayLeave({ leave_days: "0.5" }), true);
+  assert.equal(isHalfDayLeave({ leave_type: "full_day", type_of_leave: "Banking work", leave_days: "1" }), false);
 });

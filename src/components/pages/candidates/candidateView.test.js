@@ -1,22 +1,34 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  acceptedScore,
   appliedDate,
-  completenessLabel,
   friendlyDateTime,
   interviewsForCandidate,
+  isoDate,
   pageWindow,
-  profileCompleteness,
   readableSource,
+  scoreLabel,
   upcomingInterview,
   workflowTone,
 } from "./candidateView.js";
 
-test("profile completeness counts filled key fields", () => {
-  assert.equal(profileCompleteness({}), 0);
-  assert.equal(profileCompleteness({ first_name: "A", last_name: "B", email1: "a@b.c", phone_mobile: " ", current_designation: "Dev", department: "Eng" }), 42);
-  assert.equal(completenessLabel(85), "Strong profile");
-  assert.equal(completenessLabel(10), "Needs details");
+test("accepted score reads the stored percentage", () => {
+  assert.equal(acceptedScore({}), null);
+  assert.equal(acceptedScore({ accepted_score: " " }), null);
+  assert.equal(acceptedScore({ accepted_score: "72.6" }), 73);
+  assert.equal(acceptedScore({ accepted_score: "85%" }), 85);
+  assert.equal(acceptedScore({ accepted_score: "140" }), 100);
+  assert.equal(acceptedScore({ accepted_score: "n/a" }), null);
+  assert.equal(scoreLabel(85), "Strong match");
+  assert.equal(scoreLabel(10), "Low match");
+  assert.equal(scoreLabel(null), "Not scored");
+});
+
+test("CRM dates convert to ISO", () => {
+  assert.equal(isoDate("10/01/2025"), "2025-10-01");
+  assert.equal(isoDate("2026-08-01 10:00:00"), "2026-08-01");
+  assert.equal(isoDate("2018"), "2018");
 });
 
 test("workflow tones follow keywords, not exact names", () => {

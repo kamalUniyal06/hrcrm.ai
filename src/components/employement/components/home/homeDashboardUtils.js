@@ -33,6 +33,7 @@ export function formatClock(minutes) {
 
 export function formatHours(minutes) {
   if (minutes === null || minutes === undefined) return "—";
+  if (Math.round(minutes) < 60) return `${Math.round(minutes)}m`;
   return `${Math.floor(minutes / 60)}h ${String(Math.round(minutes % 60)).padStart(2, "0")}m`;
 }
 

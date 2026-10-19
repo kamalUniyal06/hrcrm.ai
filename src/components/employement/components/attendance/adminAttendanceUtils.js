@@ -33,6 +33,8 @@ export function weekDays(anchor) {
 
 export function formatMinutes(minutes) {
   if (minutes === null || minutes === undefined) return "—";
+  // Under an hour reads "40m" rather than "0h 40m".
+  if (minutes < 60) return `${minutes}m`;
   return `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, "0")}m`;
 }
 
@@ -159,6 +161,10 @@ export function buildLeaveDays(leaves = []) {
   return result;
 }
 
+// Half-day leave shows up as leave_type "half_day" (or "^half_day^"), a "Half Day …" leave type, or 0.5 leave days.
+export const isHalfDayLeave = leave =>
+  /half/i.test(`${clean(leave.leave_type)} ${clean(leave.type_of_leave)}`) || Number(clean(leave.leave_days)) === 0.5;
+
 export const isRowOnLeave = (leaveDays, row, day) =>
   leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);
 
@@ -205,7 +211,8 @@ export function readAttendanceStats(response) {
   return {
     all: count("employees_shown"),
     notCheckedIn: count("not_checked_in"),
-    leave: count("on_leave_full") + count("on_leave_half"),
+    // Half-day leave has its own card, so "On leave" counts full days only.
+    leave: count("on_leave_full"),
     late,
     onTime: Math.max(checkedIn - late, 0),
   };
