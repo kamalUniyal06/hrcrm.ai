@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { SettingsPage } from "./components/pages/settingpages/SettingsPage";
 import { useDispatch, useSelector } from "react-redux";
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from "react-router-dom";
@@ -48,10 +48,23 @@ import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
 import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 import IncrementManagementPage from "./components/employement/pages/IncrementManagementPage";
 
+// Seasonal and full-screen, with a lot of artwork, so it loads only when opened.
+const DussehraExperience = lazy(() => import("./components/pages/dussehra/DussehraExperience"));
+
 const router = createBrowserRouter([
   {
     path: "*",
     element: <NotFoundPage />,
+  },
+  {
+    path: "/dussehra",
+    element: (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="fixed inset-0 bg-foreground" />}>
+          <DussehraExperience />
+        </Suspense>
+      </ErrorBoundary>
+    ),
   },
   {
     path: "/",

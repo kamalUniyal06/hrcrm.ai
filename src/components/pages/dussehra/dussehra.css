@@ -1,0 +1,367 @@
+/* Dussehra celebration (DussehraExperience): the CSS-driven parts of the fire and
+   ambient keyframes. Layout and type use Tailwind; the --dussehra-* tokens live
+   in src/index.css. */
+
+.dussehra-scene {
+  overscroll-behavior: none;
+}
+
+.dussehra-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* --- Fire: flames on the effigy, keyed off data-fire on the scene ----------- */
+
+.dussehra-flame,
+.dussehra-flicker {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+.dussehra-flame {
+  opacity: 0;
+  transform: scale(0.15, 0.05);
+  transition:
+    opacity 0.6s ease-out,
+    transform 1.1s cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+
+.dussehra-scene[data-fire="lit"] .dussehra-flame {
+  opacity: 0.95;
+  transform: scale(0.85);
+}
+
+.dussehra-scene[data-fire="roaring"] .dussehra-flame {
+  opacity: 0.95;
+  transform: scale(1.2);
+  transition-delay: 0s !important;
+}
+
+.dussehra-scene[data-fire="dying"] .dussehra-flame {
+  opacity: 0.7;
+  transform: scale(0.75);
+  transition-duration: 4s;
+  transition-delay: 0s !important;
+}
+
+.dussehra-scene[data-fire="out"] .dussehra-flame {
+  transform: scale(0.3, 0.1);
+  transition-duration: 3s;
+  transition-delay: 0s !important;
+}
+
+.dussehra-flicker {
+  animation: dussehra-flicker var(--flicker-speed, 0.7s) ease-in-out infinite alternate;
+}
+
+@keyframes dussehra-flicker {
+  0% {
+    transform: scale(0.92, 0.88) skewX(-5deg);
+  }
+  45% {
+    transform: scale(1.06, 1.14) skewX(3deg);
+  }
+  100% {
+    transform: scale(0.96, 1.02) skewX(-2deg);
+  }
+}
+
+/* Reflected firelight and charring on the effigy (each its own layer). */
+.dussehra-ravana-glow,
+.dussehra-ravana-char {
+  opacity: 0;
+  transition: opacity 0.6s ease-out;
+  will-change: opacity;
+}
+
+.dussehra-scene[data-fire="lit"] .dussehra-ravana-glow {
+  opacity: 0.35;
+  transition-duration: 1.2s;
+}
+.dussehra-scene[data-fire="roaring"] .dussehra-ravana-glow {
+  opacity: 0.5;
+}
+.dussehra-scene[data-fire="dying"] .dussehra-ravana-glow {
+  opacity: 0.25;
+  transition-duration: 5s;
+}
+.dussehra-scene[data-fire="out"] .dussehra-ravana-glow {
+  transition-duration: 3s;
+}
+
+.dussehra-scene[data-fire="lit"] .dussehra-ravana-char {
+  opacity: 0.15;
+  transition-duration: 2.5s;
+}
+.dussehra-scene[data-fire="roaring"] .dussehra-ravana-char {
+  opacity: 0.5;
+  transition-duration: 6s;
+}
+.dussehra-scene[data-fire="dying"] .dussehra-ravana-char,
+.dussehra-scene[data-fire="out"] .dussehra-ravana-char {
+  opacity: 0.78;
+  transition-duration: 6s;
+}
+
+/* The spent arrow burns away once the fire takes hold. */
+.dussehra-arrow {
+  transition: opacity 0.45s ease-out;
+}
+.dussehra-scene[data-fire="roaring"] .dussehra-arrow,
+.dussehra-scene[data-fire="dying"] .dussehra-arrow,
+.dussehra-scene[data-fire="out"] .dussehra-arrow {
+  opacity: 0;
+  transition-duration: 1.4s;
+}
+
+/* Firelight on the sky, the ground and the crowd; the loop sets opacity per frame. */
+.dussehra-firelight,
+.dussehra-crowd-rim {
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.dussehra-firelight-sky {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--dussehra-saffron) 55%, transparent),
+    color-mix(in srgb, var(--dussehra-saffron) 18%, transparent) 50%,
+    transparent
+  );
+}
+
+.dussehra-firelight-ground {
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--dussehra-gold) 80%, transparent),
+    color-mix(in srgb, var(--dussehra-saffron) 35%, transparent) 45%,
+    transparent
+  );
+}
+
+/* Full-scene flash at the moment of impact, centred on the hit. */
+.dussehra-flash {
+  background: radial-gradient(
+    circle at var(--flash-x, 50%) var(--flash-y, 50%),
+    color-mix(in srgb, var(--dussehra-ivory) 92%, transparent),
+    color-mix(in srgb, var(--dussehra-saffron) 38%, transparent) 16%,
+    transparent 55%
+  );
+}
+
+/* --- Bow ---------------------------------------------------------------------- */
+
+.dussehra-cue-pulse,
+.dussehra-cue-chevron,
+.dussehra-tremor {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+}
+
+.dussehra-cue-pulse {
+  animation: dussehra-cue-pulse 1.8s ease-out infinite;
+}
+
+@keyframes dussehra-cue-pulse {
+  0% {
+    opacity: 0.85;
+    transform: scale(0.7);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+
+.dussehra-cue-chevron {
+  animation: dussehra-cue-chevron 1.6s ease-in-out infinite;
+}
+
+@keyframes dussehra-cue-chevron {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(-4px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(10px);
+  }
+}
+
+.dussehra-tremor {
+  animation: dussehra-tremor 0.09s linear infinite alternate;
+}
+
+@keyframes dussehra-tremor {
+  from {
+    transform: rotate(-0.5deg);
+  }
+  to {
+    transform: rotate(0.5deg);
+  }
+}
+
+/* --- Sky ---------------------------------------------------------------------- */
+
+.dussehra-twinkle {
+  animation: dussehra-twinkle 3.2s ease-in-out infinite;
+}
+
+@keyframes dussehra-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.dussehra-chase {
+  animation: dussehra-chase 2.4s ease-in-out infinite;
+}
+
+@keyframes dussehra-chase {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.dussehra-mote {
+  animation: dussehra-mote var(--mote-speed, 8s) linear infinite;
+}
+
+@keyframes dussehra-mote {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15% {
+    opacity: 0.9;
+  }
+  85% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--mote-drift, 12px), -90px);
+  }
+}
+
+.dussehra-distant-burst {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  opacity: 0;
+  animation: dussehra-distant-burst 6.5s ease-out infinite;
+}
+
+@keyframes dussehra-distant-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  3% {
+    opacity: 0.85;
+  }
+  20% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+/* --- Greeting ------------------------------------------------------------------ */
+
+.dussehra-title {
+  background-image: linear-gradient(
+    100deg,
+    var(--dussehra-gold-deep) 0%,
+    var(--dussehra-gold) 22%,
+    var(--dussehra-ivory) 36%,
+    var(--dussehra-gold) 50%,
+    var(--dussehra-gold-deep) 68%,
+    var(--dussehra-gold) 84%,
+    var(--dussehra-gold-deep) 100%
+  );
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--dussehra-saffron) 50%, transparent))
+    drop-shadow(0 2px 2px rgb(40 10 0 / 0.65));
+  animation: dussehra-shimmer 5.5s linear infinite;
+}
+
+@keyframes dussehra-shimmer {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
+}
+
+.dussehra-scrim {
+  background: radial-gradient(
+    ellipse 60% 55% at 50% 45%,
+    color-mix(in srgb, var(--dussehra-night) 78%, transparent),
+    color-mix(in srgb, var(--dussehra-night) 40%, transparent) 55%,
+    transparent 78%
+  );
+}
+
+.dussehra-sparkle {
+  animation: dussehra-sparkle 2.4s ease-in-out infinite;
+}
+
+@keyframes dussehra-sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(45deg);
+  }
+}
+
+/* --- Reduced motion: keep the story, drop the ambient movement ------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .dussehra-flicker,
+  .dussehra-cue-pulse,
+  .dussehra-cue-chevron,
+  .dussehra-tremor,
+  .dussehra-twinkle,
+  .dussehra-chase,
+  .dussehra-sparkle,
+  .dussehra-title {
+    animation: none;
+  }
+
+  .dussehra-mote,
+  .dussehra-distant-burst {
+    display: none;
+  }
+
+  .dussehra-flame,
+  .dussehra-ravana-glow,
+  .dussehra-ravana-char {
+    transition-duration: 0.3s !important;
+  }
+}

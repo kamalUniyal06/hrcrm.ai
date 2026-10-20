@@ -1,4 +1,6 @@
 import { useSelector } from "react-redux";
+import { isDussehraSeason } from "../../../pages/dussehra/dussehraSeason";
+import DussehraCelebrate from "./DussehraCelebrate";
 
 const greeting = () => {
   const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
@@ -10,6 +12,7 @@ const greeting = () => {
 
 export default function HomeHeader({ subtitle, actions }) {
   const name = useSelector((state) => state.user.user?.name);
+  const festival = isDussehraSeason();
   return (
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
@@ -18,7 +21,12 @@ export default function HomeHeader({ subtitle, actions }) {
         </h1>
         <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {(actions || festival) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {festival && <DussehraCelebrate name={name} />}
+          {actions}
+        </div>
+      )}
     </header>
   );
 }
