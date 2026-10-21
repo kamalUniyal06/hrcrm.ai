@@ -25,6 +25,7 @@ import {
   formatMinutes,
   isHalfDayLeave,
   isRowOnLeave,
+  matchesOverviewFilter,
 } from "./adminAttendanceUtils";
 import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
 import { useAttendanceStats } from "../../../../queries/attendance.queries";
@@ -32,6 +33,7 @@ import { useTeamsPresenceDay } from "../../../../queries/teamsPresence.queries";
 import { indexPresence, presenceForRow } from "./teamsPresenceUtils";
 import { TeamsActivityPanel, TeamsCell, TeamsSummary } from "./TeamsPresence";
 import { pageGutter } from "../home/homeUi";
+import { useLeavesOnDay } from "../home/homeDashboard.queries";
 import EmployeeAttendanceDrawer from "./EmployeeAttendanceDrawer";
 
 const statuses = {
@@ -173,11 +175,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     enabled: isAdmin,
     refetchInterval: 60000,
   });
-  const leaves = useQuery({
-    queryKey: ["leaves", "attendance", "all"],
-    queryFn: () => fetchAllRecords("hrc_leaves"),
-    enabled: isAdmin,
-  });
+  const leaves = useLeavesOnDay({ day: activityDay, enabled: isAdmin });
   const attendanceStats = useAttendanceStats(activityDay, { enabled: isAdmin });
   const today = dateKey(new Date());
   // Teams presence: live status for today, the stored daily report for other days.
@@ -202,21 +200,17 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         value.toLowerCase().includes(search.trim().toLowerCase()),
       ),
   );
-  const visible = matchingRows.filter((row) => {
-    if (overviewFilter === "all") return true;
-    const records = row.days[activityDay] || [];
-    if (overviewFilter === "missing") {
-      return row.matched && !isOnLeave(row, activityDay) && !records.some((record) => Boolean(String(record.login ?? "").trim()));
-    }
-    // Half-day leave applies whether or not the employee also checked in for the other half.
-    if (overviewFilter === "halfDay") return row.matched && isOnHalfDay(row);
-    const status = daySummary(records, activityDay, today, isOnLeave(row, activityDay), lateAfter).status;
-    if (overviewFilter === "checkedIn") return status === "onTime" || status === "late";
-    if (overviewFilter === "onTime") return status === "onTime";
-    if (overviewFilter === "late") return status === "late";
-    if (overviewFilter === "leave") return status === "leave" && !isOnHalfDay(row);
-    return true;
-  });
+  const visible = matchingRows.filter((row) =>
+    matchesOverviewFilter(overviewFilter, {
+      records: row.days[activityDay] || [],
+      matched: row.matched,
+      onLeave: isOnLeave(row, activityDay),
+      halfDay: isOnHalfDay(row),
+      day: activityDay,
+      today,
+      lateAfter,
+    }),
+  );
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
@@ -482,7 +476,8 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
               <tbody>
                 {pageRows.map((row) => {
                   const records = row.days[activityDay] || [];
-                  const summary = daySummary(records, activityDay, today, isOnLeave(row, activityDay), lateAfter);
+                  const onLeave = isOnLeave(row, activityDay);
+                  const summary = daySummary(records, activityDay, today, onLeave, lateAfter);
                   const halfDay = isOnHalfDay(row);
                   const style = statuses[summary.status === "leave" && halfDay ? "halfDay" : summary.status];
                   return (
@@ -546,6 +541,12 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                         {halfDay && summary.status !== "leave" && (
                           <span className="mt-1 block w-fit rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">
                             Half-day leave
+                          </span>
+                        )}
+                        {/* Logged in on a full day of approved leave: listed under both "On leave" and their check-in status. */}
+                        {onLeave && !halfDay && summary.status !== "leave" && (
+                          <span className="mt-1 block w-fit rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+                            On leave
                           </span>
                         )}
                       </td>

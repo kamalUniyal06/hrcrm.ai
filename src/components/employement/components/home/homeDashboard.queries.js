@@ -3,6 +3,7 @@ import { fetchAllRecords } from "../../../pages/candidates/candidatesApi";
 import { buildCandidateListRequest } from "../../../pages/candidates/candidateList";
 import { dateKey } from "../attendance/adminAttendanceUtils";
 import { getAllResignations } from "../../api/resignation.api";
+import { getLeavesOnDay } from "../../api/leaves.api";
 import { fetchAdminQuestions, fetchAdminRequests } from "../../api/incrementAdmin.api";
 
 const FIVE_MINUTES = 5 * 60 * 1000;
@@ -37,6 +38,15 @@ export const useOrgActivityForDay = ({ day, enabled = true }) =>
     queryFn: () => fetchAllRecords("hrc_daily_activity", { field: "date_entered", from: `${day} 00:00:00`, to: `${day} 23:59:59` }),
     enabled,
     refetchInterval: 60000,
+  });
+
+// Leaves covering one day, fetched with date filters rather than read from the full list.
+export const useLeavesOnDay = ({ day, enabled = true }) =>
+  useQuery({
+    queryKey: ["leaves", "attendance", "day", day],
+    queryFn: () => getLeavesOnDay(day),
+    enabled: Boolean(enabled && day),
+    staleTime: FIVE_MINUTES,
   });
 
 export const useAllLeaves = ({ enabled = true } = {}) =>

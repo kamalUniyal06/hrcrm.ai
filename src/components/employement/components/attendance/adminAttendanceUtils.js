@@ -168,6 +168,52 @@ export const isHalfDayLeave = leave =>
 export const isRowOnLeave = (leaveDays, row, day) =>
   leaveDays.has(`${row.key}|${day}`) || leaveDays.has(`email:${row.email}|${day}`);
 
+const addDays = (day, count) => {
+  const [year, month, date] = day.split("-").map(Number);
+  return dateKey(new Date(year, month - 1, date + count));
+};
+
+// The gateway filters on one date field per request, so a day's leaves take two:
+// leaves ending on or after the day (up to a year later), and leaves starting on it
+// (this catches records saved without an end date). leavesCoveringDay merges them.
+export function leaveDayRequests(day) {
+  return [
+    { dateField: "leave_to", from: `${day} 00:00:00`, to: `${addDays(day, 366)} 23:59:59` },
+    { dateField: "leave_from", from: `${day} 00:00:00`, to: `${day} 23:59:59` },
+  ];
+}
+
+// Merges leave lists, drops repeated ids and keeps the leaves whose dates include day.
+export function leavesCoveringDay(lists, day) {
+  const seen = new Set();
+  const result = [];
+  for (const leave of lists.flat()) {
+    const id = clean(leave.id);
+    if (id && seen.has(id)) continue;
+    if (id) seen.add(id);
+    const from = calendarDateKey(leave.leave_from);
+    const to = calendarDateKey(leave.leave_to) || from;
+    if (from && from <= day && to >= day) result.push(leave);
+  }
+  return result;
+}
+
+// Whether a row belongs in an overview list for one day. The leave and check-in lists
+// overlap on purpose: someone on leave who still logged in appears in both.
+export function matchesOverviewFilter(filter, { records = [], matched, onLeave, halfDay, day, today, lateAfter }) {
+  if (filter === "all") return true;
+  const loggedIn = records.some(record => clean(record.login));
+  if (filter === "missing") return matched && !onLeave && !loggedIn;
+  // Half-day leave applies whether or not the employee also checked in for the other half.
+  if (filter === "halfDay") return matched && halfDay;
+  if (filter === "leave") return onLeave && !halfDay;
+  const status = daySummary(records, day, today, onLeave, lateAfter).status;
+  if (filter === "checkedIn") return status === "onTime" || status === "late";
+  if (filter === "onTime") return status === "onTime";
+  if (filter === "late") return status === "late";
+  return true;
+}
+
 // Employees in this phase (exited) are left out of every attendance total.
 const EXCLUDED_EMPLOYEE_PHASE_ID = "4b140dcd-270a-3080-b367-6a9fa21e3ea4";
 export const ATTENDANCE_TIMEZONE = "Asia/Kolkata";
