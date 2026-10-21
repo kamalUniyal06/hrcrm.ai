@@ -1,14 +1,6 @@
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
 import { AUTH_URL } from "../../store/constants.js";
-
-const loginBenefits = [
-  "Get live AI news",
-  "Get the latest projects",
-  "Get customized content for your website",
-  "Add your custom feeds",
-  "Select and buy a domain",
-];
+import { headingLogo } from "../../assets/assets";
 
 export default function Login() {
   const currentUrl = window.location.href;
@@ -39,34 +31,17 @@ export default function Login() {
         transition={{ duration: 0.6 }}
         className="flex flex-1 flex-col items-center justify-center px-6 md:px-10"
       >
-        {/* Product message */}
-        <div className="mb-10 text-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.22em] text-purple-700">
-            Get your live feeds
-          </p>
-          <p className="mt-2 text-lg font-medium text-gray-600">
-            AI Powered Platform
-          </p>
-        </div>
+        {/* App logo */}
+        <img
+          src={headingLogo}
+          alt="HrCRM"
+          className="mb-8 h-16 w-auto max-w-full object-contain md:h-20"
+        />
 
         {/* Heading */}
         <h1 className="text-3xl md:text-4xl font-bold text-gray-800 text-center">
           Login to your account
         </h1>
-
-        <ul className="mt-7 w-full max-w-sm space-y-3" aria-label="Account benefits">
-          {loginBenefits.map((benefit) => (
-            <li
-              key={benefit}
-              className="flex items-center gap-3 text-sm font-medium text-gray-700"
-            >
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-700">
-                <Check size={15} strokeWidth={2.5} aria-hidden="true" />
-              </span>
-              <span>{benefit}</span>
-            </li>
-          ))}
-        </ul>
 
         {/* Google Login */}
         <button
