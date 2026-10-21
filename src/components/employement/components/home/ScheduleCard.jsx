@@ -3,7 +3,8 @@ import he from "he";
 import { Award, Cake, ChevronLeft, ChevronRight, Megaphone, Palmtree, PartyPopper } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import { dateKey, parseActivityTime } from "../attendance/adminAttendanceUtils";
-import { scheduleEventsForDay, shortDate } from "./homeDashboardUtils";
+import { announcementPreview, scheduleEventsForDay, shortDate } from "./homeDashboardUtils";
+import AnnouncementDialog from "./AnnouncementDialog";
 
 const EVENT_META = {
   holiday: { icon: PartyPopper, label: "Holiday", color: "var(--attendance-late)" },
@@ -43,6 +44,7 @@ export default function ScheduleCard({ sources, announcements = [], loading, ann
   const today = useMemo(() => new Date(), []);
   const [selected, setSelected] = useState(today);
   const [tab, setTab] = useState("events");
+  const [openAnnouncement, setOpenAnnouncement] = useState(null);
   const selectedKey = dateKey(selected);
   const days = Array.from({ length: STRIP }, (_, index) => addDays(selected, index - Math.floor(STRIP / 2)));
 
@@ -66,7 +68,9 @@ export default function ScheduleCard({ sources, announcements = [], loading, ann
   }, [dayEvents.length, eventsFor, selected]);
 
   const sortedAnnouncements = useMemo(
-    () => [...announcements].sort((a, b) => (parseActivityTime(b.date_entered)?.stamp ?? 0) - (parseActivityTime(a.date_entered)?.stamp ?? 0)),
+    () => [...announcements]
+      .sort((a, b) => (parseActivityTime(b.date_entered)?.stamp ?? 0) - (parseActivityTime(a.date_entered)?.stamp ?? 0))
+      .map((alert) => ({ alert, preview: announcementPreview(alert.description), posted: parseActivityTime(alert.date_entered)?.date })),
     [announcements],
   );
 
@@ -158,26 +162,32 @@ export default function ScheduleCard({ sources, announcements = [], loading, ann
           <div className="space-y-2">{[0, 1].map((index) => <Skeleton key={index} height={64} borderRadius={12} />)}</div>
         ) : sortedAnnouncements.length ? (
           <ul className="space-y-2">
-            {sortedAnnouncements.map((alert) => {
-              const posted = parseActivityTime(alert.date_entered)?.date;
-              return (
-                <li key={alert.id} className="rounded-xl border border-border px-3 py-2.5">
-                  <div className="flex items-start gap-2">
-                    <Megaphone size={14} className="mt-0.5 shrink-0 text-primary" />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-foreground">{decode(alert.name)}</p>
-                      {alert.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{decode(alert.description)}</p>}
-                    </div>
-                    {posted && <span className="shrink-0 text-[11px] text-muted-foreground">{shortDate(posted)}</span>}
-                  </div>
-                </li>
-              );
-            })}
+            {sortedAnnouncements.map(({ alert, preview, posted }) => (
+              <li key={alert.id}>
+                <button
+                  type="button"
+                  onClick={() => setOpenAnnouncement(alert)}
+                  aria-haspopup="dialog"
+                  className="group flex w-full items-start gap-2 rounded-xl border border-border px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Megaphone size={14} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-foreground">{decode(alert.name) || "Announcement"}</span>
+                    {preview && <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">{preview}</span>}
+                    <span className="mt-1 inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary group-hover:underline">
+                      Read announcement <ChevronRight size={12} aria-hidden="true" />
+                    </span>
+                  </span>
+                  {posted && <span className="shrink-0 text-[11px] text-muted-foreground">{shortDate(posted)}</span>}
+                </button>
+              </li>
+            ))}
           </ul>
         ) : (
           <p className="rounded-xl border border-dashed border-border px-3 py-3 text-center text-xs text-muted-foreground">No announcements right now.</p>
         )}
       </div>
+      <AnnouncementDialog announcement={openAnnouncement} onClose={() => setOpenAnnouncement(null)} />
     </section>
   );
 }

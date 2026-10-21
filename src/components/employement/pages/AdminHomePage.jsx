@@ -34,6 +34,7 @@ import {
     useIncrementQuestions,
     useIncrementRequests,
     useInterviews,
+    useLeavesOnDay,
     useOrgActivityForDay,
     useResignations,
     monthRange,
@@ -109,6 +110,8 @@ export default function AdminHomePage() {
 
     const employees = useEmployeesDirectory();
     const activity = useOrgActivityForDay({ day: today });
+    // Today's leave status uses date-filtered leaves; the full list still feeds pending requests, the feed and the schedule.
+    const todayLeaves = useLeavesOnDay({ day: today });
     const leaves = useAllLeaves();
     const holidays = usePublicHolidays();
     const announcements = useAnnouncements();
@@ -120,7 +123,7 @@ export default function AdminHomePage() {
     const interviews = useInterviews();
 
     const rows = useMemo(() => buildAttendanceRows(employees.data || [], activity.data || []), [employees.data, activity.data]);
-    const leaveDays = useMemo(() => buildLeaveDays(leaves.data || []), [leaves.data]);
+    const leaveDays = useMemo(() => buildLeaveDays(todayLeaves.data || []), [todayLeaves.data]);
     const stats = useMemo(() => adminDayStats({ rows, leaveDays, day: today, today, lateAfter }), [rows, leaveDays, today, lateAfter]);
 
     const groups = useMemo(() => {
@@ -131,8 +134,9 @@ export default function AdminHomePage() {
             const onLeave = isRowOnLeave(leaveDays, row, today);
             const summary = daySummary(records, today, today, onLeave, lateAfter);
             if (summary.status === "late") result.late.push({ ...row, time: summary.first.time, at: summary.first.minutes });
-            else if (summary.status === "leave") result.leave.push(row);
-            else if (!onLeave && !records.some((record) => String(record.login ?? "").trim())) result.missing.push(row);
+            // Someone on leave who still logged in is listed under "On leave" and under "Late" if they were late.
+            if (onLeave) result.leave.push(row);
+            else if (!records.some((record) => String(record.login ?? "").trim())) result.missing.push(row);
         }
         result.late.sort((a, b) => b.at - a.at);
         return result;
@@ -191,8 +195,8 @@ export default function AdminHomePage() {
             .sort((a, b) => a.date - b.date);
     }, [interviews.data]);
 
-    const loading = employees.isPending || activity.isPending || leaves.isPending;
-    const failed = employees.isError || activity.isError || leaves.isError;
+    const loading = employees.isPending || activity.isPending || todayLeaves.isPending;
+    const failed = employees.isError || activity.isError || todayLeaves.isError;
     const openAttendance = (filter) => navigate(`/attendance?filter=${filter}`);
 
     return (
@@ -215,8 +219,8 @@ export default function AdminHomePage() {
 
                 {isEmployee && <SystemAlertCarousel employeeId={userInfo?.id} email={email} />}
 
-                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                    <aside className="order-first min-w-0 space-y-4 xl:sticky xl:top-4 xl:order-0 xl:col-start-2 xl:row-start-1">
+                <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <aside className="order-first min-w-0 space-y-4 lg:sticky lg:top-4 lg:order-0 lg:col-start-2 lg:row-start-1">
                         {isEmployee && <TodayAttendanceCard />}
                         <ScheduleCard
                             sources={scheduleSources}
@@ -226,7 +230,7 @@ export default function AdminHomePage() {
                         />
                     </aside>
 
-                    <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
+                    <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                             <StatTile icon={Users} label="Active employees" value={failed ? "—" : stats.employees} hint="View directory" loading={loading} onClick={() => navigate("/employees")} />
                             <StatTile icon={LogIn} label="Average check-in" value={formatClock(stats.avgCheckIn)} hint={`Shift starts ${limits.actualLoginTime}`} color="var(--attendance-present)" loading={loading} onClick={() => openAttendance("checkedIn")} />
@@ -242,7 +246,7 @@ export default function AdminHomePage() {
                             <StatTile icon={CalendarCheck2} label="Pending leave requests" value={leaves.isError ? "—" : pendingLeaves} hint="Awaiting approval" color="var(--attendance-leave)" loading={leaves.isPending} onClick={() => navigate("/leave-approvals")} />
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                             <OffboardingCard
                                 cases={offboarding}
                                 loading={resignations.isPending || employees.isPending}

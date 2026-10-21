@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, isHalfDayLeave, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
+import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, isHalfDayLeave, leaveDayRequests, leavesCoveringDay, matchesOverviewFilter, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
 
 const sample = {
   id: "activity-1", name: "verm.jatin2004@gmail.com", login: "09/18/2026 17:59",
@@ -116,4 +116,39 @@ test("half-day leave is read from leave_type, the leave name or 0.5 days", () =>
   assert.equal(isHalfDayLeave({ type_of_leave: "Half Day Sick Leave" }), true);
   assert.equal(isHalfDayLeave({ leave_days: "0.5" }), true);
   assert.equal(isHalfDayLeave({ leave_type: "full_day", type_of_leave: "Banking work", leave_days: "1" }), false);
+});
+
+test("asks for a day's leaves by end date and by start date", () => {
+  assert.deepEqual(leaveDayRequests("2026-12-31"), [
+    { dateField: "leave_to", from: "2026-12-31 00:00:00", to: "2028-01-01 23:59:59" },
+    { dateField: "leave_from", from: "2026-12-31 00:00:00", to: "2026-12-31 23:59:59" },
+  ]);
+});
+
+test("keeps each leave that covers the day once", () => {
+  const long = { id: "long", leave_from: "2026-09-01", leave_to: "2026-12-31" };
+  const single = { id: "single", leave_from: "10/21/2026", leave_to: "" };
+  const later = { id: "later", leave_from: "2026-10-22", leave_to: "2026-10-23" };
+  const ended = { id: "ended", leave_from: "2026-10-19", leave_to: "2026-10-20" };
+  assert.deepEqual(leavesCoveringDay([[long, later, ended], [single, long]], "2026-10-21").map(leave => leave.id), ["long", "single"]);
+});
+
+test("someone on leave who logged in is in the leave list and their check-in list", () => {
+  const base = { matched: true, day: "2026-10-21", today: "2026-10-21", lateAfter: 600 };
+  const onLeaveLate = { ...base, records: [{ login: "10/21/2026 10:30" }], onLeave: true, halfDay: false };
+  for (const filter of ["all", "leave", "checkedIn", "late"]) assert.equal(matchesOverviewFilter(filter, onLeaveLate), true, filter);
+  for (const filter of ["onTime", "missing", "halfDay"]) assert.equal(matchesOverviewFilter(filter, onLeaveLate), false, filter);
+
+  const onLeaveAway = { ...base, records: [], onLeave: true, halfDay: false };
+  assert.equal(matchesOverviewFilter("leave", onLeaveAway), true);
+  assert.equal(matchesOverviewFilter("checkedIn", onLeaveAway), false);
+  assert.equal(matchesOverviewFilter("missing", onLeaveAway), false);
+
+  // Half-day leave has its own list, so it stays out of "On leave".
+  const halfDay = { ...base, records: [{ login: "10/21/2026 09:00" }], onLeave: true, halfDay: true };
+  assert.equal(matchesOverviewFilter("leave", halfDay), false);
+  assert.equal(matchesOverviewFilter("halfDay", halfDay), true);
+  assert.equal(matchesOverviewFilter("onTime", halfDay), true);
+
+  assert.equal(matchesOverviewFilter("missing", { ...base, records: [], onLeave: false, halfDay: false }), true);
 });

@@ -92,8 +92,8 @@ export default function EmployeHomePage() {
 
                 <SystemAlertCarousel employeeId={employeeId} email={email} />
 
-                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-                    <aside className="order-first min-w-0 space-y-4 xl:sticky xl:top-4 xl:order-0 xl:col-start-2 xl:row-start-1">
+                <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <aside className="order-first min-w-0 space-y-4 lg:sticky lg:top-4 lg:order-0 lg:col-start-2 lg:row-start-1">
                         <TodayAttendanceCard />
                         <ScheduleCard
                             sources={scheduleSources}
@@ -103,7 +103,7 @@ export default function EmployeHomePage() {
                         />
                     </aside>
 
-                    <div className="min-w-0 space-y-4 xl:col-start-1 xl:row-start-1">
+                    <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">
                         <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                             <TasksCard />
                             <FeedCard

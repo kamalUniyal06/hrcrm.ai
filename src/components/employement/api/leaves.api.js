@@ -2,6 +2,7 @@ import { http } from "@/services/api";
 import { store } from "@/store/store";
 import { buildTableRequestBody } from "../../../utils/preferenceStorage";
 import { fetchGpc } from "../../../services/api";
+import { leaveDayRequests, leavesCoveringDay } from "../components/attendance/adminAttendanceUtils";
 
 export const applyForLeave = async (data) => {
     const formData = new FormData();
@@ -126,6 +127,12 @@ export const getAllLeaves = async ({ from, to, dateField = "leave_from", email }
         page += 1;
     } while (page <= totalPages);
     return { ...metadata, records, total: Number(metadata.total) || records.length, total_pages: totalPages };
+};
+
+// Every leave whose dates include one YYYY-MM-DD day, using the gateway's date filters.
+export const getLeavesOnDay = async (day) => {
+    const responses = await Promise.all(leaveDayRequests(day).map((request) => getAllLeaves(request)));
+    return leavesCoveringDay(responses.map((response) => response.records), day);
 };
 
 export const getLeaveDocuments = async (id) => {

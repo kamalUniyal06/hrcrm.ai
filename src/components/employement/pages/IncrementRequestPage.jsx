@@ -19,7 +19,6 @@ import {
   clearRememberedIncrement,
   createIncrement,
   createIncrementReply,
-  fetchCurrentSalary,
   fetchIncrementQuestions,
   getPendingIncrement,
   getRememberedIncrementId,
@@ -34,13 +33,10 @@ const inputClass =
 export default function IncrementRequestPage() {
   const navigate = useNavigate();
   const email = useSelector((state) => state.user.user?.email)?.trim() || "";
-  const employeeId = useSelector((state) => state.user.userInfo?.id);
   const [stage, setStage] = useState("loading");
   const [incrementId, setIncrementId] = useState("");
+  // The employee types their own current CTC; it is not pre-filled from salary records.
   const [currentSalary, setCurrentSalary] = useState("");
-  const [monthlySalary, setMonthlySalary] = useState("");
-  const [salaryIsFallback, setSalaryIsFallback] = useState(false);
-  const [salaryLoading, setSalaryLoading] = useState(true);
   const [expectedSalary, setExpectedSalary] = useState("");
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -49,6 +45,9 @@ export default function IncrementRequestPage() {
 
   const validSalary =
     Number(currentSalary) > 0 && Number(expectedSalary) > Number(currentSalary);
+  const showSalaryHint =
+    Number(currentSalary) > 0 && Number(expectedSalary) > 0 && !validSalary;
+  const monthlySalary = Number(currentSalary) / 12;
   const expectedMonthlySalary = Number(expectedSalary) / 12;
   const increasePercentage =
     Number(monthlySalary) > 0
@@ -91,24 +90,6 @@ export default function IncrementRequestPage() {
       active = false;
     };
   }, [email]);
-
-  useEffect(() => {
-    let active = true;
-    setSalaryLoading(true);
-    fetchCurrentSalary(employeeId)
-      .then(({ amount, monthlyAmount, isFallback }) => {
-        if (!active) return;
-        setCurrentSalary(String(amount));
-        setMonthlySalary(String(monthlyAmount));
-        setSalaryIsFallback(isFallback);
-      })
-      .finally(() => {
-        if (active) setSalaryLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [employeeId]);
 
   const submitSalary = async (event) => {
     event.preventDefault();
@@ -253,19 +234,13 @@ export default function IncrementRequestPage() {
                         min="1"
                         inputMode="numeric"
                         value={currentSalary}
-                        readOnly
+                        onChange={(event) => setCurrentSalary(event.target.value)}
                         placeholder="Current annual CTC"
-                        disabled
+                        disabled={busy}
                         required
                       />
                     </span>
-                    <span className="mt-2 block text-xs font-normal text-slate-500">
-                      {salaryLoading
-                        ? "Loading from salary records..."
-                        : salaryIsFallback
-                          ? "No salary record found. Calculated from the ₹15,000 monthly fallback."
-                          : `Calculated from ₹${money.format(Number(monthlySalary))} monthly salary.`}
-                    </span>
+                    <span className="mt-2 block text-xs font-normal text-slate-500">Annual amount in INR</span>
                   </label>
                   <label className="block text-sm font-semibold text-slate-800">
                     Expected CTC
@@ -286,6 +261,12 @@ export default function IncrementRequestPage() {
                     <span className="mt-2 block text-xs font-normal text-slate-500">Annual amount in INR</span>
                   </label>
                 </div>
+
+                {showSalaryHint && (
+                  <p className="mt-5 flex items-start gap-2 text-sm text-amber-700">
+                    <CircleAlert size={17} className="mt-0.5 shrink-0" /> Expected CTC must be higher than your current CTC.
+                  </p>
+                )}
 
                 {currentSalary && expectedSalary && validSalary && (
                   <div className="mt-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-900">

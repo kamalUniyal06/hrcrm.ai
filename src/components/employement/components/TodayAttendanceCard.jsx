@@ -14,6 +14,7 @@ import TodayPresentCard from "./TodayPresentCard";
 import CheckInShell, { Spinner, StatusPill } from "./home/CheckInShell";
 import { actionButton, shiftWindow } from "./home/homeUi";
 import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
+import { cn } from "@/lib/utils";
 
 const apiDateKey = (value) => {
   const match = String(value || "")
@@ -114,12 +115,12 @@ export default function TodayAttendanceCard() {
 
   if (!isPresentToday) {
     return (
-      <CheckInShell shift={shift} status={<StatusPill tone="danger">Not checked in</StatusPill>}>
-        <p className="mb-3 text-xs text-muted-foreground">
+      <CheckInShell attention shift={shift} status={<StatusPill tone="danger" pulse>Not checked in</StatusPill>}>
+        <p className="mb-3 text-sm text-muted-foreground">
           Clock in to start tracking your shift, lunch and working hours.
         </p>
         {canLogin ? (
-          <button type="button" disabled={present.isPending} onClick={handleMarkPresent} className={`${actionButton.primary} w-full`}>
+          <button type="button" disabled={present.isPending} onClick={handleMarkPresent} className={cn(actionButton.primary, "h-11 w-full text-base shadow-md")}>
             {present.isPending ? <><Spinner />Clocking in...</> : <><LogIn size={16} />Clock In</>}
           </button>
         ) : (
