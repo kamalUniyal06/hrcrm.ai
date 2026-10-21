@@ -29,8 +29,8 @@ test("invitation responses for a different profile or email cannot become an ope
 
 test("no invitation, old hashed links and inactive invitations have distinct states without a URL", async () => {
   assert.deepEqual(await loadCandidateTestInvitation(async () => ({ success: true, invitation: null }), options, now), { status: "not_created", url: "", expiresAt: "" });
-  for (const status of ["expired", "accepted", "revoked"]) {
-    const data = await loadCandidateTestInvitation(async () => ({ ...active, invitation: { ...invitation, status } }), options, now);
+  for (const status of ["expired", "accepted", "completed", "revoked"]) {
+    const data = await loadCandidateTestInvitation(async () => ({ ...active, invitation: { ...invitation, status }, invitation_url: ["accepted", "completed"].includes(status) ? null : active.invitation_url }), options, now);
     assert.equal(data.status, status);
     assert.equal(data.url, "");
   }
@@ -40,6 +40,14 @@ test("no invitation, old hashed links and inactive invitations have distinct sta
   const expired = await loadCandidateTestInvitation(async () => active, options, Date.parse("2026-10-13T12:00:00Z"));
   assert.equal(expired.status, "expired");
   assert.equal(expired.url, "");
+});
+
+test("an opened link stays available for re-entry until it expires", async () => {
+  const reopened = await loadCandidateTestInvitation(async () => ({ ...active, invitation: { ...invitation, status: "accepted" } }), options, now);
+  assert.equal(reopened.status, "accepted");
+  assert.equal(reopened.url, active.invitation_url);
+  const lapsed = await loadCandidateTestInvitation(async () => ({ ...active, invitation: { ...invitation, status: "accepted" } }), options, Date.parse("2026-10-13T12:00:00Z"));
+  assert.equal(lapsed.url, "");
 });
 
 test("invalid URLs, malformed responses and failure envelopes surface errors", async () => {

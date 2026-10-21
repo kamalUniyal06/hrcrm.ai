@@ -125,6 +125,8 @@ The recruitment backend's in-progress HRCRM changes must be deployed, including:
 - Candidate-bound invitation metadata and email enforcement.
 - Migration `010_candidate_invitation_context.sql`, applied after migrations 001–009.
 - Migration `011_hrcrm_invitation_link_storage.sql`, applied after migration 010.
+- Migration `012_invitation_assessment_profile.sql`, applied after migration 011.
+- Migration `013_hrcrm_job_role_mappings.sql`, applied after migration 012.
 - A dedicated `HRCRM_INVITATION_ENCRYPTION_KEY` on the recruitment server:
   a randomly generated 32-byte key encoded as Base64. Keep it stable, out of
   frontend environment variables, and separate from JWT signing keys.
@@ -145,7 +147,10 @@ schema changes are separate release steps.
 | --- | --- |
 | `POST /integrations/hrcrm/session` | Exchange the signed HRCRM session token for a limited assessment token |
 | `GET /integrations/hrcrm/invitations?external_reference={crmId}` | Candidate invitation history |
-| `POST /integrations/hrcrm/invitations` | `candidate_email`, `candidate_first_name`, `candidate_last_name`, `external_reference` |
+| `POST /integrations/hrcrm/invitations` | `candidate_email`, `candidate_first_name`, `candidate_last_name`, `external_reference`, `job_reference`, `job_title`, `job_skills_text`, `candidate_skills`, `candidate_experience` |
+| `GET /integrations/hrcrm/invitation-statuses?external_references={id},{id}` | Up to 100 candidates' test status for the interview board: `none`, `pending`, `in_progress`, `completed`, `expired` or `revoked` |
+| `GET /integrations/hrcrm/job-roles?job_reference={jobId}&job_title={title}` | The job's test role (`source` is `saved` or `title`, or `role` is null) and every role with its question count |
+| `PUT /integrations/hrcrm/job-roles` | `job_reference`, `job_title`, `role_id`: saves the test role for a job posting (owners, admins and recruiters) |
 | `GET /integrations/hrcrm/candidates?search={email}&page_size=100&page={page}` | Exact email matching when there is no accepted bound invitation |
 | `GET /integrations/hrcrm/candidates/{id}` | Candidate status, round scores, and integrity details |
 | `GET /integrations/hrcrm/my-invitation?external_reference={crmId}` | Candidate's own invitation, authenticated directly with their signed HRCRM access token |
@@ -170,6 +175,45 @@ from recruitment requests. Limited tokens cannot access general admin routes,
 question banks, settings, or candidate mutations. Invitation audit entries
 include the verified HRCRM actor ID.
 
+## No registration in the test app
+
+The CRM profile replaces the test app's registration form. The job posting
+comes from the interview's `job_id`. When the interview has no job, HRCRM uses
+the job the candidate most recently applied for. Job postings need no extra
+field.
+
+**Test role.** Each job posting uses one test role. If HR has saved a role for
+the job (stored in the recruitment backend, keyed by the job posting ID), that
+role is used. Otherwise the role whose title equals the job's `job_title` is
+used, ignoring case and spaces. If neither exists, the drawer asks HR to choose a
+role and saves the choice, so later candidates for that job need no prompt.
+Only roles with questions are offered. **Change** in the drawer updates the
+saved role. Generating is disabled until the job has a role.
+
+When HR generates a link, HRCRM sends:
+
+- `job_reference`, `job_title`: the job posting's ID and title.
+- `job_skills_text`: the job's `required_skills` and `preferred_skills` text.
+  The backend tests the role skills this text mentions, normalising names so
+  "HTML5" matches "HTML" and "React.js" matches "React". For example, the React
+  Developer job tests HTML, CSS, JavaScript, React.js and TypeScript, but not
+  Vue.js or Angular.
+- `candidate_skills`: the candidate's CRM skill names. They are used only when
+  the job text names none of the role's skills. If those match none either,
+  every role skill is tested.
+- `candidate_experience`: years from the CRM experience records. Overlapping
+  roles count once, a role with no leaving date is current, and the total is
+  capped at 25.
+
+Opening the link creates the test-app candidate and signs them straight in to
+the assessment instructions. Opening it again, in any browser, signs the same
+candidate back in until the link expires seven days after it was created.
+My interviews shows **Continue test** for a started link. The drawer shows the
+resolved role, experience and skills under the link.
+
+Invitations without a job title, such as ones made in the recruitment admin,
+still use the registration form.
+
 ## Candidate Round 1 test link
 
 The candidate page fetches its own invitation through `my-invitation`, using
@@ -180,7 +224,8 @@ CRM reference. A browser-supplied email or role cannot authorize access.
 Responses use `Cache-Control: no-store` and omit hashes, ciphertext, recruiter
 notes, and administrator details.
 
-Only a pending, unexpired invitation produces **Open test**. Used, withdrawn,
+Only a pending, unexpired invitation produces **Open test**; an opened one
+produces **Continue test** until it expires. Used, withdrawn,
 and expired invitations have explanatory states. A missing invitation shows
 that HR has not created the test link yet. Test-link loading errors have their
 own retry control and leave interview details available. The normal Refresh

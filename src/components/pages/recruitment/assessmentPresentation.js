@@ -17,3 +17,17 @@ export function invitationStatus(invitation, now = Date.now()) {
   const expires = Date.parse(timestamp);
   return Number.isFinite(expires) && expires <= now ? "expired" : "pending";
 }
+
+// Interview cards name the test's progress, so HR sees it without opening the drawer.
+const TEST_ACTIONS = {
+  none: { label: "Send test", hint: "Create a test link for this candidate." },
+  pending: { label: "Test sent", hint: "Test link sent. The candidate has not opened it yet." },
+  in_progress: { label: "Test in progress", hint: "The candidate has started the test." },
+  completed: { label: "View results", hint: "The candidate has submitted the test. Open to see the results." },
+  expired: { label: "Resend test", hint: "The test link expired. Create a new one." },
+  revoked: { label: "Resend test", hint: "The test link was withdrawn. Create a new one." },
+};
+
+export function testAction(status) {
+  return Object.hasOwn(TEST_ACTIONS, status) ? { status, ...TEST_ACTIONS[status] } : { status: "unknown", label: "Test link", hint: "" };
+}

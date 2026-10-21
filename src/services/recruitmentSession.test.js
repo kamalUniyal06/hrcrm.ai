@@ -21,6 +21,9 @@ test("assessment requests use the limited token and reject general admin endpoin
   assert.equal(calls[1].path, "/integrations/hrcrm/invitations");
   assert.equal(calls[1].options.token, "assessment-only-token");
   await assert.rejects(manager.request("/admin/assessment-settings"), /outside/);
+  await manager.request("/job-roles", { params: { job_reference: "job-1", job_title: "React Developer" } });
+  assert.equal(calls[2].path, "/integrations/hrcrm/job-roles");
+  await assert.rejects(manager.request("/job-roles/job-1"), /outside/);
 });
 
 test("expired HRCRM tokens refresh once, but permission and configuration errors never retry", async () => {

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assessmentScore, invitationStatus } from "./assessmentPresentation.js";
+import { assessmentScore, invitationStatus, testAction } from "./assessmentPresentation.js";
 
 test("score presentation preserves zero and numeric strings without inventing missing scores", () => {
   assert.deepEqual(assessmentScore(0, 20), { earned: 0, total: 20, percentage: 0 });
@@ -16,4 +16,14 @@ test("expired pending links are shown as expired using the backend UTC timestamp
   assert.equal(invitationStatus({ status: "pending", expires_at: "2026-10-08T12:00:00Z" }, now), "pending");
   assert.equal(invitationStatus({ status: "accepted", expires_at: "2026-10-06T12:00:00Z" }, now), "accepted");
   assert.equal(invitationStatus({ status: "revoked" }, now), "revoked");
+});
+
+test("interview cards name the test's progress", () => {
+  assert.equal(testAction("none").label, "Send test");
+  assert.equal(testAction("pending").label, "Test sent");
+  assert.equal(testAction("in_progress").label, "Test in progress");
+  assert.equal(testAction("completed").label, "View results");
+  assert.equal(testAction("expired").label, "Resend test");
+  assert.deepEqual(testAction(undefined), { status: "unknown", label: "Test link", hint: "" });
+  assert.equal(testAction("toString").status, "unknown");
 });

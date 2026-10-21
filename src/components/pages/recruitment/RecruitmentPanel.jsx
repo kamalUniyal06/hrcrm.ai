@@ -4,18 +4,20 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { Check, CheckCircle2, ClipboardList, Clock3, Copy, ExternalLink, Link2, Loader2, RefreshCw, ShieldCheck, UserRound, X } from "lucide-react";
 import { useRecruitment } from "../../../context/recruitmentContext";
-import { findInterviewCandidate, invitationPayload, recruitmentDate, recruitmentEmail, recruitmentName, safeInvitationUrl } from "../../../services/recruitmentUtils";
+import { applicationJob, assessmentProfilePayload, findInterviewCandidate, jobPostingTitle, invitationPayload, recruitmentDate, recruitmentEmail, recruitmentName, safeInvitationUrl } from "../../../services/recruitmentUtils";
 import { candidateId, isFirstRound } from "../interviews/interviewUtils";
 import { fetchAllRecords, fetchCandidateRecord, fetchShortlistSource, shortlistedCandidatesKey } from "../candidates/candidatesApi";
 import AssessmentResult from "./AssessmentResult";
 import { assessmentLabel, invitationStatus } from "./assessmentPresentation";
 import { loadInterviewAssessmentCandidate } from "./interviewAssessmentCandidate";
+import { fetchCandidateRelated } from "../profile/candidateApi";
+import { fetchJobApplications } from "../jobs/jobsApi";
 
 const buttonClass = "inline-flex min-h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
 const primaryClass = `${buttonClass} border-transparent bg-primary text-primary-foreground hover:bg-primary/90`;
 const inputClass = "min-h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 py-2.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:bg-muted";
 
-export default function RecruitmentPanel({ initialCandidate, interview, onClose }) {
+export default function RecruitmentPanel({ initialCandidate, interview, job, onClose }) {
   const recruitment = useRecruitment();
   const boundToCandidate = Boolean(interview || initialCandidate?.id);
   const matchedCandidate = interview
@@ -79,7 +81,7 @@ export default function RecruitmentPanel({ initialCandidate, interview, onClose 
       {shortlist.isSuccess && !candidates.length && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">No shortlisted candidates are available.</p>}
       </div>}
       </section>
-      {candidate ? <CandidateAssessment key={candidate.id} candidate={candidate} canGenerate={canGenerate} onBusyChange={setBusy} /> : boundToCandidate ? <div className="px-5 py-6 sm:px-7">
+      {candidate ? <CandidateAssessment key={candidate.id} candidate={candidate} canGenerate={canGenerate} job={job} onBusyChange={setBusy} /> : boundToCandidate ? <div className="px-5 py-6 sm:px-7">
         {cardCandidate.isError ? <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm leading-6 text-destructive">{cardCandidate.error.message} <button type="button" onClick={() => { void cardCandidate.refetch(); }} disabled={cardCandidate.isFetching} className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">Retry candidate details</button></p> : <div role="status" className="space-y-4"><div className="h-10 rounded-lg bg-muted motion-safe:animate-pulse" /><div className="h-20 rounded-lg bg-muted motion-safe:animate-pulse" /><p className="text-sm text-muted-foreground">Loading this candidate's details...</p></div>}
       </div> : <div className="px-7 py-12 text-center"><UserRound size={28} strokeWidth={1.5} className="mx-auto text-muted-foreground" aria-hidden="true" /><h3 className="mt-4 text-base font-semibold">Choose a candidate to begin</h3><p className="mx-auto mt-2 max-w-72 text-sm leading-6 text-muted-foreground">Select their CRM profile above to review assessment results.</p></div>}
       </div>
@@ -94,7 +96,7 @@ function RecruitmentConnection() {
   return <div className="border-b border-border bg-muted/30 p-4 sm:px-6"><p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs leading-relaxed text-destructive [overflow-wrap:anywhere]">{recruitment.session.error?.message || "Assessment access could not be authorized."} <button onClick={() => recruitment.session.refetch()} className="cursor-pointer rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">Retry connection</button></p></div>;
 }
 
-function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
+function CandidateAssessment({ candidate, canGenerate, job, onBusyChange }) {
   const { user, canInvite, request, owner, links, rememberLink } = useRecruitment();
   const client = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -102,6 +104,7 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
   const [copied, setCopied] = useState(false);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const [savingRole, setSavingRole] = useState(false);
   const lock = useRef(false);
   const reference = String(candidate.id).trim();
   const email = recruitmentEmail(candidate);
@@ -134,11 +137,51 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
   });
   let validation = "";
   try { invitationPayload(candidate); } catch (err) { validation = err.message; }
+  const interviewJob = jobPostingTitle(job) && String(job?.id || "").trim() ? job : null;
+  const appliedJob = useQuery({
+    queryKey: ["recruitment", "applied-job", reference],
+    enabled: Boolean(canGenerate && !interviewJob), retry: false, staleTime: 60000,
+    queryFn: async () => {
+      const [applications, jobs] = await Promise.all([
+        fetchJobApplications(reference),
+        client.fetchQuery({ queryKey: ["interview-jobs"], queryFn: () => fetchAllRecords("hrc_job_postings"), staleTime: 300000 }),
+      ]);
+      return applicationJob(applications.records, jobs);
+    },
+  });
+  const testJob = interviewJob || appliedJob.data?.job || null;
+  const testJobTitle = jobPostingTitle(testJob);
+  const jobReference = String(testJob?.id || "").trim();
+  const findingJob = Boolean(canGenerate && !testJob && appliedJob.isFetching);
+  let profileIssue = "";
+  if (canGenerate && !findingJob) try { assessmentProfilePayload({ job: testJob }); } catch (err) { profileIssue = appliedJob.isError ? appliedJob.error.message : appliedJob.data?.issue || err.message; }
+  // Each job posting uses one test role: the one HR saved for it, or the role with the same title.
+  const jobRoleKey = ["recruitment", owner, "job-role", jobReference, testJobTitle];
+  const jobRole = useQuery({
+    queryKey: jobRoleKey,
+    enabled: Boolean(user && canGenerate && !profileIssue && jobReference), retry: false, staleTime: 60000,
+    queryFn: ({ signal }) => request("/job-roles", { params: { job_reference: jobReference, job_title: testJobTitle }, signal }),
+  });
+  const roleReady = Boolean(jobRole.data?.role);
+  async function saveRole(roleId) {
+    if (!roleId || savingRole || !canInvite) return false;
+    setSavingRole(true);
+    setError("");
+    try {
+      const data = await request("/job-roles", { method: "PUT", body: { job_reference: jobReference, job_title: testJobTitle, role_id: Number(roleId) } });
+      client.setQueryData(jobRoleKey, (previous) => ({ ...previous, role: data.role, source: data.source }));
+      return true;
+    } catch (err) {
+      setError(err.message);
+      return false;
+    } finally { setSavingRole(false); }
+  }
   const active = query.data?.invitations.find((item) => invitationStatus(item) === "pending");
   const registered = query.data?.detail?.candidate;
   const issued = links[reference];
   const issuedActive = issued && recruitmentDate(issued.invitation.expires_at) && invitationStatus(issued.invitation) === "pending" && query.data?.invitations.some((item) => String(item.id) === String(issued.invitation.id) && invitationStatus(item) === "pending");
   const link = issuedActive ? safeInvitationUrl(issued.invitation_url) : "";
+  const profile = (issuedActive ? issued.invitation : active)?.assessment_profile;
   async function create() {
     if (lock.current || !canGenerate || !canInvite || !query.isSuccess || registered) return;
     lock.current = true;
@@ -146,8 +189,13 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
     onBusyChange(true);
     setError("");
     setCopied(false);
+    let sent = false;
     try {
-      const data = await request("/invitations", { method: "POST", body: invitationPayload(candidate) });
+      // The CRM profile replaces registration in the test app.
+      const [skills, experiences] = await Promise.all([fetchCandidateRelated(reference, "skills"), fetchCandidateRelated(reference, "experiences")]);
+      const body = { ...invitationPayload(candidate), ...assessmentProfilePayload({ job: testJob, skills, experiences }) };
+      sent = true;
+      const data = await request("/invitations", { method: "POST", body });
       if (!safeInvitationUrl(data.invitation_url) || !data.invitation?.id || String(data.invitation.external_reference) !== reference || data.invitation.intended_email?.toLowerCase() !== email)
         throw new Error("The recruitment service did not return a candidate-bound invitation. Deploy its HRCRM integration update, then refresh status before retrying.");
       rememberLink(reference, data);
@@ -158,7 +206,13 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
       setConfirmReplace(false);
       setUncertain(false);
       void client.invalidateQueries({ queryKey });
-    } catch (err) { setError(err.message); setUncertain(true); setConfirmReplace(false); }
+    } catch (err) {
+      setError(err.message);
+      if (err.code === "ASSESSMENT_ROLE_NOT_FOUND") void client.invalidateQueries({ queryKey: jobRoleKey });
+      // A definite rejection (e.g. no matching role) created nothing; only network or server failures are uncertain.
+      setUncertain(sent && (!err.status || err.status >= 500));
+      setConfirmReplace(false);
+    }
     finally { setBusy(false); onBusyChange(false); lock.current = false; }
   }
   async function refresh() {
@@ -181,12 +235,14 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
             {[{ value: "invitation", label: "Test link", Icon: Link2 }, { value: "results", label: "Results", Icon: ClipboardList }].map(({ value, label, Icon }) => { const TabIcon = Icon; return <Tabs.Trigger key={value} value={value} className="-mb-px inline-flex min-h-11 items-center gap-2 border-b-2 border-transparent px-4 pb-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:border-primary data-[state=active]:text-primary"><TabIcon size={16} aria-hidden="true" />{label}</Tabs.Trigger>; })}
           </Tabs.List>
           <Tabs.Content value="invitation" className="space-y-5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {registered ? <div className="flex items-start gap-3"><CheckCircle2 size={20} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /><div><h3 className="text-base font-semibold">Invitation accepted</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">The candidate has registered. Open Results to follow their assessment.</p></div></div> : <>
+            {registered ? <div className="flex items-start gap-3"><CheckCircle2 size={20} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" /><div><h3 className="text-base font-semibold">Test link opened</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">The candidate has started from their link, which signs them back in until it expires. Open Results to follow their assessment.</p></div></div> : <>
               <div>
-                <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground"><Clock3 size={15} aria-hidden="true" />Round 1<span aria-hidden="true">&middot;</span>One-time access<span aria-hidden="true">&middot;</span>Valid for 7 days</div>
+                <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted-foreground"><Clock3 size={15} aria-hidden="true" />Round 1<span aria-hidden="true">&middot;</span>{testJobTitle || (findingJob ? "Finding job posting…" : "No job posting")}<span aria-hidden="true">&middot;</span>Valid for 7 days</div>
                 <h3 className="text-base font-semibold">{link ? "Your test link is ready" : active ? "Test link already created" : "Invite to the assessment"}</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{active ? `Awaiting registration. Expires ${recruitmentDate(active.expires_at)}.` : "Create a personal link for this candidate. Only their email address can use it."}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{active ? `Not opened yet. Expires ${recruitmentDate(active.expires_at)}.` : "Create a personal link. The candidate opens the test directly with their CRM profile, without signing up."}</p>
+                {profile && <p className="mt-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{[profile.role_title && `${profile.role_title} test`, `${profile.experience} years experience`, profile.skills.join(", ")].filter(Boolean).join(" · ")}</p>}
               </div>
+              {canGenerate && !profileIssue && jobReference && <JobRoleSetting key={jobReference} query={jobRole} jobTitle={testJobTitle} canEdit={canInvite} saving={savingRole} onSave={saveRole} />}
               {link && <section aria-label="Generated test link" className="space-y-3">
                 <p role="status" className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 size={17} className="text-primary" aria-hidden="true" />Test link generated</p>
                 <label htmlFor="generated-assessment-link" className="sr-only">Personal test link</label>
@@ -196,12 +252,13 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
               </section>}
               {!link && active && <p className="rounded-lg bg-muted/60 p-3 text-xs leading-5 text-muted-foreground">The existing URL is unavailable in this session. Create a replacement if you need to share it again.</p>}
               {canGenerate ? canInvite ? <>
-                {!confirmReplace && <button className={active ? `${buttonClass} w-full` : `${primaryClass} w-full`} disabled={busy || !!validation || uncertain || query.isFetching} onClick={() => active ? setConfirmReplace(true) : void create()}>{busy ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}{busy ? "Generating..." : active ? "Replace test link" : "Generate test link"}</button>}
-                {confirmReplace && <div className="rounded-lg border border-border bg-secondary p-4" role="alert"><h4 className="text-sm font-semibold">Replace the existing link?</h4><p className="mt-2 text-sm leading-6 text-muted-foreground">The previous unused link will stop working. Share the new link with the candidate.</p><div className="mt-4 flex flex-wrap gap-2"><button disabled={busy || query.isFetching || !!validation || uncertain} className={primaryClass} onClick={create}>{busy && <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{busy ? "Replacing..." : "Replace link"}</button><button disabled={busy} className={buttonClass} onClick={() => setConfirmReplace(false)}>Keep existing link</button></div></div>}
+                {profileIssue && <p role="alert" className="rounded-lg border border-border bg-secondary p-3 text-sm leading-6 text-secondary-foreground">{profileIssue}{appliedJob.isError && <> <button type="button" onClick={() => { void appliedJob.refetch(); }} className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">Retry</button></>}</p>}
+                {!confirmReplace && <button className={active ? `${buttonClass} w-full` : `${primaryClass} w-full`} disabled={busy || findingJob || savingRole || !roleReady || !!validation || !!profileIssue || uncertain || query.isFetching} onClick={() => active ? setConfirmReplace(true) : void create()}>{busy ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Link2 size={16} aria-hidden="true" />}{busy ? "Generating..." : active ? "Replace test link" : "Generate test link"}</button>}
+                {confirmReplace && <div className="rounded-lg border border-border bg-secondary p-4" role="alert"><h4 className="text-sm font-semibold">Replace the existing link?</h4><p className="mt-2 text-sm leading-6 text-muted-foreground">The previous unused link will stop working. Share the new link with the candidate.</p><div className="mt-4 flex flex-wrap gap-2"><button disabled={busy || findingJob || savingRole || !roleReady || query.isFetching || !!validation || !!profileIssue || uncertain} className={primaryClass} onClick={create}>{busy && <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{busy ? "Replacing..." : "Replace link"}</button><button disabled={busy} className={buttonClass} onClick={() => setConfirmReplace(false)}>Keep existing link</button></div></div>}
               </> : <p className="text-sm leading-6 text-muted-foreground">An owner, admin or recruiter can generate links. Your role can view assessments.</p> : <p className="text-sm leading-6 text-muted-foreground">To create a test link, open this candidate's Round 1 card on the Interviews board.</p>}
             </>}
           </Tabs.Content>
-          <Tabs.Content value="results" className="outline-none focus-visible:ring-2 focus-visible:ring-ring">{registered ? <AssessmentResult detail={query.data.detail} /> : <div className="py-6 text-center"><ClipboardList size={28} strokeWidth={1.5} className="mx-auto text-muted-foreground" aria-hidden="true" /><h3 className="mt-4 text-base font-semibold">No results yet</h3><p className="mx-auto mt-2 max-w-80 text-sm leading-6 text-muted-foreground">{active ? "The candidate has not registered yet. Results will appear once they submit their assessment." : "Results will appear here after the candidate registers and submits their assessment."}</p></div>}</Tabs.Content>
+          <Tabs.Content value="results" className="outline-none focus-visible:ring-2 focus-visible:ring-ring">{registered ? <AssessmentResult detail={query.data.detail} /> : <div className="py-6 text-center"><ClipboardList size={28} strokeWidth={1.5} className="mx-auto text-muted-foreground" aria-hidden="true" /><h3 className="mt-4 text-base font-semibold">No results yet</h3><p className="mx-auto mt-2 max-w-80 text-sm leading-6 text-muted-foreground">{active ? "The candidate has not opened their link yet. Results will appear once they submit their assessment." : "Results will appear here after the candidate opens their link and submits their assessment."}</p></div>}</Tabs.Content>
         </Tabs.Root>
         <InvitationHistory invitations={query.data.invitations} />
       </>}
@@ -211,10 +268,35 @@ function CandidateAssessment({ candidate, canGenerate, onBusyChange }) {
   </div>;
 }
 
+function JobRoleSetting({ query, jobTitle, canEdit, saving, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [choice, setChoice] = useState("");
+  if (query.isPending) return <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Checking the test role for {jobTitle}…</p>;
+  if (query.isError) return <p role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm leading-6 text-destructive [overflow-wrap:anywhere]">{query.error.message} <button type="button" onClick={() => { void query.refetch(); }} disabled={query.isFetching} className="rounded-sm font-medium underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-50">Retry</button></p>;
+  const { role, source, roles = [] } = query.data;
+  // Only roles with questions can produce a test.
+  const choosable = roles.filter((item) => item.question_count > 0);
+  if (role && !editing) return <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2">
+    <p className="text-sm [overflow-wrap:anywhere]"><span className="text-muted-foreground">Test role: </span><span className="font-medium">{role.title}</span><span className="block text-xs text-muted-foreground">{source === "saved" ? `Saved for ${jobTitle}` : "Same title as the job posting"}</span></p>
+    {canEdit && <button type="button" disabled={saving} onClick={() => { setChoice(String(role.id)); setEditing(true); }} className="min-h-11 rounded-lg px-2 text-xs font-medium text-primary hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">Change</button>}
+  </div>;
+  if (!canEdit) return <p className="rounded-lg bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">No test role is set for {jobTitle}. An owner, admin or recruiter can choose one.</p>;
+  return <form className="space-y-3 rounded-lg border border-border bg-muted/30 p-4" onSubmit={async (event) => { event.preventDefault(); if (await onSave(choice)) setEditing(false); }}>
+    <div><label htmlFor="assessment-job-role" className="text-sm font-medium">{role ? `Change the test role for ${jobTitle}` : `Choose the test role for ${jobTitle}`}</label>
+    <p className="mt-1 text-xs leading-5 text-muted-foreground">{role ? "Later candidates for this job use the new role." : "No test role has this job's title. Your choice is saved for this job, so later candidates use it automatically."}</p></div>
+    <select id="assessment-job-role" value={choice} onChange={(event) => setChoice(event.target.value)} disabled={saving} className={inputClass}>
+      <option value="">Select a test role</option>
+      {choosable.map((item) => <option key={item.id} value={item.id}>{item.title} ({item.question_count} questions)</option>)}
+    </select>
+    {!choosable.length && <p className="text-xs leading-5 text-muted-foreground">No test role has questions yet. Add questions in the recruitment admin first.</p>}
+    <div className="flex flex-wrap gap-2"><button type="submit" disabled={saving || !choice} className={primaryClass}>{saving && <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{saving ? "Saving..." : "Save test role"}</button>{role && <button type="button" disabled={saving} onClick={() => setEditing(false)} className={buttonClass}>Cancel</button>}</div>
+  </form>;
+}
+
 function InvitationHistory({ invitations }) {
   if (!invitations.length) return null;
   return <details className="mt-6 border-t border-border pt-4 text-xs [&>summary]:min-h-11 [&>summary]:cursor-pointer [&>summary]:font-medium [&>summary]:outline-none [&>summary]:focus-visible:ring-2 [&>summary]:focus-visible:ring-ring [&_li]:flex [&_li]:flex-wrap [&_li]:items-center [&_li]:justify-between [&_li]:gap-3 [&_li]:border-b [&_li]:border-border [&_li]:py-3 [&_li]:text-muted-foreground [&_li]:[overflow-wrap:anywhere] [&_li>div]:flex [&_li>div]:flex-wrap [&_li>div]:items-center [&_li>div]:gap-3"><summary>Invitation history <span className="text-xs leading-relaxed text-muted-foreground">({invitations.length})</span></summary><ul>{invitations.map((item) => {
     const status = invitationStatus(item);
-    return <li key={item.id}><div><span className={`inline-flex w-fit shrink-0 items-center rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-foreground capitalize ${status === "accepted" ? "bg-primary/10 text-primary" : ""}`}>{status === "pending" ? "Awaiting registration" : assessmentLabel(status)}</span><span>{recruitmentDate(item.created_at)}</span></div><span>{item.intended_email || item.candidate_email}</span></li>;
+    return <li key={item.id}><div><span className={`inline-flex w-fit shrink-0 items-center rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-foreground capitalize ${status === "accepted" ? "bg-primary/10 text-primary" : ""}`}>{status === "pending" ? "Not opened yet" : assessmentLabel(status)}</span><span>{recruitmentDate(item.created_at)}</span></div><span>{item.intended_email || item.candidate_email}</span></li>;
   })}</ul></details>;
 }

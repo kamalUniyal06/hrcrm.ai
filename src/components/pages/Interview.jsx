@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSelector } from "react-redux";
 import { selectIsAdmin } from "../../utils/pageAccess";
 import CandidateInterviewPage from "./interviews/CandidateInterviewPage";
@@ -8,6 +8,8 @@ import { BriefcaseBusiness, CalendarCheck2, CalendarClock, ChevronRight, CircleA
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { fetchAllRecords } from "./candidates/candidatesApi";
+import { findInterviewCandidate, jobPostingTitle } from "../../services/recruitmentUtils";
+import { useRecruitment } from "../../context/recruitmentContext";
 import InterviewActionDialog from "./interviews/InterviewActionDialog";
 import InterviewBoard, { InterviewBoardSkeleton } from "./interviews/InterviewBoard";
 import RecruitmentPanel from "./recruitment/RecruitmentPanel";
@@ -39,9 +41,26 @@ export function AdminInterviews({ embedded = false, onOpenCandidate }) {
   const candidates = useQuery({ queryKey: ["candidates", "list"], queryFn: () => fetchAllRecords("hrc_candidates") });
   const statuses = useQuery({ queryKey: ["candidate-workflow", "status"], queryFn: () => fetchAllRecords("hrc_status"), staleTime: 300000 });
   const jobs = useQuery({ queryKey: ["interview-jobs"], queryFn: () => fetchAllRecords("hrc_job_postings"), staleTime: 300000 });
-  const jobMap = useMemo(() => new Map((jobs.data || []).map((job) => [String(job.id), job.name || job.title])), [jobs.data]);
+  const recruitment = useRecruitment();
+  const client = useQueryClient();
+  const jobMap = useMemo(() => new Map((jobs.data || []).map((job) => [String(job.id), jobPostingTitle(job)])), [jobs.data]);
   const groups = useMemo(() => withPipelineRounds(groupInterviews(interviews.data || [])), [interviews.data]);
   const all = groups.flatMap((group) => group.records);
+  // Round 1 cards show each candidate's test progress.
+  const testReferences = [...new Set(all.filter(isFirstRound).map((record) => String(findInterviewCandidate(record, candidates.data || [])?.id || "").trim()).filter(Boolean))].sort();
+  const testStatusKey = ["recruitment", recruitment.owner, "test-statuses"];
+  const tests = useQuery({
+    queryKey: [...testStatusKey, testReferences],
+    enabled: Boolean(recruitment.user && testReferences.length), staleTime: 30000, retry: false,
+    queryFn: async ({ signal }) => {
+      const statuses = {};
+      for (let start = 0; start < testReferences.length; start += 100) {
+        const data = await recruitment.request("/invitation-statuses", { params: { external_references: testReferences.slice(start, start + 100).join(",") }, signal });
+        Object.assign(statuses, data.statuses);
+      }
+      return statuses;
+    },
+  });
   // "Now" is when the data was fetched, so states stay stable between renders and update on refetch.
   const now = interviews.dataUpdatedAt;
   const assessmentInterview = assessment && all.find((record) => String(record.id) === String(assessment.interview?.id));
@@ -54,9 +73,9 @@ export function AdminInterviews({ embedded = false, onOpenCandidate }) {
   const visibleCount = visibleGroups.reduce((count, group) => count + group.records.length, 0);
   const stateCounts = all.reduce((counts, record) => ({ ...counts, [boardState(record, now)]: (counts[boardState(record, now)] || 0) + 1 }), { "": all.length });
   const filtered = Boolean(search || round || status);
-  const refreshing = [interviews, candidates, statuses, jobs].some((query) => query.isFetching);
+  const refreshing = [interviews, candidates, statuses, jobs, tests].some((query) => query.isFetching);
 
-  function refresh() { [interviews, candidates, statuses, jobs].forEach((query) => { void query.refetch(); }); }
+  function refresh() { [interviews, candidates, statuses, jobs].forEach((query) => { void query.refetch(); }); if (recruitment.user && testReferences.length) void tests.refetch(); }
   function clearFilters() { setSearch(""); setRound(""); setStatus(""); }
   function openAssessment(candidate, interview = null) {
     if (!isFirstRound(interview)) return;
@@ -84,7 +103,7 @@ export function AdminInterviews({ embedded = false, onOpenCandidate }) {
       </div>
     </header>}
 
-    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview || assessment.interview} onClose={() => setAssessment(null)} />}
+    {assessment && <RecruitmentPanel key={assessment.candidate?.id || assessment.interview?.id || "select-candidate"} initialCandidate={assessment.candidate} interview={assessmentInterview || assessment.interview} job={(jobs.data || []).find((job) => String(job.id) === String((assessmentInterview || assessment.interview)?.job_id))} onClose={() => { setAssessment(null); void client.invalidateQueries({ queryKey: testStatusKey }); }} />}
 
     <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
       <h2 id={embedded ? "interviews-heading" : undefined} tabIndex={embedded ? -1 : undefined} className="text-base font-semibold tracking-tight outline-none">Interviews by round</h2>
@@ -116,7 +135,7 @@ export function AdminInterviews({ embedded = false, onOpenCandidate }) {
       <h2 className="font-serif text-2xl tracking-tight">{filtered ? "No interviews match these filters" : "Your interview pipeline starts here"}</h2>
       <p className="mx-auto mt-3 mb-5 max-w-md text-[13px] leading-relaxed text-muted-foreground">{filtered ? "Try another name, round or status to find your candidates." : "Schedule an interview from your shortlist, or share a candidate test link."}</p>
       {filtered ? <Button onClick={clearFilters} variant="outline" className="h-10 bg-card text-xs">Clear filters</Button> : <Button asChild variant="outline" className="h-10 gap-2 bg-card text-xs"><Link to="/candidates?view=shortlisted">View shortlist <ChevronRight size={15} aria-hidden="true" /></Link></Button>}
-    </div> : <InterviewBoard groups={visibleGroups} filtered={filtered} now={now} onOpen={onOpenCandidate} candidates={candidates.data || []} statusOptions={statuses.data || []} jobMap={jobMap} canSchedule={candidates.isSuccess && statuses.isSuccess} canAssess={candidates.isSuccess} onAction={setSelected} onAssessment={openAssessment} />}
+    </div> : <InterviewBoard groups={visibleGroups} filtered={filtered} now={now} onOpen={onOpenCandidate} candidates={candidates.data || []} statusOptions={statuses.data || []} jobMap={jobMap} canSchedule={candidates.isSuccess && statuses.isSuccess} canAssess={candidates.isSuccess} testStatuses={tests.data} onAction={setSelected} onAssessment={openAssessment} />}
 
     {!interviews.isPending && (!interviews.isError || interviews.data) && <footer className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 text-[11px] leading-relaxed text-muted-foreground"><span className="inline-flex items-center gap-1.5"><GripVertical size={13} className="shrink-0" aria-hidden="true" />Drag a card's handle to another round to record feedback.</span>{onOpenCandidate ? <span className="inline-flex items-center gap-1.5"><MousePointerClick size={13} className="shrink-0" aria-hidden="true" />Select a card to see the candidate's profile and interview history.</span> : <span>Completed rounds stay in candidate history.</span>}</footer>}
     {selected && <InterviewActionDialog {...selected} statusOptions={statuses.data} onClose={closeInterviewAction} />}

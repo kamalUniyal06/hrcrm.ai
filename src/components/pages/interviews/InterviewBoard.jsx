@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { BriefcaseBusiness, CalendarCheck2, CalendarClock, CalendarPlus, Check, ChevronDown, CircleAlert, Clock3, GripVertical, Link2, MessageSquareText, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarCheck2, CalendarClock, CalendarPlus, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, GripVertical, Hourglass, Link2, MessageSquareText, RotateCcw, Send, X } from "lucide-react";
+import { testAction } from "../recruitment/assessmentPresentation";
 import { Button } from "../../ui/button";
 import { cn } from "../../../lib/utils";
 import { workflowValue } from "../candidates/candidatesApi";
@@ -28,7 +29,9 @@ const announcements = {
   onDragCancel: () => "Move cancelled. The interview stays in its original round.",
 };
 
-export default function InterviewBoard({ groups, filtered, now,candidates, statusOptions, jobMap, canSchedule, canAssess, onAction, onAssessment, onOpen }) {
+const testIcons = { none: Link2, pending: Send, in_progress: Hourglass, completed: ClipboardCheck, expired: RotateCcw, revoked: RotateCcw, unknown: Link2 };
+
+export default function InterviewBoard({ groups, filtered, now,candidates, statusOptions, jobMap, canSchedule, canAssess, testStatuses, onAction, onAssessment, onOpen }) {
   const [dragging, setDragging] = useState(null);
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
@@ -49,7 +52,7 @@ export default function InterviewBoard({ groups, filtered, now,candidates, statu
   }
   return <DndContext id="interview-rounds" sensors={sensors} collisionDetection={roundCollisionDetection} onDragStart={({ active }) => setDragging(active.data.current)} onDragCancel={() => setDragging(null)} onDragEnd={finishDrag} accessibility={{ announcements, restoreFocus: false, screenReaderInstructions: { draggable: "To move an interview, press Space or Enter on its drag handle. Use the arrow keys to choose another round. Press Space or Enter to open its feedback form, or Escape to cancel." } }}>
     <section id="interview-round-board" className="custom-scrollbar min-w-0 overflow-x-auto rounded-xl px-px pt-px pb-3 outline-none focus-visible:ring-2 focus-visible:ring-ring/50" aria-label="Interview rounds" tabIndex={0}>
-      <div className={gridClasses(groups.length)}>{groups.map((group) => <InterviewLane key={group.key} group={group} filtered={filtered} previous={groups[groups.indexOf(group) - 1]?.name} now={now} candidates={candidates} statusOptions={statusOptions} jobMap={jobMap} canSchedule={canSchedule} canAssess={canAssess} canMove={canSchedule && groups.length > 1} onAction={onAction} onAssessment={onAssessment} onOpen={onOpen} />)}</div>
+      <div className={gridClasses(groups.length)}>{groups.map((group) => <InterviewLane key={group.key} group={group} filtered={filtered} previous={groups[groups.indexOf(group) - 1]?.name} now={now} candidates={candidates} statusOptions={statusOptions} jobMap={jobMap} canSchedule={canSchedule} canAssess={canAssess} testStatuses={testStatuses} canMove={canSchedule && groups.length > 1} onAction={onAction} onAssessment={onAssessment} onOpen={onOpen} />)}</div>
     </section>
     <DragOverlay dropAnimation={null}>{dragging && <div className="pointer-events-none rounded-xl border border-primary/30 bg-card p-4 text-card-foreground shadow-lg shadow-foreground/10 ring-2 ring-primary/20" aria-hidden="true"><div className="flex items-center gap-3"><GripVertical size={18} className="shrink-0 text-primary" /><div className="min-w-0"><p className="text-sm font-semibold [overflow-wrap:anywhere]">{dragging.record.name || "Unnamed candidate"}</p><p className="mt-1 text-xs text-muted-foreground">{dragging.group.name}</p></div></div><p className="mt-3 border-t border-border pt-3 text-[11px] text-muted-foreground">Drop in another round to add feedback</p></div>}</DragOverlay>
   </DndContext>;
@@ -80,7 +83,7 @@ function InterviewLane({ group, filtered, previous, now, ...cardProps }) {
   </section>;
 }
 
-function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, canSchedule, canAssess, canMove, onAction, onAssessment, onOpen }) {
+function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, canSchedule, canAssess, testStatuses, canMove, onAction, onAssessment, onOpen }) {
   const candidate = findInterviewCandidate(record, candidates);
   const rejected = candidate && clean(workflowValue(candidate, "status", statusOptions)).toLowerCase() === "rejected";
   const state = boardState(record, now);
@@ -99,8 +102,10 @@ function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, 
   const chip = rejected ? { label: "Rejected", Icon: X, className: "border-destructive/20 bg-destructive/10 text-destructive" } : stateStyles[state];
   const ChipIcon = chip.Icon;
   const fallbackTime = displayInterviewTime(record);
+  const test = testAction(testStatuses?.[String(candidate?.id || "").trim()]);
+  const TestIcon = testIcons[test.status];
   const linkHint = !canAssess ? "Candidate data is unavailable. Refresh to try again."
-    : !candidate ? `Select a CRM candidate to create a test link for ${name}` : `Assessment invitation for ${name}`;
+    : !candidate ? `Select a CRM candidate to create a test link for ${name}` : test.hint || `Assessment invitation for ${name}`;
   const dragHint = completed ? "Completed interviews cannot be moved" : rejected ? "Rejected candidates cannot be moved" : !candidateIdentity(record) ? "Add a candidate ID or email before moving this interview" : !canMove ? "Load candidate data and show multiple rounds to move an interview" : "Drag to another round to add feedback";
 
   return <article ref={setNodeRef} className={cn("group/card relative min-w-0 overflow-hidden rounded-xl border bg-card pt-4 text-card-foreground shadow-sm shadow-foreground/[.025] transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none", due ? "border-[var(--candidate-attention)]/30" : "border-border", openable && "hover:border-primary/30 hover:shadow-md hover:shadow-foreground/[.05]", isDragging && "opacity-35")} aria-label={`${name}, ${group.name}`}>
@@ -144,7 +149,7 @@ function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, 
 
     {((!completed && !rejected) || isFirstRound(record)) && <div className="relative z-10 mt-3 flex items-center gap-2 px-4">
       {!completed && !rejected && <Button disabled={!record.id || !canSchedule} onClick={() => onAction({ record, action: "schedule" })} variant="secondary" className="h-10 min-w-0 flex-1 gap-1.5 px-2 text-xs min-[701px]:h-9 min-[701px]:text-[11px] 2xl:text-xs" aria-label={`${date ? "Reschedule" : "Schedule"} interview for ${name}, ${group.name}`}><CalendarPlus size={14} aria-hidden="true" />{date ? "Reschedule" : "Schedule"}</Button>}
-      {isFirstRound(record) && <Button onClick={() => onAssessment(candidate, record)} disabled={!canAssess} title={linkHint} variant="outline" className="h-10 min-w-0 flex-1 gap-1.5 bg-card px-2 text-xs min-[701px]:h-9 min-[701px]:text-[11px] 2xl:text-xs" aria-label={`Create test link for ${name}, ${group.name}`}><Link2 size={14} aria-hidden="true" />Test link</Button>}
+      {isFirstRound(record) && <Button onClick={() => onAssessment(candidate, record)} disabled={!canAssess} title={linkHint} variant="outline" className="h-10 min-w-0 flex-1 gap-1.5 bg-card px-2 text-xs min-[701px]:h-9 min-[701px]:text-[11px] 2xl:text-xs" aria-label={`${test.label}: ${name}, ${group.name}`}><TestIcon size={14} aria-hidden="true" />{test.label}</Button>}
     </div>}
 
     <footer className={cn("relative z-10 mt-3 flex items-center justify-between gap-2 border-t px-4 py-1.5", due ? "border-[var(--candidate-attention)]/20 bg-[var(--candidate-attention-soft)]" : "border-border/60")}>

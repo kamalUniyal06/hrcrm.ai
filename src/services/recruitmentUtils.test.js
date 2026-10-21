@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { findInterviewCandidate, invitationPayload, normalizeRecruitmentApiUrl, recruitmentDate, safeInvitationUrl } from "./recruitmentUtils.js";
+import { applicationJob, assessmentProfilePayload, experienceYears, findInterviewCandidate, invitationPayload, normalizeRecruitmentApiUrl, recruitmentDate, safeInvitationUrl, skillNames } from "./recruitmentUtils.js";
 
 test("API configuration accepts an API root or the supplied dashboard URL", () => {
   assert.equal(normalizeRecruitmentApiUrl("https://recruitment.example/api/admin/dashboard"), "https://recruitment.example/api");
@@ -46,4 +46,46 @@ test("generated links reject executable schemes, credentials and insecure public
 test("recruitment dates accept server UTC timestamps and reject malformed dates", () => {
   assert.equal(recruitmentDate("2026-10-05 12:00:00"), recruitmentDate("2026-10-05T12:00:00Z"));
   assert.equal(recruitmentDate("bad date"), "");
+});
+
+test("CRM experience counts overlapping and current roles once", () => {
+  const now = Date.parse("2026-01-01T00:00:00Z");
+  assert.equal(experienceYears([
+    { joining_date: "2020-01-01", leaving_date: "2022-01-01" },
+    { joining_date: "2021-01-01", leaving_date: "2023-01-01" },
+    { joining_date: "2024-01-01", leaving_date: "" },
+  ], now), 5);
+  assert.equal(experienceYears([{ joining_date: "02/01/2020", leaving_date: "" }, { joining_date: "2025-01-01", leaving_date: "2024-01-01" }], now), 0);
+  assert.equal(experienceYears([{ joining_date: "1990-01-01", leaving_date: "" }], now), 25);
+  assert.equal(experienceYears(undefined, now), 0);
+});
+
+test("CRM skill names are trimmed and de-duplicated", () => {
+  assert.deepEqual(skillNames([{ name: " React " }, { skill_name: "react" }, { skill: "Node.js" }, { name: "" }, null]), ["React", "Node.js"]);
+});
+
+test("assessment profiles send the job posting and its requirements", () => {
+  const job = { id: " react-job ", job_title: " React  Developer ", job_code: "REACT-INT-001", required_skills: "- React.js\n- CSS3", preferred_skills: "- TypeScript" };
+  assert.deepEqual(assessmentProfilePayload({ job, skills: [{ name: "React" }], experiences: [] }), {
+    job_reference: "react-job", job_title: "React Developer", job_skills_text: "- React.js\n- CSS3\n\n- TypeScript",
+    candidate_skills: ["React"], candidate_experience: 0,
+  });
+  assert.equal(assessmentProfilePayload({ job: { id: "j", name: "QA" } }).job_skills_text, "");
+  assert.throws(() => assessmentProfilePayload({ job: { id: "j", job_title: " " } }), /job posting/);
+  assert.throws(() => assessmentProfilePayload({ job: { job_title: "QA" } }), /job posting/);
+  assert.throws(() => assessmentProfilePayload({}), /job posting/);
+});
+
+test("interviews without a job use the candidate's latest job application", () => {
+  const jobs = [{ id: "react", name: "React Developer" }, { id: "qa", title: "QA" }];
+  assert.equal(applicationJob([{ jobid: " react ", date_entered: "10/21/2026 11:50" }], jobs).job, jobs[0]);
+  assert.equal(applicationJob([
+    { jobid: "react", date_entered: "10/01/2026 09:00" },
+    { jobid: "qa", date_entered: "10/21/2026 11:50" },
+    { jobid: "missing", date_entered: "10/22/2026 11:50" },
+    { jobid: "react", date_entered: "10/23/2026 11:50", deleted: "1" },
+  ], jobs).job.id, "qa");
+  assert.deepEqual(applicationJob([], jobs), { job: null, issue: "" });
+  assert.match(applicationJob([{ jobid: "missing" }], jobs).issue, /could not find/);
+  assert.equal(applicationJob([{ jobid: "untitled" }], [{ id: "untitled" }]).job, null);
 });

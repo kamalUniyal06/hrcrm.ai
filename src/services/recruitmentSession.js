@@ -36,7 +36,7 @@ export function createRecruitmentSession({ getCrmToken, clearCrmToken, request, 
     return current;
   }
   async function authenticatedRequest(path, options = {}) {
-    if (!/^\/(?:invitations|candidates)(?:\/[^/?]+)?$/.test(path)) throw new Error("This endpoint is outside the assessment integration.");
+    if (!/^\/(?:(?:invitations|candidates)(?:\/[^/?]+)?|job-roles|invitation-statuses)$/.test(path)) throw new Error("This endpoint is outside the assessment integration.");
     await ensure();
     const version = generation;
     const usedToken = token;

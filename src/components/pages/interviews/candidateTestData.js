@@ -18,9 +18,12 @@ export async function loadCandidateTestInvitation(request, { candidate, email, s
   }
   const expiresAt = clean(invitation.expires_at);
   const expires = Date.parse(expiresAt);
-  if (!Number.isFinite(expires) || !["pending", "accepted", "expired", "revoked"].includes(invitation.status)) {
+  if (!Number.isFinite(expires) || !["pending", "accepted", "completed", "expired", "revoked"].includes(invitation.status)) {
     throw new Error("Your test invitation returned an invalid status. Please contact HR.");
   }
+  // An opened link keeps signing the candidate back in until it expires.
+  const reentryUrl = invitation.status === "accepted" && expires > now ? safeInvitationUrl(response.invitation_url) : "";
+  if (reentryUrl) return { status: "accepted", url: reentryUrl, expiresAt };
   if (invitation.status !== "pending") return { status: invitation.status, url: "", expiresAt };
   if (expires <= now) return { status: "expired", url: "", expiresAt };
   if (invitation.link_unavailable === true) return { status: "unavailable", url: "", expiresAt };
