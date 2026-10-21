@@ -5,8 +5,14 @@ import {
   isRowOnLeave,
   parseActivityTime,
 } from "../attendance/adminAttendanceUtils.js";
+import he from "he";
+import { plainText } from "../../../pages/jobs/jobFormatting.js";
 
 const clean = (value) => String(value ?? "").trim();
+
+// Announcement descriptions are HTML templates, sometimes saved entity-encoded (&lt;p&gt;).
+// Decode first so the tags can be stripped, then return one line of readable text for the list.
+export const announcementPreview = (value) => plainText(he.decode(String(value ?? ""))).replace(/\s+/g, " ").trim();
 const mean = (values) => (values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null);
 const isWeekend = (key) => [0, 6].includes(new Date(`${key}T00:00:00`).getDay());
 

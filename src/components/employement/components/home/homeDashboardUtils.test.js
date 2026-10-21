@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { buildAttendanceRows, buildLeaveDays } from "../attendance/adminAttendanceUtils.js";
 import {
   adminDayStats,
+  announcementPreview,
   buildFeed,
   employeeAttendanceStats,
   employeeDateKey,
@@ -108,4 +109,11 @@ test("formats helpers", () => {
   assert.equal(formatClock(570), "09:30 AM");
   assert.equal(formatClock(1152), "07:12 PM");
   assert.equal(employeeDateKey("05/03/2020"), "2020-03-05");
+});
+
+test("announcement previews show readable text instead of HTML tags", () => {
+  assert.equal(announcementPreview("&lt;h2&gt;Diwali party&lt;/h2&gt;&lt;p&gt;Snacks &amp;amp; games at 4&amp;nbsp;PM&lt;/p&gt;"), "Diwali party Snacks & games at 4 PM");
+  assert.equal(announcementPreview("<style>p { color: red; }</style><table><tr><td><p>Office closed<br>on Friday</p></td></tr></table>"), "Office closed on Friday");
+  assert.equal(announcementPreview("Plain message"), "Plain message");
+  assert.equal(announcementPreview(null), "");
 });
