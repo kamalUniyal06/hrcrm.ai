@@ -28,6 +28,9 @@ import {
 } from "./adminAttendanceUtils";
 import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
 import { useAttendanceStats } from "../../../../queries/attendance.queries";
+import { useTeamsPresenceDay } from "../../../../queries/teamsPresence.queries";
+import { indexPresence, presenceForRow } from "./teamsPresenceUtils";
+import { TeamsActivityPanel, TeamsCell, TeamsSummary } from "./TeamsPresence";
 import { pageGutter } from "../home/homeUi";
 import EmployeeAttendanceDrawer from "./EmployeeAttendanceDrawer";
 
@@ -177,6 +180,11 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   });
   const attendanceStats = useAttendanceStats(activityDay, { enabled: isAdmin });
   const today = dateKey(new Date());
+  // Teams presence: live status for today, the stored daily report for other days.
+  const teamsLive = activityDay === today;
+  const teams = useTeamsPresenceDay(activityDay, { live: teamsLive, enabled: isAdmin });
+  const presenceIndex = useMemo(() => indexPresence(teams.data?.employees), [teams.data]);
+  const teamsState = teams.isPending ? "loading" : teams.isError ? "error" : "ready";
   const rows = useMemo(
     () => buildAttendanceRows(employees.data || [], activity.data || []),
     [employees.data, activity.data],
@@ -214,7 +222,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const pageRows = visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const loading = employees.isPending || leaves.isPending || activity.isPending;
   const failed = employees.isError || activity.isError || leaves.isError;
-  const fetching = employees.isFetching || activity.isFetching || leaves.isFetching || attendanceStats.isFetching;
+  const fetching = employees.isFetching || activity.isFetching || leaves.isFetching || attendanceStats.isFetching || teams.isFetching;
   const selectedRow = selected && rows.find((row) => row.key === selected.key);
   const selectedRecords = selected?.records || selectedRow?.days[selected?.date] || [];
   const selectedSummary = daySummary(selectedRecords, selected?.date, today, selectedRow ? isOnLeave(selectedRow, selected?.date) : false, lateAfter);
@@ -249,6 +257,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
     void activity.refetch();
     void leaves.refetch();
     void attendanceStats.refetch();
+    void teams.refetch();
   }
 
   if (!isAdmin)
@@ -409,6 +418,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
             Click an employee to view their monthly attendance
           </p>
         </div>
+        <div className="border-t border-slate-100 px-5 py-3">
+          <TeamsSummary query={teams} live={teamsLive} />
+        </div>
 
         {failed ? (
           <div
@@ -448,7 +460,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] border-separate border-spacing-0 text-left text-sm">
+            <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-left text-sm">
               <caption className="sr-only">
                 Employee attendance for {activityDay}
               </caption>
@@ -463,6 +475,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                   <th scope="col" className={headerCell}>Status</th>
                   <th scope="col" className={headerCell}>Clock-in &amp; out</th>
                   <th scope="col" className={headerCell}>Lunch in &amp; out</th>
+                  <th scope="col" className={headerCell}>Teams activity</th>
                   <th scope="col" className={headerCell}>Login from</th>
                 </tr>
               </thead>
@@ -543,6 +556,9 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                         <LunchInOut sessions={summary.sessions} limit={limits.lunchOutMinutes} />
                       </td>
                       <td className={bodyCell}>
+                        <TeamsCell record={presenceForRow(presenceIndex, row)} live={teamsLive} state={teamsState} />
+                      </td>
+                      <td className={bodyCell}>
                         {records.length ? (records[0]?.ip_address === "122.176.54.204" ? "Office" : "Remote") : "—"}
                       </td>
                     </tr>
@@ -584,7 +600,8 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
       <p className="px-1 text-xs leading-5 text-slate-400">
         No record means no activity or approved leave was returned for that day. Approved leave
         comes from the leave module; holidays and absence are not inferred. Effective time is calculated from login to logout;
-        recorded lunch time is shown separately and is not deducted.
+        recorded lunch time is shown separately and is not deducted. Teams activity comes from Microsoft Teams presence,
+        collected every minute; active time counts Available and Busy, online time also counts Away.
       </p>
 
       <EmployeeAttendanceDrawer
@@ -641,6 +658,13 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     </div>
                     <p className="mt-3 text-xs font-medium text-slate-600">Activity timeline</p>
                   </section>
+                  {selected.key.startsWith("employee:") && (
+                    <TeamsActivityPanel
+                      employeeId={selected.key.slice("employee:".length)}
+                      date={selected.date}
+                      live={selected.date === today}
+                    />
+                  )}
                   {selectedRecords.map((record, index) => {
                     const summary = daySummary([record], selected.date, today, false, lateAfter);
                     const session = summary.sessions[0];
