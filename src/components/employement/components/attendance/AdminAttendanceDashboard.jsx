@@ -25,6 +25,7 @@ import {
   formatMinutes,
   isHalfDayLeave,
   isRowOnLeave,
+  leaveForRow,
   matchesOverviewFilter,
 } from "./adminAttendanceUtils";
 import { timeToMinutes, useAttendanceLimits } from "../../attendanceLimits";
@@ -35,6 +36,7 @@ import { TeamsActivityPanel, TeamsCell, TeamsSummary } from "./TeamsPresence";
 import { pageGutter } from "../home/homeUi";
 import { useLeavesOnDay } from "../home/homeDashboard.queries";
 import EmployeeAttendanceDrawer from "./EmployeeAttendanceDrawer";
+import LeaveDetails from "../leave/LeaveDetails";
 
 const statuses = {
   onTime: {
@@ -480,6 +482,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                   const summary = daySummary(records, activityDay, today, onLeave, lateAfter);
                   const halfDay = isOnHalfDay(row);
                   const style = statuses[summary.status === "leave" && halfDay ? "halfDay" : summary.status];
+                  const rowLeave = onLeave ? leaveForRow(leaves.data || [], row, activityDay) : null;
                   return (
                     <tr
                       key={row.key}
@@ -529,10 +532,10 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                       <td className="border-b border-r border-slate-100 px-3 py-2">
                         <button
                           type="button"
-                          disabled={!records.length}
+                          disabled={!records.length && !rowLeave}
                           onClick={(event) => {
                             event.stopPropagation();
-                            setSelected({ key: row.key, date: activityDay });
+                            setSelected({ key: row.key, date: activityDay, leave: rowLeave });
                           }}
                           className={`inline-flex min-w-24 items-center justify-center gap-2 rounded-lg border-l-[3px] px-3 py-2 text-xs font-medium disabled:cursor-default ${style.color}`}
                         >
@@ -613,7 +616,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         onPrevious={() => drawerIndex > 0 && setDrawerKey(drawerRows[drawerIndex - 1].key)}
         onNext={() => drawerIndex < drawerRows.length - 1 && setDrawerKey(drawerRows[drawerIndex + 1].key)}
         onClose={closeDrawer}
-        onSelectDay={(date, records) => setSelected({ key: drawerKey, date, records })}
+        onSelectDay={(date, records, leave) => setSelected({ key: drawerKey, date, records, leave })}
         lateAfter={lateAfter}
       />
 
@@ -632,7 +635,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                   {selectedRow?.name || "Attendance details"}
                 </Dialog.Title>
                 <Dialog.Description className="mt-1 text-sm text-slate-500">
-                  {selected?.date} · Login, logout and lunch activity
+                  {selected?.date} · {selected?.leave && !selectedRecords.length ? "Leave details" : "Login, logout and lunch activity"}
                 </Dialog.Description>
               </div>
               <Dialog.Close
@@ -643,6 +646,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
               </Dialog.Close>
             </div>
             <div className="mt-6 space-y-4">
+              {selected?.leave && <LeaveDetails record={selected.leave} />}
               {selectedRecords.length ? (
                 <>
                   <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -727,7 +731,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
                     );
                   })}
                 </>
-              ) : (
+              ) : selected?.leave ? null : (
                 <p className="text-sm text-slate-500">
                   This activity is no longer available. Refresh the directory.
                 </p>

@@ -55,3 +55,21 @@ export function isRecordInRange(record, fromDate, toDate, dateMode) {
 
 export const statusOf = (record) =>
   ["Applied", "Accepted", "Rejected"].includes(record.status) ? record.status : "Applied";
+
+const looksLikeId = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(value);
+const firstName = (...values) => values.map(clean).find((value) => value && !looksLikeId(value)) || "";
+
+// Who approved a leave, who covers the work, and why. The relate fields come back as
+// `<field>_id` plus a name; when the name is missing, nameById fills it from the employee list.
+export function leaveApproval(record, nameById = new Map()) {
+  const approvedById = clean(record?.approved_by_id);
+  const handoverId = clean(record?.work_handed_over_to_id);
+  return {
+    approvedById,
+    handoverId,
+    approvedBy: firstName(record?.approved_by_id_name, record?.approved_by, nameById.get(approvedById)),
+    handoverTo: firstName(record?.work_handed_over_to_id_name, record?.work_handed_over_to, nameById.get(handoverId)),
+    reason: clean(record?.verdict),
+    decidedOn: statusOf(record || {}) === "Applied" ? "" : clean(record?.approved_date) || clean(record?.date_modified),
+  };
+}

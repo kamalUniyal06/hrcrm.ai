@@ -161,12 +161,24 @@ export const getLeaveDocuments = async (id) => {
     return records.filter((record) => record.image_url || record.file_url || record.filename || record.name);
 };
 
-export const updateLeaveStatus = async (id, status) => {
+const todayKey = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
+
+// An approval records why (`verdict`), who approved it, who covers the work and the date.
+export const updateLeaveStatus = async (id, status, { reason = "", approvedById = "", handoverToId = "" } = {}) => {
     if (!id) throw new Error("A leave request ID is required.");
     if (!["Accepted", "Rejected"].includes(status)) throw new Error("Choose Accepted or Rejected.");
+    const verdict = String(reason || "").trim();
+    if (status === "Accepted" && !verdict) throw new Error("Add a reason for approving this leave.");
+    if (status === "Accepted" && !approvedById) throw new Error("Choose who is approving this leave.");
+    const data = status === "Accepted"
+        ? { status, verdict, approved_by_id: approvedById, work_handed_over_to_id: handoverToId || "", approved_date: todayKey() }
+        : { status, ...(verdict ? { verdict } : {}) };
     const response = await http({
         method: "POST",
-        body: { action: "update", module: "hrc_leaves", id, data: { status } },
+        body: { action: "update", module: "hrc_leaves", id, data },
     });
     if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not update leave request.");
     return response;

@@ -8,10 +8,11 @@ const COLUMNS = [
   { id: "Rejected", label: "Rejected", hint: "Declined leave requests", surface: "border-rose-200 bg-rose-50/70", dot: "bg-rose-500", count: "text-rose-800 ring-rose-200" },
 ];
 
-export default function LeaveKanban({ records, employeeMap, mutation, onOpen }) {
+// onDecide(record, status): the board asks for an approval reason before saving.
+export default function LeaveKanban({ records, employeeMap, mutation, onOpen, onDecide }) {
   const onDragEnd = ({ source, destination, draggableId }) => {
     if (!destination || destination.droppableId === source.droppableId || destination.droppableId === "Applied") return;
-    mutation.mutate({ id: draggableId, status: destination.droppableId });
+    onDecide(records.find((record) => String(record.id) === String(draggableId)), destination.droppableId);
   };
 
   return (

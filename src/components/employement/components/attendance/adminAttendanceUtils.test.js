@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { attendanceDayBounds, buildAttendanceRows, buildAttendanceStatsQueries, dateKey, daySummary, isHalfDayLeave, leaveDayRequests, leavesCoveringDay, matchesOverviewFilter, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
+import { attendanceDayBounds, buildAttendanceRows, leaveForRow, buildAttendanceStatsQueries, dateKey, daySummary, isHalfDayLeave, leaveDayRequests, leavesCoveringDay, matchesOverviewFilter, parseActivityTime, readAttendanceStats, sessionSummary, weekDays } from "./adminAttendanceUtils.js";
 
 const sample = {
   id: "activity-1", name: "verm.jatin2004@gmail.com", login: "09/18/2026 17:59",
@@ -151,4 +151,15 @@ test("someone on leave who logged in is in the leave list and their check-in lis
   assert.equal(matchesOverviewFilter("onTime", halfDay), true);
 
   assert.equal(matchesOverviewFilter("missing", { ...base, records: [], onLeave: false, halfDay: false }), true);
+});
+
+test("finds the accepted leave covering a row's day", () => {
+  const leaves = [
+    { id: "applied", status: "Applied", employee_id: "e1", leave_from: "2026-10-22" },
+    { id: "other", status: "Accepted", employee_id: "e2", leave_from: "2026-10-22" },
+    { id: "mine", status: "Accepted", employee_id: "e1", leave_from: "2026-10-21", leave_to: "2026-10-23" },
+  ];
+  assert.equal(leaveForRow(leaves, { key: "employee:e1", email: "a@x.com" }, "2026-10-22").id, "mine");
+  assert.equal(leaveForRow(leaves, { key: "employee:e1" }, "2026-10-24"), null);
+  assert.equal(leaveForRow([{ status: "Accepted", email: "A@x.com", leave_from: "2026-10-22" }], { key: "email:a@x.com", email: "a@x.com" }, "2026-10-22").email, "A@x.com");
 });

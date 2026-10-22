@@ -10,6 +10,7 @@ import { useAttendanceContext } from "../../context/AttendanceContext";
 import { useAttendanceCalendar } from "../../hooks/useAttendance";
 import { useEmployeeLeaves, usePublicHolidays } from "../../queries/leaves.queries";
 import { useAttendanceLimits } from "../../attendanceLimits";
+import LeaveDetails from "../leave/LeaveDetails";
 
 const MotionButton = motion.button;
 const MotionAside = motion.aside;
@@ -402,7 +403,8 @@ const EmployeeAttendanceCalendar = ({
         }, {});
     }, [publicHolidays.data]);
 
-    const leaveMap = useMemo(() => {
+    // Approved leave records by day; the day drawer shows the full record.
+    const leaveRecords = useMemo(() => {
         const records = employeeLeaves.data?.records || employeeLeaves.data?.data?.records || [];
         return records.reduce((leaves, record) => {
             if (String(record?.status).toLowerCase() !== "accepted") return leaves;
@@ -412,12 +414,16 @@ const EmployeeAttendanceCalendar = ({
             const cursor = new Date(`${from}T00:00:00`);
             const end = new Date(`${to}T00:00:00`);
             while (cursor <= end) {
-                leaves[formatDate(cursor)] = record?.type_of_leave || record?.leave_type || "Approved leave";
+                leaves[formatDate(cursor)] = record;
                 cursor.setDate(cursor.getDate() + 1);
             }
             return leaves;
         }, {});
     }, [employeeLeaves.data]);
+    const leaveMap = useMemo(
+        () => Object.fromEntries(Object.entries(leaveRecords).map(([day, record]) => [day, record?.type_of_leave || record?.leave_type || "Approved leave"])),
+        [leaveRecords],
+    );
 
     const today = new Date();
 
@@ -425,6 +431,7 @@ const EmployeeAttendanceCalendar = ({
         ? attendanceMap[formatDate(selectedDate)]
         : null;
     const selectedLeave = selectedDate ? leaveMap[formatDate(selectedDate)] : null;
+    const selectedLeaveRecord = selectedDate ? leaveRecords[formatDate(selectedDate)] : null;
 
     useEffect(() => {
         if (!selectedDate) return undefined;
@@ -644,6 +651,7 @@ const EmployeeAttendanceCalendar = ({
                         date={selectedDate}
                         attendance={selectedAttendance}
                         leaveName={selectedLeave}
+                        leave={selectedLeaveRecord}
                         email={email}
                         lateAfterMinutes={lateAfterMinutes}
                         onClose={() => selectDate(null)}
@@ -654,7 +662,7 @@ const EmployeeAttendanceCalendar = ({
     );
 };
 
-const AttendanceDayDrawer = ({ date, attendance, leaveName, email, lateAfterMinutes, onClose }) => {
+const AttendanceDayDrawer = ({ date, attendance, leaveName, leave, email, lateAfterMinutes, onClose }) => {
     const [currentMinutes, setCurrentMinutes] = useState(getCurrentIndiaMinutes);
 
     useEffect(() => {
@@ -763,7 +771,14 @@ const AttendanceDayDrawer = ({ date, attendance, leaveName, email, lateAfterMinu
                         </div>
                     </section>
 
-                    {!attendance ? (
+                    {leave && (
+                        <section className="border-b border-[var(--border)] p-5">
+                            <h3 className="mb-3 text-sm font-semibold">Leave details</h3>
+                            <LeaveDetails record={leave} />
+                        </section>
+                    )}
+
+                    {!attendance ? (leave ? null : (
                         <section className="p-5">
                             <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-8 text-center">
                                 <Icon name="IoCalendarClearOutline" library="io5" size={30} className="mx-auto mb-3 text-[var(--muted-foreground)]" />
@@ -771,7 +786,7 @@ const AttendanceDayDrawer = ({ date, attendance, leaveName, email, lateAfterMinu
                                 <p className="mt-1 text-xs text-[var(--muted-foreground)]">{leaveName ? `On leave — ${leaveName}` : "There is no attendance report for this day."}</p>
                             </div>
                         </section>
-                    ) : (
+                    )) : (
                         <>
                             <section className="border-b border-[var(--border)] p-5">
                                 <div className="mb-4">
