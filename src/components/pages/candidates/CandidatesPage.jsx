@@ -66,6 +66,7 @@ const kinds = Object.keys(workflowModules);
 const VIEWS = ["all", "shortlisted", "interviews"];
 const SHORTLIST_PAGE_SIZE = 20;
 const XL_QUERY = "(min-width: 1280px)";
+const NO_FILTERS = { stage: "", phase: "", status: "", source: "" };
 const tint = (color, amount = 12) => `color-mix(in oklab, ${color} ${amount}%, transparent)`;
 
 function currentMonthRange() {
@@ -113,7 +114,8 @@ export default function CandidatesPage() {
   const shortlistedOnly = view === "shortlisted";
 
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({ stage: "", phase: "", status: "" });
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filters, setFilters] = useState(NO_FILTERS);
   const [defaultRange] = useState(currentMonthRange);
   const [dateRange, setDateRange] = useState(defaultRange);
   const [page, setPage] = useState(1);
@@ -135,11 +137,26 @@ export default function CandidatesPage() {
     }, options);
   }, [setParams]);
 
+  // Wait for typing to pause before asking the server, then start again from page 1.
+  useEffect(() => {
+    const term = search.trim();
+    if (term === debouncedSearch) return;
+    const timeout = setTimeout(() => { setDebouncedSearch(term); setPage(1); }, 300);
+    return () => clearTimeout(timeout);
+  }, [search, debouncedSearch]);
+
+  const serverFilters = shortlistedOnly ? {} : {
+    search: debouncedSearch,
+    workflow: { stage: filters.stage, phase: filters.phase, status: filters.status },
+    source: filters.source,
+  };
+  const serverFilterActive = Boolean(serverFilters.search || Object.values(serverFilters.workflow || {}).some(Boolean) || serverFilters.source);
   const request = {
     page,
     orderBy: sort.key === "name" ? "first_name" : workflowFields[sort.key] || sort.key,
     orderDir: sort.direction === 1 ? "ASC" : "DESC",
     dateRange,
+    ...serverFilters,
   };
   const directoryKey = ["candidates", "list", "page", "assigned-workflow", request];
   const directory = useQuery({
@@ -147,6 +164,13 @@ export default function CandidatesPage() {
     queryFn: () => fetchCandidatePage(request),
     placeholderData: keepPreviousData,
   });
+  // The summary counts the whole period, so a filtered list needs its own unfiltered total.
+  const periodTotal = useQuery({
+    queryKey: ["candidates", "list", "period-total", { dateRange }],
+    queryFn: async () => (await fetchCandidatePage({ dateRange, perPage: 1 })).total,
+    enabled: serverFilterActive,
+  });
+  const periodCount = serverFilterActive ? periodTotal.data : directory.data?.total;
   const shortlist = useQuery({
     queryKey: [...shortlistedCandidatesKey, { dateRange }],
     queryFn: () => fetchShortlistSource({ dateRange }),
@@ -169,10 +193,17 @@ export default function CandidatesPage() {
 
   const value = (record, key) =>
     key === "name" ? candidateName(record) : key === "date_entered" ? record.date_entered || "" : workflowValue(record, key, lookups[key].data);
-  const searchTerm = search.trim().toLowerCase();
-  const visible = records.filter((record) =>
+  const optionName = (kind, id) => {
+    const option = (lookups[kind].data || []).find((item) => String(item.id) === id);
+    return option ? he.decode(String(option.name)) : id;
+  };
+  const sourceOptions = Object.entries(directory.data?.dropdownLists?.candidate_source || {}).filter(([key, label]) => key && label);
+  // The directory is filtered by the server; only the fully loaded shortlist is filtered here.
+  const searchTerm = (shortlistedOnly ? search : debouncedSearch).trim().toLowerCase();
+  const visible = !shortlistedOnly ? records : records.filter((record) =>
     [candidateName(record), record.email1, record.phone_mobile, record.current_designation, record.department].some((item) => String(item || "").toLowerCase().includes(searchTerm)) &&
-    kinds.every((kind) => !filters[kind] || value(record, kind) === filters[kind]),
+    kinds.every((kind) => !filters[kind] || value(record, kind) === optionName(kind, filters[kind])) &&
+    (!filters.source || record.candidate_source === filters.source),
   );
   if (shortlistedOnly) {
     visible.sort((left, right) => sort.key === "date_entered"
@@ -184,7 +215,8 @@ export default function CandidatesPage() {
   const pages = shortlistedOnly ? Math.max(1, Math.ceil(visible.length / pageSize)) : directory.data?.pages ?? 1;
   const currentPage = shortlistedOnly ? Math.min(page, pages) : directory.data?.page ?? page;
   const rows = shortlistedOnly ? visible.slice((currentPage - 1) * pageSize, currentPage * pageSize) : visible;
-  const workflowFilterActive = kinds.some((kind) => filters[kind]);
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
+  const workflowFilterActive = activeFilterCount > 0;
   const filterActive = Boolean(searchTerm || workflowFilterActive);
 
   const openInterviews = useMemo(() => uniqueInterviews(interviews.data || []).filter((record) => !hasOutcome(record)), [interviews.data]);
@@ -223,7 +255,8 @@ export default function CandidatesPage() {
   function switchView(next) {
     setPage(1);
     setSearch("");
-    setFilters({ stage: "", phase: "", status: "" });
+    setDebouncedSearch("");
+    setFilters(NO_FILTERS);
     setSort(next === "shortlisted" ? { key: "name", direction: 1 } : { key: "date_entered", direction: -1 });
     panelDismissed.current = false;
     updateParams({ view: next === "all" ? null : next, candidate: null });
@@ -243,8 +276,16 @@ export default function CandidatesPage() {
     setPage(1);
   }
 
+  function clearSearchAndFilters() {
+    setSearch("");
+    setDebouncedSearch("");
+    setFilters(NO_FILTERS);
+    setPage(1);
+  }
+
   function refresh() {
     void source.refetch();
+    if (serverFilterActive) void periodTotal.refetch();
     void interviews.refetch();
     lookupResults.forEach((query) => void query.refetch());
   }
@@ -279,15 +320,14 @@ export default function CandidatesPage() {
   };
 
   const tabs = [
-    ["all", "All candidates", Users, directory.data?.total],
+    ["all", "All candidates", Users, periodCount],
     ["shortlisted", "Shortlisted", BookmarkCheck, shortlist.data?.length],
     ["interviews", "Interviews", SquareKanban, openInterviews.length],
   ];
   const selectedRecord = records.find((record) => record.id === selectedId);
-  const filterOptions = (kind) => [...new Set([
-    ...records.map((record) => value(record, kind)),
-    ...(lookups[kind].data || []).map((option) => he.decode(String(option.name))),
-  ])].filter((name) => name.trim() && name.trim().toLowerCase() !== "unassigned").sort();
+  const filterOptions = (kind) => (lookups[kind].data || [])
+    .map((option) => ({ id: String(option.id), name: he.decode(String(option.name)) }))
+    .filter(({ name }) => name.trim() && name.trim().toLowerCase() !== "unassigned");
 
   return (
     <main className={`min-h-full w-full space-y-5 bg-background ${pageGutter}`}>
@@ -309,7 +349,7 @@ export default function CandidatesPage() {
       </header>
 
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Recruitment summary">
-        <StatTile icon={Users} label="Candidates this period" value={directory.data?.total ?? "—"} hint="Assigned to the pipeline" loading={directory.isPending} onClick={() => switchView("all")} />
+        <StatTile icon={Users} label="Candidates this period" value={periodCount ?? "—"} hint="Assigned to the pipeline" loading={serverFilterActive ? periodTotal.isPending : directory.isPending} onClick={() => switchView("all")} />
         <StatTile icon={UserRoundCheck} label="Shortlisted" value={shortlist.data?.length ?? "—"} hint="Ready for interviews" color="var(--attendance-present)" loading={shortlist.isPending} onClick={() => switchView("shortlisted")} />
         <StatTile icon={CalendarClock} label="Upcoming interviews" value={upcomingCount} hint="Scheduled ahead" color="var(--attendance-leave)" loading={interviews.isPending} onClick={() => switchView("interviews")} />
         <StatTile icon={CalendarPlus} label="Awaiting a date" value={unscheduledCount} hint="Rounds to schedule" color="var(--attendance-late)" loading={interviews.isPending} onClick={() => switchView("interviews")} />
@@ -367,8 +407,8 @@ export default function CandidatesPage() {
                   type="search"
                   value={search}
                   onChange={(event) => { setSearch(event.target.value); if (shortlistedOnly) setPage(1); }}
-                  placeholder={shortlistedOnly ? "Search shortlist…" : "Search this page…"}
-                  aria-label={shortlistedOnly ? "Search shortlisted candidates" : "Search candidates on this page"}
+                  placeholder={shortlistedOnly ? "Search shortlist…" : "Search name, role, phone or email…"}
+                  aria-label={shortlistedOnly ? "Search shortlisted candidates" : "Search all candidates"}
                   className="w-full min-w-0 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
               </label>
@@ -376,7 +416,7 @@ export default function CandidatesPage() {
                 <PopoverTrigger asChild>
                   <button type="button" className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition hover:bg-muted ${workflowFilterActive ? "border-primary/40 text-primary" : "border-border text-foreground"}`}>
                     <ListFilter size={14} />Filter
-                    {workflowFilterActive && <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{kinds.filter((kind) => filters[kind]).length}</span>}
+                    {workflowFilterActive && <span className="rounded-full bg-primary px-1.5 text-[10px] text-primary-foreground">{activeFilterCount}</span>}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="end" className="w-72 space-y-3 p-4">
@@ -390,13 +430,25 @@ export default function CandidatesPage() {
                         className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <option value="">All {kind === "status" ? "statuses" : `${kind}s`}</option>
-                        {filterOptions(kind).map((name) => <option key={name} value={name}>{name}</option>)}
+                        {filterOptions(kind).map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
                       </select>
                     </label>
                   ))}
-                  {!shortlistedOnly && <p className="text-[11px] text-muted-foreground">Filters and search apply to the current page.</p>}
+                  {sourceOptions.length > 0 && (
+                    <label className="block text-xs font-medium text-muted-foreground">
+                      Source
+                      <select
+                        value={filters.source}
+                        onChange={(event) => { setFilters((previous) => ({ ...previous, source: event.target.value })); setPage(1); }}
+                        className="mt-1 w-full rounded-lg border border-border bg-card px-2.5 py-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <option value="">All sources</option>
+                        {sourceOptions.map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+                      </select>
+                    </label>
+                  )}
                   {workflowFilterActive && (
-                    <button type="button" onClick={() => { setFilters({ stage: "", phase: "", status: "" }); setPage(1); }} className="text-xs font-semibold text-primary hover:underline">Clear filters</button>
+                    <button type="button" onClick={() => { setFilters(NO_FILTERS); setPage(1); }} className="text-xs font-semibold text-primary hover:underline">Clear filters</button>
                   )}
                 </PopoverContent>
               </Popover>
@@ -513,7 +565,7 @@ export default function CandidatesPage() {
                     {filterActive ? "Try a different search or clear your filters." : shortlistedOnly ? "Shortlist candidates from All candidates to see them here." : "Try a wider date range. Candidates appear once their stage, phase and status are assigned."}
                   </p>
                   {filterActive && (
-                    <button type="button" onClick={() => { setSearch(""); setFilters({ stage: "", phase: "", status: "" }); setPage(1); }} className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted">
+                    <button type="button" onClick={clearSearchAndFilters} className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted">
                       <X size={13} />Clear filters
                     </button>
                   )}
@@ -523,11 +575,9 @@ export default function CandidatesPage() {
 
             <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-muted-foreground">
               <p>
-                {!shortlistedOnly && filterActive
-                  ? `${rows.length} ${rows.length === 1 ? "match" : "matches"} on this page · ${total} total`
-                  : rows.length
-                    ? `Showing ${(currentPage - 1) * pageSize + 1} to ${(currentPage - 1) * pageSize + rows.length} of ${total.toLocaleString()} candidates`
-                    : `0 of ${total} candidates`}
+                {rows.length
+                  ? `Showing ${(currentPage - 1) * pageSize + 1} to ${(currentPage - 1) * pageSize + rows.length} of ${total.toLocaleString()} ${filterActive ? "matching candidates" : "candidates"}`
+                  : `0 of ${total} candidates`}
               </p>
               <nav aria-label="Pagination" className="flex items-center gap-1">
                 <button type="button" aria-label="Previous page" disabled={source.isFetching || currentPage <= 1} onClick={() => setPage(currentPage - 1)} className="flex h-8 w-8 items-center justify-center rounded-lg text-foreground transition hover:bg-muted disabled:opacity-30"><ChevronLeft size={15} /></button>

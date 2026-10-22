@@ -1,25 +1,38 @@
 export const candidatePageSize = 20;
 export const shortlistedCandidatesKey = ["candidates", "list", "shortlisted"];
+export const workflowFilterFields = { stage: "hrc_stages_id_c", phase: "hrc_phase_id", status: "hrc_status_id_c" };
+export const candidateSearchFields = ["first_name", "last_name", "phone_mobile", "current_designation", "title", "department"];
+
+const clean = (value) => String(value ?? "").trim();
 
 export function buildCandidateListRequest({
   page = 1,
+  perPage = candidatePageSize,
   orderBy = "date_entered",
   orderDir = "DESC",
   shortlistedOnly = false,
   dateRange = null,
+  search = "",
+  workflow = {},
+  source = "",
 } = {}) {
+  const term = clean(search);
   return {
     action: "fetch",
     module: "hrc_candidates",
     filters: {
       employee: 0,
       ...(shortlistedOnly ? { hrc_stages_id_c_name: "Shortlisted" } : {
-        // Filter before pagination so totals only include assigned candidates.
-        hrc_stages_id_c: { nin: ["", "Unassigned"] },
-        hrc_phase_id: { nin: ["", "Unassigned"] },
-        hrc_status_id_c: { nin: ["", "Unassigned"] },
+        // Filter before pagination so totals only include assigned candidates;
+        // a chosen workflow ID is already assigned, so it replaces the exclusion.
+        ...Object.fromEntries(Object.entries(workflowFilterFields).map(([kind, field]) =>
+          [field, clean(workflow?.[kind]) || { nin: ["", "Unassigned"] }])),
+        ...(clean(source) ? { candidate_source: clean(source) } : {}),
+        // email1 is not a candidate column; the gateway matches it exactly through the email tables.
+        ...(term.includes("@") ? { email1: term } : {}),
       }),
     },
+    ...(!shortlistedOnly && term && !term.includes("@") ? { search: term, search_fields: candidateSearchFields } : {}),
     order_by: orderBy,
     order_dir: orderDir,
     ...(dateRange?.fromDate && dateRange?.toDate ? {
@@ -29,7 +42,7 @@ export function buildCandidateListRequest({
       date_to: `${dateRange.toDate} ${dateRange.toTime || "23:59"}:59`,
     } : {}),
     page,
-    per_page: candidatePageSize,
+    per_page: perPage,
   };
 }
 
@@ -49,7 +62,7 @@ export async function loadCandidatePage(request, options) {
   const perPage = Number(response.per_page ?? pagination.per_page) || candidatePageSize;
   const page = Number(response.page ?? pagination.page) || body.page;
   const pages = Math.max(1, Number(response.total_pages ?? pagination.total_pages) || Math.ceil(total / perPage));
-  return { records: response.records, total, page, perPage, pages };
+  return { records: response.records, total, page, perPage, pages, dropdownLists: response.dropdown_lists || {} };
 }
 
 /** Request the same server-filtered shortlist for the list and assessment selectors. */

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadCandidatePage, loadShortlistSource } from "./candidateList.js";
+import { candidateSearchFields, loadCandidatePage, loadShortlistSource } from "./candidateList.js";
 
 const assignedDirectoryFilters = {
   employee: 0,
@@ -78,7 +78,7 @@ test("date-only shortlist ranges cover the full day on every page without filter
   });
 });
 
-test("callers cannot override required directory filters with search or workflow filters", async () => {
+test("callers cannot override required directory filters with arbitrary filters", async () => {
   const result = await loadCandidatePage(async (body) => {
     assert.deepEqual(body.filters, assignedDirectoryFilters);
     assert.equal(Object.hasOwn(body, "search"), false);
@@ -87,13 +87,48 @@ test("callers cannot override required directory filters with search or workflow
     assert.equal(body.order_dir, "ASC");
     return { success: true, records: [], total: 0, total_pages: 0 };
   }, {
-    search: " Alex ",
     filters: { employee: "1", stage: "Shortlisted", hrc_phase_name: "", status: "Scheduled" },
     orderBy: "email1", orderDir: "ASC",
   });
 
   assert.equal(result.total, 0);
   assert.equal(result.pages, 1);
+});
+
+test("search, workflow and source filters are sent to the server before pagination", async () => {
+  const result = await loadCandidatePage(async (body) => {
+    assert.deepEqual(body.filters, {
+      employee: 0,
+      hrc_stages_id_c: "stage-1",
+      hrc_phase_id: { nin: ["", "Unassigned"] },
+      hrc_status_id_c: "status-1",
+      candidate_source: "linkedin",
+    });
+    assert.equal(body.search, "Alex");
+    assert.deepEqual(body.search_fields, candidateSearchFields);
+    assert.equal(body.page, 2);
+    return { success: true, records: [{ id: "alex" }], total: 21, page: 2, per_page: 20, dropdown_lists: { candidate_source: { linkedin: "LinkedIn" } } };
+  }, { page: 2, search: " Alex ", workflow: { stage: "stage-1", phase: " ", status: "status-1" }, source: "linkedin" });
+
+  assert.equal(result.total, 21);
+  assert.equal(result.pages, 2);
+  assert.deepEqual(result.dropdownLists, { candidate_source: { linkedin: "LinkedIn" } });
+});
+
+test("an email search uses the exact email filter instead of column search", async () => {
+  await loadCandidatePage(async (body) => {
+    assert.deepEqual(body.filters, { ...assignedDirectoryFilters, email1: "alex@example.com" });
+    assert.equal(Object.hasOwn(body, "search"), false);
+    return { success: true, records: [], total: 0 };
+  }, { search: " alex@example.com " });
+});
+
+test("the shortlist ignores directory search and filters", async () => {
+  await loadCandidatePage(async (body) => {
+    assert.deepEqual(body.filters, { employee: 0, hrc_stages_id_c_name: "Shortlisted" });
+    assert.equal(Object.hasOwn(body, "search"), false);
+    return { success: true, records: [], total: 0 };
+  }, { shortlistedOnly: true, search: "Alex", workflow: { stage: "stage-1" }, source: "linkedin" });
 });
 
 test("nested pagination and a changed final page use the server's page boundaries", async () => {
