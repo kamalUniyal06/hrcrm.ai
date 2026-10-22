@@ -95,6 +95,8 @@ test("meeting links accept web URLs and reject executable or malformed values", 
 test("candidate status distinguishes outcomes, future schedules, pending updates and unscheduled rounds", () => {
   const now = Date.parse("2026-10-06T10:00:00Z");
   assert.equal(candidateInterviewStatus({ interview_status: "Passed" }, now).label, "Passed");
+  assert.deepEqual(candidateInterviewStatus({ interview_status: "Pass", description: "Round 3" }, now), { key: "passed", label: "Selected" });
+  assert.equal(candidateInterviewStatus({ interview_status: "Pass", description: "Round 2" }, now).label, "Passed");
   assert.equal(candidateInterviewStatus({ interview_status: "Fail" }, now).label, "Not selected");
   assert.equal(candidateInterviewStatus({ interview_status: "Cancelled" }, now).label, "Cancelled");
   assert.equal(candidateInterviewStatus({ interview_datetime: "2026-10-15 10:00:00" }, now).label, "Scheduled");

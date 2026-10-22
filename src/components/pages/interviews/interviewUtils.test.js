@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { boardState, candidateId, groupInterviews, isFinalRound, nextPipelineRound, withPipelineRounds, hasOutcome, interviewDate, isFirstRound, localInterviewTime, relativeDay, sortForBoard, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
+import { HIRED_WORKFLOW, boardState, candidateId, groupInterviews, isFinalRound, isSelected, nextPipelineRound, withPipelineRounds, hasOutcome, interviewDate, isFirstRound, localInterviewTime, relativeDay, sortForBoard, uniqueInterviews, nextRoundName, nextRoundData, passToNextRound } from "./interviewUtils.js";
 
 test("test-link generation only accepts the Round 1 label", () => {
   for (const description of ["Round 1", " round  1 ", "ROUND1", "Round\t1"])
@@ -39,6 +39,22 @@ test("passed rounds disappear while next rounds and other candidates remain", ()
     { id: "c", candidate_id: "two", job_id: "job", description: "Round 1" },
   ]);
   assert.deepEqual(groups.map((group) => group.records.map((record) => record.id)), [["c"], ["b"]]);
+});
+
+test("a passed final round stays on the board as selected", () => {
+  const groups = groupInterviews([
+    { id: "a", candidate_id: "one", job_id: "job", description: "Round 2", interview_status: "Pass" },
+    { id: "b", candidate_id: "one", job_id: "job", description: "Round 3", interview_status: "Pass" },
+  ]);
+  assert.deepEqual(groups.map((group) => group.records.map((record) => record.id)), [["b"]]);
+  assert.equal(boardState(groups[0].records[0]), "selected");
+  assert.equal(isSelected({ description: "Round 3", interview_status: "Passed" }), true);
+  for (const record of [{ description: "Round 3", interview_status: "Fail" }, { description: "Round 3" }, { description: "Round 2", interview_status: "Pass" }])
+    assert.equal(isSelected(record), false);
+});
+
+test("passing the final round only moves the candidate's stage, never their status", () => {
+  assert.deepEqual(HIRED_WORKFLOW, { stage: "Joining" });
 });
 
 test("next round preserves candidate and job but clears previous scheduling and result", () => {
@@ -152,19 +168,22 @@ test("board state separates past-due decisions from upcoming interviews", () => 
   assert.equal(boardState({ interview_datetime: "2026-10-17 09:00:00" }, now), "upcoming");
   assert.equal(boardState({ interview_datetime: "" }, now), "unscheduled");
   assert.equal(boardState({ interview_datetime: "2026-10-15 09:00:00", interview_status: "Fail" }, now), "decided");
+  assert.equal(boardState({ description: "Round 3", interview_datetime: "2026-10-15 09:00:00", interview_status: "Fail" }, now), "decided");
+  assert.equal(boardState({ description: "Round 3", interview_datetime: "2026-10-15 09:00:00", interview_status: "Pass" }, now), "selected");
 });
 
 test("board order puts decisions first, then dates soonest first, then unscheduled", () => {
   const now = Date.parse("2026-10-16T10:00:00Z");
   const sorted = sortForBoard([
     { id: "failed", interview_datetime: "2026-10-01 09:00:00", interview_status: "Fail" },
+    { id: "selected", description: "Round 3", interview_datetime: "2026-10-01 09:00:00", interview_status: "Pass" },
     { id: "none", interview_datetime: "" },
     { id: "later", interview_datetime: "2026-11-01 09:00:00" },
     { id: "soon", interview_datetime: "2026-10-17 09:00:00" },
     { id: "older-due", interview_datetime: "2026-10-01 09:00:00" },
     { id: "due", interview_datetime: "2026-10-11 09:00:00" },
   ], now);
-  assert.deepEqual(sorted.map((record) => record.id), ["older-due", "due", "soon", "later", "none", "failed"]);
+  assert.deepEqual(sorted.map((record) => record.id), ["older-due", "due", "soon", "later", "none", "selected", "failed"]);
 });
 
 test("relative day counts calendar days, not 24-hour spans", () => {

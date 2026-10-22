@@ -1,4 +1,4 @@
-import { candidateId, clean, interviewDate, roundName, uniqueInterviews } from "./interviewUtils.js";
+import { candidateId, clean, interviewDate, isSelected, roundName, uniqueInterviews } from "./interviewUtils.js";
 
 function meetingUrl(record) {
   const value = clean(record.meeting_url || record.meeting_link || record.interview_link);
@@ -13,7 +13,8 @@ function meetingUrl(record) {
 
 export function candidateInterviewStatus(record, now = Date.now()) {
   const raw = clean(record.interview_status).toLowerCase();
-  if (["pass", "passed"].includes(raw)) return { key: "passed", label: "Passed" };
+  // Passing the final round means the candidate was selected.
+  if (["pass", "passed"].includes(raw)) return { key: "passed", label: isSelected(record) ? "Selected" : "Passed" };
   if (["fail", "failed"].includes(raw)) return { key: "failed", label: "Not selected" };
   if (["cancelled", "canceled"].includes(raw)) return { key: "cancelled", label: "Cancelled" };
   if (raw === "completed") return { key: "completed", label: "Completed" };
@@ -29,7 +30,7 @@ export function nextInterview(interviews = [], now = Date.now()) {
   return interviews
     .map((record) => ({ record, date: interviewDate(record.scheduledAt) }))
     .filter(({ record, date }) => date &&
-      candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }, now).key === "scheduled")
+      candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt, description: record.round }, now).key === "scheduled")
     .sort((left, right) => left.date - right.date)[0] || null;
 }
 
@@ -40,7 +41,7 @@ export function interviewJourney(interviews = [], now = Date.now()) {
   const rounds = interviews.map((record) => ({
     record,
     date: interviewDate(record.scheduledAt),
-    status: candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }, now),
+    status: candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt, description: record.round }, now),
     upNext: record.id === next?.record.id,
   }));
   const focus = rounds.find((round) => round.upNext) || rounds.findLast((round) => round.status.key === "pending") || rounds.at(-1);

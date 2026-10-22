@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { DndContext, DragOverlay, KeyboardSensor, MouseSensor, TouchSensor, closestCenter, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import { BriefcaseBusiness, CalendarCheck2, CalendarClock, CalendarPlus, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, GripVertical, Hourglass, Link2, MessageSquareText, RotateCcw, Send, X } from "lucide-react";
+import { BadgeCheck, BriefcaseBusiness, CalendarCheck2, CalendarClock, CalendarPlus, Check, ChevronDown, CircleAlert, ClipboardCheck, Clock3, GripVertical, Hourglass, Link2, MessageSquareText, RotateCcw, Send, X } from "lucide-react";
 import { testAction } from "../recruitment/assessmentPresentation";
 import { Button } from "../../ui/button";
 import { cn } from "../../../lib/utils";
@@ -11,12 +11,13 @@ import { roundDropAction, roundKeyboardCoordinates } from "./interviewDrag";
 
 const laneAccents = ["bg-chart-2", "bg-chart-3", "bg-chart-1", "bg-chart-4"];
 const avatarAccents = ["bg-chart-2/10", "bg-chart-3/10", "bg-chart-1/10", "bg-chart-4/15"];
-const laneSummary = { due: "to decide", upcoming: "upcoming", unscheduled: "to schedule", decided: "failed" };
+const laneSummary = { due: "to decide", upcoming: "upcoming", unscheduled: "to schedule", selected: "selected", decided: "failed" };
 const attentionTone = "border-[var(--candidate-attention)]/25 bg-[var(--candidate-attention-soft)] text-[var(--candidate-attention)]";
 const stateStyles = {
   due: { label: "Needs a decision", Icon: CircleAlert, className: attentionTone },
   upcoming: { label: "Upcoming", Icon: CalendarCheck2, className: "border-primary/20 bg-primary/10 text-primary" },
   unscheduled: { label: "Needs a date", Icon: Clock3, className: "border-border bg-muted text-muted-foreground" },
+  selected: { label: "Selected", Icon: BadgeCheck, className: "border-highlight/60 bg-highlight/30 text-foreground" },
   decided: { label: "Failed", Icon: X, className: "border-destructive/20 bg-destructive/10 text-destructive" },
 };
 // Lanes share the width when there are three or more; fewer lanes keep a readable card width.
@@ -87,7 +88,8 @@ function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, 
   const candidate = findInterviewCandidate(record, candidates);
   const rejected = candidate && clean(workflowValue(candidate, "status", statusOptions)).toLowerCase() === "rejected";
   const state = boardState(record, now);
-  const completed = state === "decided";
+  const selected = state === "selected";
+  const completed = state === "decided" || selected;
   const due = state === "due" && !rejected;
   const draggable = Boolean(canMove && record.id && candidateIdentity(record) && !completed && !rejected && String(record.deleted) !== "1");
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: `interview:${record.id}`, data: { type: "interview-card", record, group }, disabled: !draggable });
@@ -152,10 +154,13 @@ function InterviewCard({ record, group, now, candidates, statusOptions, jobMap, 
       {isFirstRound(record) && <Button onClick={() => onAssessment(candidate, record)} disabled={!canAssess} title={linkHint} variant="outline" className="h-10 min-w-0 flex-1 gap-1.5 bg-card px-2 text-xs min-[701px]:h-9 min-[701px]:text-[11px] 2xl:text-xs" aria-label={`${test.label}: ${name}, ${group.name}`}><TestIcon size={14} aria-hidden="true" />{test.label}</Button>}
     </div>}
 
-    <footer className={cn("relative z-10 mt-3 flex items-center justify-between gap-2 border-t px-4 py-1.5", due ? "border-[var(--candidate-attention)]/20 bg-[var(--candidate-attention-soft)]" : "border-border/60")}>
+    {/* A selected candidate has already moved to Joining, so the decision is not reopened here. */}
+    {selected ? <footer className="relative z-10 mt-3 flex min-h-11 items-center gap-1.5 border-t border-highlight/40 bg-highlight/15 px-4 py-1.5 text-[11px] font-medium text-foreground">
+      <BadgeCheck size={14} className="shrink-0" aria-hidden="true" />Selected · passed the final round
+    </footer> : <footer className={cn("relative z-10 mt-3 flex items-center justify-between gap-2 border-t px-4 py-1.5", due ? "border-[var(--candidate-attention)]/20 bg-[var(--candidate-attention-soft)]" : "border-border/60")}>
       <span className={cn("text-[11px]", due ? "font-medium text-[var(--candidate-attention)]" : "text-muted-foreground")}>{completed ? "Update decision" : due ? "Record a decision" : "Round decision"}</span>
       <div className="flex items-center gap-1">{["Pass", "Fail"].map((action) => <Button key={action} disabled={!record.id} onClick={() => onAction({ record, action })} variant={action === "Pass" ? "ghost" : "destructive"} className={cn("h-10 gap-1 px-2.5 text-xs min-[701px]:h-8 min-[701px]:text-[11px]", action === "Pass" ? "hover:bg-card" : "bg-transparent hover:bg-destructive/10")} aria-label={`${action} ${name}, ${group.name}`}>{action === "Pass" ? <Check size={14} className="text-chart-2" aria-hidden="true" /> : <X size={14} aria-hidden="true" />}{action}</Button>)}</div>
-    </footer>
+    </footer>}
     {record.interview_feedback && <details className="group/feedback relative z-10 border-t border-border/60 px-4"><summary className="flex min-h-11 cursor-pointer list-none items-center gap-1.5 py-3 text-[11px] text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden"><MessageSquareText size={14} aria-hidden="true" />{completed ? "Interview feedback" : "Interview notes"}<ChevronDown size={14} className="ml-auto transition-transform group-open/feedback:rotate-180 motion-reduce:transition-none" aria-hidden="true" /></summary><p className="pb-4 text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground [overflow-wrap:anywhere]">{record.interview_feedback}</p></details>}
     {rejected && <p className="flex items-start gap-1.5 px-4 pb-3 text-[11px] leading-relaxed text-destructive"><CircleAlert size={14} className="mt-0.5 shrink-0" aria-hidden="true" />Scheduling is unavailable for rejected candidates.</p>}
   </article>;

@@ -79,10 +79,11 @@ export function uniqueInterviews(records) {
   return [...unique.values()];
 }
 
+// Passed rounds leave the board, except the final round, which stays to show who was selected.
 export function groupInterviews(records) {
   const groups = new Map();
   for (const record of uniqueInterviews(records)) {
-    if (isPassed(record)) continue;
+    if (isPassed(record) && !isFinalRound(record)) continue;
     const name = roundName(record);
     const key = name.toLowerCase();
     if (!groups.has(key)) groups.set(key, { key, name, records: [] });
@@ -91,10 +92,12 @@ export function groupInterviews(records) {
   return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
 }
 
-// Board states, most urgent first. Passed rounds leave the board, so "decided" means failed.
-export const BOARD_STATES = ["due", "upcoming", "unscheduled", "decided"];
+// Board states, most urgent first. Only a passed final round stays on the board ("selected"),
+// so "decided" means failed.
+export const BOARD_STATES = ["due", "upcoming", "unscheduled", "selected", "decided"];
 
 export function boardState(record, now = Date.now()) {
+  if (isSelected(record)) return "selected";
   if (hasOutcome(record)) return "decided";
   const date = interviewDate(record.interview_datetime);
   if (!date) return "unscheduled";
@@ -135,6 +138,7 @@ export function nextPipelineRound(record) {
   return PIPELINE_ROUNDS.find((name) => name.toLowerCase() === next.toLowerCase()) || "";
 }
 
-// Passing the last pipeline round hires the candidate.
-export const HIRED_WORKFLOW = { stage: "Joining", status: "Joining Confirmed" };
+// Passing the last pipeline round selects the candidate: only their stage moves, their status stays as it is.
+export const HIRED_WORKFLOW = { stage: "Joining" };
 export const isFinalRound = (record) => roundName(record).toLowerCase() === PIPELINE_ROUNDS[PIPELINE_ROUNDS.length - 1].toLowerCase();
+export const isSelected = (record) => Boolean(record) && isPassed(record) && isFinalRound(record);

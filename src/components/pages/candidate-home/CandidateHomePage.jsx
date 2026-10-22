@@ -1,4 +1,4 @@
-import { createElement, useState } from "react";
+import { createElement, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -18,6 +18,7 @@ import {
   MapPin,
   Mars,
   NonBinary,
+  PartyPopper,
   Pencil,
   Phone,
   Sparkles,
@@ -50,6 +51,7 @@ import {
   hiringProgress,
   nextInterview,
 } from "./candidateDashboard";
+import { celebrate } from "./celebrate";
 
 const card =
   "rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm";
@@ -149,6 +151,20 @@ export default function CandidateHomePage() {
     [draft.first_name, draft.last_name].filter(Boolean).join(" ") ||
     "Candidate";
 
+  // Celebrate once in this browser when the candidate passes the final round.
+  const selectedInterviewId = progress.selectedInterviewId;
+  useEffect(() => {
+    if (!selectedInterviewId) return;
+    const key = `hrcrm:selected-celebrated:${selectedInterviewId}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, "1");
+    } catch {
+      // Storage can be blocked; celebrating again on a later visit is harmless.
+    }
+    celebrate();
+  }, [selectedInterviewId]);
+
   return (
     <main className="min-h-full w-full bg-background px-3 py-4 text-foreground sm:px-5 lg:px-6">
       <div className="mx-auto w-full max-w-[1800px] space-y-5">
@@ -209,6 +225,19 @@ export default function CandidateHomePage() {
                   </li>
                 ))}
               </ol>
+              {progress.hired && (
+                <p
+                  role="status"
+                  className="mt-4 flex items-start gap-2.5 rounded-xl border border-highlight/60 bg-highlight/30 px-4 py-3 text-sm font-medium text-foreground"
+                >
+                  <PartyPopper
+                    size={18}
+                    className="mt-0.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {progress.message}
+                </p>
+              )}
             </section>
 
             <section className={card} aria-labelledby="overview-heading">

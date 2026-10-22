@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { selectIsAdmin } from "../../utils/pageAccess";
 import CandidateInterviewPage from "./interviews/CandidateInterviewPage";
 import { Link, Navigate } from "react-router-dom";
-import { BriefcaseBusiness, CalendarCheck2, CalendarClock, ChevronRight, CircleAlert, Clock3, GripVertical, Layers3, MousePointerClick, RefreshCw, Search, X } from "lucide-react";
+import { BadgeCheck, BriefcaseBusiness, CalendarCheck2, CalendarClock, ChevronRight, CircleAlert, Clock3, GripVertical, Layers3, MousePointerClick, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { cn } from "../../lib/utils";
 import { fetchAllRecords } from "./candidates/candidatesApi";
@@ -22,6 +22,7 @@ const STATUS_FILTERS = [
   ["due", "Needs a decision", CircleAlert],
   ["upcoming", "Upcoming", CalendarCheck2],
   ["unscheduled", "Needs a date", Clock3],
+  ["selected", "Selected", BadgeCheck],
   ["decided", "Failed", X],
 ];
 

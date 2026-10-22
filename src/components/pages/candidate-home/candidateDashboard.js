@@ -1,4 +1,5 @@
 import { candidateInterviewStatus } from "../interviews/candidateInterviewData.js";
+import { isSelected } from "../interviews/interviewUtils.js";
 import { experienceDateForInput } from "../profile/experienceDates.js";
 
 const lower = (value) => String(value ?? "").trim().toLowerCase();
@@ -27,8 +28,10 @@ export function hiringProgress({ candidate, applications = [], interviews = [] }
   const applicationStates = applications.map((record) => lower(record.status));
   const interviewStates = interviews.map((record) =>
     candidateInterviewStatus({ interview_status: record.status, interview_datetime: record.scheduledAt }).key);
-  const hired = applicationStates.includes("accepted") ||
-    candidateStates.some((state) => ["hired", "selected", "joined", "accepted"].includes(state));
+  // Passing the final interview round selects the candidate and moves them to the Joining stage.
+  const selectedInterviewId = interviews.find((record) => isSelected({ interview_status: record.status, description: record.round }))?.id || "";
+  const hired = Boolean(selectedInterviewId) || applicationStates.includes("accepted") ||
+    candidateStates.some((state) => ["hired", "selected", "joined", "joining", "accepted"].includes(state));
   const declined = !hired && (
     candidateStates.includes("rejected") ||
     (applicationStates.length > 0 && applicationStates.every((state) => state.startsWith("rejected"))) ||
@@ -53,7 +56,7 @@ export function hiringProgress({ candidate, applications = [], interviews = [] }
     : applied ? "Your application is with the hiring team for review."
     : candidate?.id ? "Your profile has been received. Apply to an open role to move forward."
     : "Apply to an open role to start your hiring journey.";
-  return { steps, message };
+  return { steps, message, hired, selectedInterviewId };
 }
 
 export { nextInterview } from "../interviews/candidateInterviewData.js";

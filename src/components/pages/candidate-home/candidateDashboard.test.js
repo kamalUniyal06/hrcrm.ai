@@ -104,6 +104,23 @@ test("hiring progress shows the final outcome", () => {
   assert.equal(declined.steps[3].label, "Not selected");
 });
 
+test("passing the final round shows the candidate as hired and identifies the selecting round", () => {
+  const selected = hiringProgress({ candidate: { status: "Interviewing" }, interviews: [
+    { id: "r2", round: "Round 2", status: "Pass", scheduledAt: "" },
+    { id: "r3", round: "Round 3", status: "Pass", scheduledAt: "" },
+  ] });
+  assert.deepEqual(states(selected), ["done", "done", "done", "done"]);
+  assert.equal(selected.steps[3].label, "Hired");
+  assert.equal(selected.hired, true);
+  assert.equal(selected.selectedInterviewId, "r3");
+  const joining = hiringProgress({ candidate: { hrc_stages_id_c_name: "Joining" }, interviews: [{ id: "r3", round: "Round 3", status: "", scheduledAt: "" }] });
+  assert.equal(joining.hired, true);
+  assert.equal(joining.selectedInterviewId, "");
+  const interviewing = hiringProgress({ candidate: {}, interviews: [{ id: "r2", round: "Round 2", status: "Pass", scheduledAt: "" }] });
+  assert.equal(interviewing.hired, false);
+  assert.equal(interviewing.selectedInterviewId, "");
+});
+
 test("next interview picks the earliest future scheduled round", () => {
   const now = Date.parse("2030-01-01T00:00:00Z");
   const interviews = [

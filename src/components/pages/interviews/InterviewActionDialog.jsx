@@ -21,14 +21,15 @@ export default function InterviewActionDialog({ record, action, targetRound = ""
   const deciding = action === "Pass" || action === "Fail";
   const hires = action === "Pass" && !nextRound && isFinalRound(record);
 
-  // Builds the candidate's Joining / Joining Confirmed update before anything is written.
+  // Builds the candidate's Joining stage update before anything is written. Their status is left unchanged.
   async function hiringUpdate(interview) {
-    const options = async (kind) => (await client.fetchQuery({ queryKey: ["candidate-workflow", kind], queryFn: () => fetchAllRecords(kind === "stage" ? "hrc_stages" : "hrc_status"), staleTime: 300000 }))
-      .filter((item) => item.id && item.name);
     const id = candidateId(interview) || findInterviewCandidate(interview, await client.fetchQuery({ queryKey: ["candidates", "list"], queryFn: () => fetchAllRecords("hrc_candidates") }))?.id;
     if (!id) throw new Error("This interview isn't linked to a candidate, so they can't be moved to Joining. Add the candidate before passing the final round.");
-    const [candidate, stages, statuses] = await Promise.all([fetchCandidateRecord(id), options("stage"), options("status")]);
-    return { id, data: { ...workflowUpdate(candidate, "stage", HIRED_WORKFLOW.stage, stages), ...workflowUpdate(candidate, "status", HIRED_WORKFLOW.status, statuses) } };
+    const [candidate, stages] = await Promise.all([
+      fetchCandidateRecord(id),
+      client.fetchQuery({ queryKey: ["candidate-workflow", "stage"], queryFn: () => fetchAllRecords("hrc_stages"), staleTime: 300000 }),
+    ]);
+    return { id, data: workflowUpdate(candidate, "stage", HIRED_WORKFLOW.stage, stages.filter((item) => item.id && item.name)) };
   }
   const title = targetRound ? `Move to ${targetRound}` : deciding ? `Mark as ${action.toLowerCase()}` : clean(record.interview_datetime) ? "Reschedule interview" : "Schedule interview";
 
@@ -80,7 +81,7 @@ export default function InterviewActionDialog({ record, action, targetRound = ""
       } else await updateInterview(fresh.id, data);
       client.setQueryData(["interviews"], (records) => records?.map((item) => item.id === fresh.id ? { ...item, ...data } : item));
       void client.invalidateQueries({ queryKey: ["interviews"] });
-      toast.success(targetRound ? `Feedback saved. Moved to ${nextRound}.` : action === "Pass" ? (nextRound ? `Passed. ${nextRound} is ready to schedule.` : hires ? `Passed ${roundName(record)}. Candidate moved to ${HIRED_WORKFLOW.status}.` : "Interview marked as pass.") : deciding ? `Interview marked as ${action.toLowerCase()}.` : "Interview date saved.");
+      toast.success(targetRound ? `Feedback saved. Moved to ${nextRound}.` : action === "Pass" ? (nextRound ? `Passed. ${nextRound} is ready to schedule.` : hires ? `Passed ${roundName(record)}. Candidate selected and moved to the ${HIRED_WORKFLOW.stage} stage.` : "Interview marked as pass.") : deciding ? `Interview marked as ${action.toLowerCase()}.` : "Interview date saved.");
       onClose();
     } catch (err) { setError(err.message); }
     finally { lock.current = false; setBusy(false); }
@@ -98,7 +99,7 @@ export default function InterviewActionDialog({ record, action, targetRound = ""
         <form onSubmit={save} className="mt-6 space-y-5">
           {deciding ? <label className="block text-xs font-medium">Interview feedback <span className="text-destructive">*</span>
             <textarea required autoFocus={Boolean(targetRound)} rows={5} disabled={busy || advancing} value={feedback} onChange={(event) => setFeedback(event.target.value)} placeholder="Explain the outcome of this round" className="mt-2 w-full rounded-lg border border-border bg-background/40 p-3 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50" />
-            {action === "Pass" && !targetRound && <span className="mt-2 block text-xs leading-relaxed font-normal text-muted-foreground">{nextRound ? `Saving opens ${nextRound} for this candidate, ready for you to schedule.` : hires ? `Passing ${roundName(record)} completes their interviews and moves them to ${HIRED_WORKFLOW.stage} (${HIRED_WORKFLOW.status}).` : `Passing ${roundName(record)} completes their interviews.`}</span>}
+            {action === "Pass" && !targetRound && <span className="mt-2 block text-xs leading-relaxed font-normal text-muted-foreground">{nextRound ? `Saving opens ${nextRound} for this candidate, ready for you to schedule.` : hires ? `Passing ${roundName(record)} selects them and moves them to the ${HIRED_WORKFLOW.stage} stage. Their status stays the same.` : `Passing ${roundName(record)} completes their interviews.`}</span>}
           </label> : <label className="block text-xs font-medium">Interview date & time
             <input type="datetime-local" required disabled={busy} value={dateTime} onChange={(event) => setDateTime(event.target.value)} className="mt-2 w-full rounded-lg border border-border bg-background/40 p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50" />
             <span className="mt-2 block text-xs font-normal text-muted-foreground">Your local time ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</span>
