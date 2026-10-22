@@ -40,7 +40,8 @@ function EventRow({ event, date }) {
 }
 
 /** Day strip with the events and company announcements around it. */
-export default function ScheduleCard({ sources, announcements = [], loading, announcementsLoading }) {
+// onOpenAnnouncement replaces the read-only popup, e.g. so employees can answer their alerts.
+export default function ScheduleCard({ sources, announcements = [], loading, announcementsLoading, onOpenAnnouncement }) {
   const today = useMemo(() => new Date(), []);
   const [selected, setSelected] = useState(today);
   const [tab, setTab] = useState("events");
@@ -166,7 +167,7 @@ export default function ScheduleCard({ sources, announcements = [], loading, ann
               <li key={alert.id}>
                 <button
                   type="button"
-                  onClick={() => setOpenAnnouncement(alert)}
+                  onClick={() => (onOpenAnnouncement ? onOpenAnnouncement(alert) : setOpenAnnouncement(alert))}
                   aria-haspopup="dialog"
                   className="group flex w-full items-start gap-2 rounded-xl border border-border px-3 py-2.5 text-left transition hover:border-primary/30 hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >

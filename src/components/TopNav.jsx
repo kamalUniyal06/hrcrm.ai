@@ -2,6 +2,7 @@ import { Menu, X } from "lucide-react";
 import { useContext } from "react";
 import { PageContext } from "../context/pageContext";
 import { WorldClock } from "./WorldClock";
+import AlertBell from "./employement/components/alerts/AlertBell";
 
 export function TopNav({ sidebarAvailable = true }) {
   const { mobileSidebarOpen, setMobileSidebarOpen } = useContext(PageContext);
@@ -23,7 +24,8 @@ export function TopNav({ sidebarAvailable = true }) {
           {mobileSidebarOpen ? <X size={20} strokeWidth={2.2} /> : <Menu size={20} strokeWidth={2.2} />}
         </button>
       )}
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <AlertBell />
         <WorldClock />
       </div>
     </header>

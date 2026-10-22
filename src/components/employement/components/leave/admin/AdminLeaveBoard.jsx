@@ -8,6 +8,7 @@ import { fetchAllRecords } from "../../../../pages/candidates/candidatesApi";
 import AdminLeaveFilters from "./AdminLeaveFilters";
 import LeaveDetailPanel from "./LeaveDetailPanel";
 import LeaveKanban from "./LeaveKanban";
+import ApproveLeaveDialog from "./ApproveLeaveDialog";
 import {
   ADMIN_LEAVE_QUERY_KEY,
   clean,
@@ -57,6 +58,8 @@ export default function AdminLeaveBoard() {
   const [search, setSearch] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const closeDetails = useCallback(() => setSelectedRequest(null), []);
+  // Approving asks for a reason first; rejecting is saved straight away.
+  const [approving, setApproving] = useState(null);
 
   const employees = useQuery({ queryKey: ["employees", "list"], queryFn: () => fetchAllRecords("hrc_employees"), enabled: isAdmin });
   const searchedEmployee = useMemo(() => {
@@ -89,11 +92,20 @@ export default function AdminLeaveBoard() {
     enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
   });
   const mutation = useMutation({
-    mutationFn: ({ id, status }) => updateLeaveStatus(id, status),
-    onMutate: async ({ id, status }) => {
+    mutationFn: ({ id, status, details }) => updateLeaveStatus(id, status, details),
+    onMutate: async ({ id, status, details }) => {
       await queryClient.cancelQueries({ queryKey: ADMIN_LEAVE_QUERY_KEY });
       const previous = queryClient.getQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY });
-      queryClient.setQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY }, (current) => current?.records ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, date_modified: new Date().toISOString() } : record) } : current);
+      const nameOf = (employeeId) => employeeId ? employeeName(employeeMap.get(employeeId) || {}) : "";
+      const approval = details ? {
+        verdict: details.reason,
+        approved_by_id: details.approvedById,
+        approved_by_id_name: nameOf(details.approvedById),
+        work_handed_over_to_id: details.handoverToId || "",
+        work_handed_over_to_id_name: nameOf(details.handoverToId),
+        approved_date: new Date().toISOString().slice(0, 10),
+      } : {};
+      queryClient.setQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY }, (current) => current?.records ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, ...approval, date_modified: new Date().toISOString() } : record) } : current);
       return { previous };
     },
     onError: (_error, _variables, context) => context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data)),
@@ -118,6 +130,20 @@ export default function AdminLeaveBoard() {
     statusFilter === "All" || statusOf(record) === statusFilter
   ), [rangeRecords, statusFilter]);
 
+  const decide = (record, status) => {
+    if (!record) return;
+    if (status === "Accepted") {
+      mutation.reset();
+      setApproving(record);
+      return;
+    }
+    mutation.mutate({ id: record.id, status }, { onSuccess: closeDetails });
+  };
+  const approve = (details) => mutation.mutate(
+    { id: approving.id, status: "Accepted", details },
+    { onSuccess: () => { setApproving(null); closeDetails(); } },
+  );
+
   if (!isAdmin) return null;
   const loading = employees.isPending || (hasEmployeeMatch && (leaves.isPending || pending.isPending));
   const failed = leaves.isError || pending.isError || employees.isError;
@@ -138,11 +164,21 @@ export default function AdminLeaveBoard() {
       </div>
 
       <AdminLeaveFilters dateMode={dateMode} onDateModeChange={setDateMode} range={range} defaultRange={defaultRange} onRangeChange={setRange} search={search} onSearchChange={setSearch} />
-      {mutation.isError && <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{mutation.error.message}</p>}
+      {mutation.isError && !approving && <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{mutation.error.message}</p>}
 
-      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : !hasEmployeeMatch ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="text-sm text-muted-foreground">No employee with that name or email was found.</p></div> : <LeaveKanban records={visible} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} />}
+      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : !hasEmployeeMatch ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="text-sm text-muted-foreground">No employee with that name or email was found.</p></div> : <LeaveKanban records={visible} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} onDecide={decide} />}
 
-      <LeaveDetailPanel record={selectedRequest} employeeMap={employeeMap} mutation={mutation} onClose={closeDetails} />
+      <LeaveDetailPanel record={selectedRequest} employeeMap={employeeMap} mutation={mutation} onClose={closeDetails} onDecide={decide} />
+      <ApproveLeaveDialog
+        key={approving?.id || "closed"}
+        record={approving}
+        employees={employees.data}
+        employeeMap={employeeMap}
+        pending={mutation.isPending}
+        error={mutation.isError ? mutation.error?.message : ""}
+        onCancel={() => setApproving(null)}
+        onConfirm={approve}
+      />
     </section>
   );
 }

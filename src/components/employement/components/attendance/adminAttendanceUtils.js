@@ -161,6 +161,20 @@ export function buildLeaveDays(leaves = []) {
   return result;
 }
 
+// The accepted leave that covers this row's employee on day, so its details can be opened.
+export function leaveForRow(leaves = [], row, day) {
+  const id = row?.key?.startsWith("employee:") ? row.key.slice("employee:".length) : "";
+  return leaves.find((leave) => {
+    if (clean(leave.status).toLowerCase() !== "accepted") return false;
+    const leaveId = clean(leave.employee_id || leave.hrc_employees_hrc_leaves_1hrc_employees_ida);
+    const email = clean(leave.email).toLowerCase();
+    if (!((id && leaveId === id) || (row?.email && email === row.email))) return false;
+    const from = calendarDateKey(leave.leave_from);
+    const to = calendarDateKey(leave.leave_to) || from;
+    return Boolean(from && from <= day && to >= day);
+  }) || null;
+}
+
 // Half-day leave shows up as leave_type "half_day" (or "^half_day^"), a "Half Day …" leave type, or 0.5 leave days.
 export const isHalfDayLeave = leave =>
   /half/i.test(`${clean(leave.leave_type)} ${clean(leave.type_of_leave)}`) || Number(clean(leave.leave_days)) === 0.5;

@@ -20,9 +20,9 @@ const STATUS_FILTERS = [
   ["dayOff", "Weekend / holiday"],
 ];
 
-// Accepted leaves expanded to { "YYYY-MM-DD": leave type }.
-function buildLeaveNames(records = []) {
-  const names = {};
+// Accepted leaves expanded to { "YYYY-MM-DD": leave record }.
+function buildLeaveRecords(records = []) {
+  const byDay = {};
   for (const record of records) {
     if (String(record?.status).toLowerCase() !== "accepted" || String(record?.deleted) === "1") continue;
     const from = calendarDateKey(record.leave_from);
@@ -31,11 +31,11 @@ function buildLeaveNames(records = []) {
     const cursor = new Date(`${from}T00:00:00`);
     const last = new Date(`${to}T00:00:00`);
     while (cursor <= last) {
-      names[dateKey(cursor)] = he.decode(String(record.type_of_leave || record.leave_type || "Approved leave"));
+      byDay[dateKey(cursor)] = record;
       cursor.setDate(cursor.getDate() + 1);
     }
   }
-  return names;
+  return byDay;
 }
 
 export default function EmployeeAttendanceDrawer({
@@ -74,9 +74,13 @@ export default function EmployeeAttendanceDrawer({
     }
     return names;
   }, [publicHolidays.data]);
-  const leaveNames = useMemo(
-    () => buildLeaveNames(employeeLeaves.data?.records || employeeLeaves.data?.data?.records),
+  const leaveRecords = useMemo(
+    () => buildLeaveRecords(employeeLeaves.data?.records || employeeLeaves.data?.data?.records),
     [employeeLeaves.data],
+  );
+  const leaveNames = useMemo(
+    () => Object.fromEntries(Object.entries(leaveRecords).map(([day, record]) => [day, he.decode(String(record.type_of_leave || record.leave_type || "Approved leave"))])),
+    [leaveRecords],
   );
   const today = dateKey(new Date());
   const monthDays = useMemo(() => {
@@ -241,7 +245,7 @@ export default function EmployeeAttendanceDrawer({
                                 holidayName={holidayNames[key]}
                                 leaveName={!attendance ? leaveNames[key] : undefined}
                                 lateAfterMinutes={lateAfter}
-                                onClick={records.length ? () => onSelectDay(key, records) : undefined}
+                                onClick={records.length || leaveRecords[key] ? () => onSelectDay(key, records, leaveRecords[key]) : undefined}
                               />
                             </div>
                           );

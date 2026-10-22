@@ -2,7 +2,7 @@ import { TopNav } from "./components/TopNav";
 import { Sidebar } from "./components/Sidebar";
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import DisplayIntro from "./components/DisplayIntro";
 import Footer from "./components/Footer";
 import { PageContext } from "./context/pageContext";
@@ -15,6 +15,7 @@ import {
   rememberOnboardingStarted,
 } from "./components/pages/profile/onboardingState";
 import IncrementReminder from "./components/employement/components/IncrementReminder";
+import { SystemAlertsProvider } from "./components/employement/components/alerts/SystemAlertsProvider";
 import { resetPageScroll } from "./utils/resetPageScroll";
 
 const RootLayout = () => {
@@ -32,17 +33,6 @@ const RootLayout = () => {
     refetch,
   } = useCandidateProfile();
   const [onboarding, setOnboarding] = useState(null);
-  const navigate = useNavigate();
-  useEffect(() => {
-    const showRequiredAlerts = (event) => {
-      navigate("/", {
-        state: { requiredAlerts: event.detail, requestedAt: Date.now() },
-      });
-    };
-    window.addEventListener("system-alerts-required", showRequiredAlerts);
-    return () =>
-      window.removeEventListener("system-alerts-required", showRequiredAlerts);
-  }, [navigate]);
   // Latch the decision: parsing or saving an intermediate step must not open the shell.
   useEffect(() => {
     if (!isPending && !isError && onboarding === null) {
@@ -108,7 +98,9 @@ const RootLayout = () => {
     return <DisplayIntro key="intro" />;
   }
 
+  // The alerts provider owns the alert popup, which also answers the logout check.
   return (
+    <SystemAlertsProvider>
     <div className="flex h-dvh overflow-hidden bg-sidebar-primary">
       {/* LEFT */}
       {hasCandidate && <Sidebar />}
@@ -136,6 +128,7 @@ const RootLayout = () => {
         {showFooter && <Footer />}
       </div>
     </div>
+    </SystemAlertsProvider>
   );
 };
 

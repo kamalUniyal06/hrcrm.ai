@@ -5,7 +5,9 @@ import { useNavigate } from "react-router-dom";
 
 import TodayAttendanceCard from "../components/TodayAttendanceCard";
 import WorkingHistory from "../components/WorkingHistory";
-import SystemAlertCarousel from "../components/SystemAlertCarousel";
+import PendingAlertsBanner from "../components/alerts/PendingAlertsBanner";
+import { useSystemAlerts } from "../components/alerts/systemAlertsContext";
+import { utcToLocalStamp } from "../components/alerts/systemAlertUtils";
 import HomeHeader from "../components/home/HomeHeader";
 import AttendanceGauge from "../components/home/AttendanceGauge";
 import ScheduleCard from "../components/home/ScheduleCard";
@@ -15,7 +17,6 @@ import { buildLeaveDays, calendarDateKey, dateKey } from "../components/attendan
 import { buildFeed, employeeAttendanceStats } from "../components/home/homeDashboardUtils";
 import {
     monthRange,
-    useAnnouncements,
     useEmployeesDirectory,
     useMyActivityRange,
 } from "../components/home/homeDashboard.queries";
@@ -46,7 +47,12 @@ export default function EmployeHomePage() {
     const leaves = useEmployeeLeaves({ employeeId, email });
     const holidays = usePublicHolidays();
     const employees = useEmployeesDirectory();
-    const announcements = useAnnouncements();
+    // Employees read alerts only through my_alerts; times there are UTC.
+    const { alerts: myAlerts, loading: alertsLoading, openAlert } = useSystemAlerts();
+    const announcements = useMemo(
+        () => myAlerts.map((alert) => ({ ...alert, date_entered: utcToLocalStamp(alert.date_entered) })),
+        [myAlerts],
+    );
 
     const leaveRecords = useMemo(() => recordsOf(leaves.data), [leaves.data]);
     const holidayRecords = useMemo(() => recordsOf(holidays.data), [holidays.data]);
@@ -59,8 +65,8 @@ export default function EmployeHomePage() {
     }, [activity.data, holidayRecords, lateAfter, leaveRecords, range, today]);
 
     const feed = useMemo(
-        () => buildFeed({ activity: activity.data || [], leaves: leaveRecords, alerts: announcements.data || [] }),
-        [activity.data, announcements.data, leaveRecords],
+        () => buildFeed({ activity: activity.data || [], leaves: leaveRecords, alerts: announcements }),
+        [activity.data, announcements, leaveRecords],
     );
 
     const scheduleSources = useMemo(() => ({
@@ -90,7 +96,7 @@ export default function EmployeHomePage() {
                     }
                 />
 
-                <SystemAlertCarousel employeeId={employeeId} email={email} />
+                <PendingAlertsBanner />
 
                 <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
                     <aside className="order-first min-w-0 space-y-4 lg:sticky lg:top-4 lg:order-0 lg:col-start-2 lg:row-start-1">
@@ -98,8 +104,9 @@ export default function EmployeHomePage() {
                         <ScheduleCard
                             sources={scheduleSources}
                             loading={holidays.isPending || leaves.isPending}
-                            announcements={announcements.data || []}
-                            announcementsLoading={announcements.isPending}
+                            announcements={announcements}
+                            announcementsLoading={alertsLoading}
+                            onOpenAnnouncement={(alert) => openAlert(alert.id)}
                         />
                     </aside>
 
@@ -108,7 +115,7 @@ export default function EmployeHomePage() {
                             <TasksCard />
                             <FeedCard
                                 feed={feed}
-                                loading={activity.isPending || announcements.isPending}
+                                loading={activity.isPending || alertsLoading}
                                 error={activity.isError}
                                 today={today}
                             />

@@ -5,7 +5,8 @@ import { useNavigate } from "react-router-dom";
 import Skeleton from "react-loading-skeleton";
 
 import TodayAttendanceCard from "../components/TodayAttendanceCard";
-import SystemAlertCarousel from "../components/SystemAlertCarousel";
+import PendingAlertsBanner from "../components/alerts/PendingAlertsBanner";
+import { isAlertLive } from "../components/alerts/systemAlertUtils";
 import HomeHeader from "../components/home/HomeHeader";
 import StatTile from "../components/home/StatTile";
 import OffboardingCard from "../components/home/OffboardingCard";
@@ -102,7 +103,6 @@ function TodayPeopleCard({ groups, loading, onOpen, onViewAll }) {
 export default function AdminHomePage() {
     const navigate = useNavigate();
     const userInfo = useSelector((state) => state.user.userInfo);
-    const email = useSelector((state) => state.user.user?.email);
     const isEmployee = userInfo?.phase === "Employment";
     const limits = useAttendanceLimits();
     const lateAfter = (timeToMinutes(limits.actualLoginTime) ?? 570) + limits.loginDelayMinutes;
@@ -115,6 +115,11 @@ export default function AdminHomePage() {
     const leaves = useAllLeaves();
     const holidays = usePublicHolidays();
     const announcements = useAnnouncements();
+    // HR reads every alert; only live ones (active, not expired) are announcements.
+    const liveAnnouncements = useMemo(
+        () => (announcements.data || []).filter((alert) => isAlertLive(alert)),
+        [announcements.data],
+    );
     const resignations = useResignations();
     const incrementRequests = useIncrementRequests();
     const incrementQuestions = useIncrementQuestions();
@@ -149,11 +154,11 @@ export default function AdminHomePage() {
     const feed = useMemo(() => buildFeed({
         activity: activity.data || [],
         leaves: leaves.data || [],
-        alerts: announcements.data || [],
+        alerts: liveAnnouncements,
         personLabel: (record) => nameByEmail.get(String(record.name || "").trim().toLowerCase()) || record.hrc_employees_hrc_daily_activity_1_name || record.name,
         leaveLabel: (leave) => `${employeeDisplayName(leave, employeeFor(leave, employeeMap))}'s`,
         limit: 15,
-    }), [activity.data, announcements.data, leaves.data, nameByEmail, employeeMap]);
+    }), [activity.data, liveAnnouncements, leaves.data, nameByEmail, employeeMap]);
 
     const scheduleSources = useMemo(() => ({
         employees: employees.data || [],
@@ -217,7 +222,7 @@ export default function AdminHomePage() {
                     }
                 />
 
-                {isEmployee && <SystemAlertCarousel employeeId={userInfo?.id} email={email} />}
+                <PendingAlertsBanner />
 
                 <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
                     <aside className="order-first min-w-0 space-y-4 lg:sticky lg:top-4 lg:order-0 lg:col-start-2 lg:row-start-1">
@@ -225,7 +230,7 @@ export default function AdminHomePage() {
                         <ScheduleCard
                             sources={scheduleSources}
                             loading={holidays.isPending || leaves.isPending}
-                            announcements={announcements.data || []}
+                            announcements={liveAnnouncements}
                             announcementsLoading={announcements.isPending}
                         />
                     </aside>
