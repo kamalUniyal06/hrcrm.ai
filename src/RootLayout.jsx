@@ -17,6 +17,7 @@ import {
 import IncrementReminder from "./components/employement/components/IncrementReminder";
 import { SystemAlertsProvider } from "./components/employement/components/alerts/SystemAlertsProvider";
 import { resetPageScroll } from "./utils/resetPageScroll";
+import HalloweenDecor from "./components/halloween/HalloweenDecor";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -128,6 +129,8 @@ const RootLayout = () => {
         {showFooter && <Footer />}
       </div>
     </div>
+    {/* Shows in season, to the audience set by VITE_SHOW_HALLOWEEN_THEME. */}
+    <HalloweenDecor />
     </SystemAlertsProvider>
   );
 };
