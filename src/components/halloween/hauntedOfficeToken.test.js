@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { canSeeHalloween, decryptName, encryptName, hauntedOfficeBoardLink, hauntedOfficeLink, hauntedOfficePlayer, isHalloweenSeason, phoneLink, slug } from "./hauntedOfficeToken.js";
+import { canSeeHalloween, decryptName, encryptName, hauntedOfficeBoardLink, hauntedOfficeLink, hauntedOfficePlayer, isHalloweenSeason, parseEmailList, phoneLink, slug } from "./hauntedOfficeToken.js";
 
 const KEY = "test-key-only";
 
@@ -59,6 +59,16 @@ test("the theme setting decides who sees Halloween", () => {
   assert.equal(canSeeHalloween("all", candidate), false);
   assert.equal(canSeeHalloween("off", admin), false);
   assert.equal(canSeeHalloween(undefined, employee), true);
+});
+
+test("people on the excluded list never see Halloween", () => {
+  const excluded = " Boss@Company.com, hr.lead@company.com;ops@company.com ";
+  assert.equal(canSeeHalloween("all", { isAdmin: true, email: "boss@company.com" }, excluded), false);
+  assert.equal(canSeeHalloween("admin", { isAdmin: true, email: "HR.Lead@company.com" }, excluded), false);
+  assert.equal(canSeeHalloween("all", { isEmployee: true, email: "ops@company.com" }, excluded), false);
+  assert.equal(canSeeHalloween("all", { isEmployee: true, email: "priya@company.com" }, excluded), true);
+  assert.equal(canSeeHalloween("all", { isEmployee: true, email: "" }, ""), true);
+  assert.deepEqual([...parseEmailList("a@x.com,, b@x.com\nC@x.com")], ["a@x.com", "b@x.com", "c@x.com"]);
 });
 
 test("Halloween season runs from 15 October to 2 November", () => {

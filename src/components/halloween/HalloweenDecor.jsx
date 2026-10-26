@@ -2,6 +2,7 @@ import { createElement, useEffect, useState } from "react";
 import { AnimatePresence, motion as Motion, useReducedMotion } from "framer-motion";
 import { Bat, Bird, Candy, Ghost, Leaf, Lollipop, Owl, Pumpkin } from "./HalloweenArt";
 import { useShowHalloween } from "./useShowHalloween";
+import { useHalloweenThemeOn } from "./halloweenPreference";
 import "./halloween.css";
 
 const INTRO_MS = 3800;
@@ -125,13 +126,19 @@ function FlyOut({ onDone }) {
   );
 }
 
-/** Pumpkins, treats, ghosts and bats around all four edges of the window. Never blocks clicks. */
+/** Pumpkins, treats, ghosts and bats around all four edges of the window, when the person has switched the theme on. Never blocks clicks. */
 export default function HalloweenDecor() {
+  // Allowed by the .env settings, and switched on by this person in the top bar.
+  const allowed = useShowHalloween();
+  const switchedOn = useHalloweenThemeOn();
+  return allowed && switchedOn ? <HalloweenScene /> : null;
+}
+
+// Mounts fresh each time the theme turns on, so the fly-out plays on every page load
+// and every time the switch is turned on (moving between pages doesn't remount it).
+function HalloweenScene() {
   const reduce = useReducedMotion();
-  const show = useShowHalloween();
-  // The fly-out plays on every page load; moving between pages doesn't reload the shell.
   const [intro, setIntro] = useState(true);
-  if (!show) return null;
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[40] overflow-hidden" aria-hidden="true">

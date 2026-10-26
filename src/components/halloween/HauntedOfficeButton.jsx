@@ -7,6 +7,7 @@ import { Ghost } from "./HalloweenArt";
 import HauntedOfficeQrDialog from "./HauntedOfficeQrDialog";
 import { encryptName, hauntedOfficeBoardLink, hauntedOfficeLink, hauntedOfficePlayer } from "./hauntedOfficeToken";
 import { useShowHalloween } from "./useShowHalloween";
+import { useHalloweenThemeOn } from "./halloweenPreference";
 import "./halloween.css";
 
 const GAME_URL = import.meta.env.VITE_HAUNTED_OFFICE_URL;
@@ -17,9 +18,11 @@ export default function HauntedOfficeButton() {
   const user = useSelector((state) => state.user.user);
   const userInfo = useSelector((state) => state.user.userInfo);
   const isAdmin = useSelector(selectIsAdmin);
+  const switchedOn = useHalloweenThemeOn();
   const [opening, setOpening] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
-  const show = useShowHalloween();
+  // Shown only when allowed by .env and the person has the Halloween switch on.
+  const show = useShowHalloween() && switchedOn;
   const player = hauntedOfficePlayer({ name: user?.name, email: user?.email, employeeId: userInfo?.id });
   // The personal game link, with the name encrypted in ?t=.
   const makeLink = useCallback(

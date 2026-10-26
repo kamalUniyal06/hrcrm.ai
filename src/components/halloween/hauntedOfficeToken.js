@@ -93,12 +93,18 @@ export function hauntedOfficePlayer({ name, email, employeeId }) {
   return { name: cleanName || "Player", emp };
 }
 
+// "a@x.com, B@x.com; c@x.com" → a set of lower-case emails.
+export const parseEmailList = (value) =>
+  new Set(String(value ?? "").split(/[\s,;]+/).map((email) => email.trim().toLowerCase()).filter(Boolean));
+
 // Who gets the Halloween look and the game (VITE_SHOW_HALLOWEEN_THEME):
 // "admin" = admins only, "all" = every employee and admin, "off" = nobody.
-// Unset or unknown means "all". Candidates never see it.
-export function canSeeHalloween(setting, { isAdmin = false, isEmployee = false } = {}) {
+// Unset or unknown means "all". Candidates never see it, and neither does anyone whose
+// email is in `excluded` (VITE_HALLOWEEN_EXCLUDED_EMAILS).
+export function canSeeHalloween(setting, { isAdmin = false, isEmployee = false, email = "" } = {}, excluded = "") {
   const audience = String(setting ?? "").trim().toLowerCase();
   if (["off", "none", "false", "0"].includes(audience)) return false;
+  if (parseEmailList(excluded).has(String(email ?? "").trim().toLowerCase())) return false;
   if (audience === "admin") return Boolean(isAdmin);
   return Boolean(isAdmin || isEmployee);
 }
