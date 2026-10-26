@@ -10,7 +10,7 @@ function ProgressRing({ percent, color }) {
   return (
     <span
       role="img"
-      aria-label={`${percent}% of offboarding steps done`}
+      aria-label={`${percent}% of exit steps done`}
       className="grid size-11 shrink-0 place-items-center rounded-full"
       style={{ background: `conic-gradient(${color} ${percent}%, var(--muted) 0)` }}
     >
@@ -28,7 +28,7 @@ export default function OffboardingCard({ cases = [], loading, error, onRetry, o
     <InsightCard
       icon={DoorOpen}
       color="var(--attendance-absent)"
-      title="Offboarding"
+      title="Exit"
       subtitle="Employees on their way out"
       badge={loading || error ? null : cases.length}
       onViewAll={onViewAll}
@@ -40,7 +40,7 @@ export default function OffboardingCard({ cases = [], loading, error, onRetry, o
 
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {error ? (
-          <InsightError message="Offboarding cases could not be loaded." onRetry={onRetry} />
+          <InsightError message="Exit cases could not be loaded." onRetry={onRetry} />
         ) : loading ? (
           <ul className="space-y-2">{[0, 1, 2].map((index) => <li key={index}><Skeleton height={58} borderRadius={12} /></li>)}</ul>
         ) : cases.length === 0 ? (

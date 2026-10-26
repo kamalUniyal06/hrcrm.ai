@@ -198,3 +198,12 @@ test("empty shortlists and false employee flags are accepted while deleted recor
   const result = await loadShortlistSource(async () => ({ success: true, records: [record, { id: "deleted", employee: 1, deleted: "1" }], total: 2 }));
   assert.deepEqual(result, [record]);
 });
+
+test("the shortlist asks the gateway for the chosen sort on every page", async () => {
+  const orders = [];
+  await loadShortlistSource(async (body) => {
+    orders.push([body.order_by, body.order_dir]);
+    return { success: true, records: [], total: 21, total_pages: 2, page: body.page };
+  }, { orderBy: "accepted_score", orderDir: "ASC" });
+  assert.deepEqual(orders, [["accepted_score", "ASC"], ["accepted_score", "ASC"]]);
+});

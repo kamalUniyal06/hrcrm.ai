@@ -1,5 +1,5 @@
-import { Settings } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { FileText, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import IconButton from "./ui/Buttons/IconButton";
 
 export default function Footer() {
@@ -14,6 +14,14 @@ export default function Footer() {
         label="Settings"
         onClick={() => navigate("/settings")}
       />
+      <Link
+        to="/policies"
+        data-tour="footer-policies"
+        className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-primary focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <FileText size={14} aria-hidden="true" />
+        Terms &amp; policies
+      </Link>
     </footer>
   );
 }

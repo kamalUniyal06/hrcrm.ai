@@ -20,6 +20,7 @@ import {
     buildLeaveDays,
     dateKey,
     daySummary,
+    isHalfDayLeave,
     isRowOnLeave,
 } from "../components/attendance/adminAttendanceUtils";
 import { adminDayStats, buildFeed, formatClock } from "../components/home/homeDashboardUtils";
@@ -44,7 +45,8 @@ import { employeeDisplayName, employeeFor } from "../components/leave/admin/leav
 import { usePublicHolidays } from "../queries/leaves.queries";
 import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
 
-const PEOPLE_TABS = [["late", "Late"], ["missing", "Not checked in"], ["leave", "On leave"]];
+// Tab values double as /attendance?filter= values for "View all".
+const PEOPLE_TABS = [["late", "Late"], ["missing", "Not checked in"], ["leave", "On leave"], ["halfDay", "Half day"]];
 
 function TodayPeopleCard({ groups, loading, onOpen, onViewAll }) {
     const [tab, setTab] = useState("late");
@@ -57,7 +59,7 @@ function TodayPeopleCard({ groups, loading, onOpen, onViewAll }) {
                     View all <ChevronRight size={13} />
                 </button>
             </div>
-            <div role="tablist" className="mt-3 flex gap-1 rounded-xl bg-muted p-1">
+            <div role="tablist" className="hide-scrollbar mt-3 flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
                 {PEOPLE_TABS.map(([value, label]) => (
                     <button
                         key={value}
@@ -65,7 +67,7 @@ function TodayPeopleCard({ groups, loading, onOpen, onViewAll }) {
                         role="tab"
                         aria-selected={tab === value}
                         onClick={() => setTab(value)}
-                        className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                        className={`flex-1 whitespace-nowrap rounded-lg px-2 py-1.5 text-xs font-semibold transition ${tab === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                         {label} <span className="tabular-nums text-muted-foreground">{loading ? "" : groups[value]?.length || 0}</span>
                     </button>
@@ -129,23 +131,26 @@ export default function AdminHomePage() {
 
     const rows = useMemo(() => buildAttendanceRows(employees.data || [], activity.data || []), [employees.data, activity.data]);
     const leaveDays = useMemo(() => buildLeaveDays(todayLeaves.data || []), [todayLeaves.data]);
+    const halfDayLeaveDays = useMemo(() => buildLeaveDays((todayLeaves.data || []).filter(isHalfDayLeave)), [todayLeaves.data]);
     const stats = useMemo(() => adminDayStats({ rows, leaveDays, day: today, today, lateAfter }), [rows, leaveDays, today, lateAfter]);
 
     const groups = useMemo(() => {
-        const result = { late: [], missing: [], leave: [] };
+        const result = { late: [], missing: [], leave: [], halfDay: [] };
         for (const row of rows) {
             if (!row.matched) continue;
             const records = row.days[today] || [];
             const onLeave = isRowOnLeave(leaveDays, row, today);
             const summary = daySummary(records, today, today, onLeave, lateAfter);
             if (summary.status === "late") result.late.push({ ...row, time: summary.first.time, at: summary.first.minutes });
-            // Someone on leave who still logged in is listed under "On leave" and under "Late" if they were late.
-            if (onLeave) result.leave.push(row);
+            // Someone on leave who still logged in is listed under their leave tab and under "Late" if they were late.
+            // As on the attendance page, "On leave" is full days only; half-day leave has its own tab.
+            if (onLeave && isRowOnLeave(halfDayLeaveDays, row, today)) result.halfDay.push(row);
+            else if (onLeave) result.leave.push(row);
             else if (!records.some((record) => String(record.login ?? "").trim())) result.missing.push(row);
         }
         result.late.sort((a, b) => b.at - a.at);
         return result;
-    }, [rows, leaveDays, today, lateAfter]);
+    }, [rows, leaveDays, halfDayLeaveDays, today, lateAfter]);
 
     const employeeMap = useMemo(() => new Map((employees.data || []).map((employee) => [employee.id, employee])), [employees.data]);
     const nameByEmail = useMemo(() => new Map(rows.filter((row) => row.email).map((row) => [row.email, row.name])), [rows]);
@@ -257,9 +262,9 @@ export default function AdminHomePage() {
                                 loading={resignations.isPending || employees.isPending}
                                 error={resignations.isError}
                                 onRetry={() => resignations.refetch()}
-                                onOpen={(item) => navigate(item.email ? `/offboarding?email=${encodeURIComponent(item.email)}` : "/offboarding")}
-                                onViewAll={() => navigate("/offboarding")}
-                                onFilter={(status) => navigate(`/offboarding?status=${status}`)}
+                                onOpen={(item) => navigate(item.email ? `/exit?email=${encodeURIComponent(item.email)}` : "/exit")}
+                                onViewAll={() => navigate("/exit")}
+                                onFilter={(status) => navigate(`/exit?status=${status}`)}
                             />
                             <TodayPeopleCard
                                 groups={groups}

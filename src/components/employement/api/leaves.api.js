@@ -3,6 +3,7 @@ import { store } from "@/store/store";
 import { buildTableRequestBody } from "../../../utils/preferenceStorage";
 import { fetchGpc } from "../../../services/api";
 import { leaveDayRequests, leavesCoveringDay } from "../components/attendance/adminAttendanceUtils";
+import { leaveFeedBody } from "../components/leave/admin/leaveAdminUtils";
 
 export const applyForLeave = async (data) => {
     const formData = new FormData();
@@ -90,14 +91,17 @@ export const getEmployeeLeaves = ({ employeeId, email }) =>
             action: "fetch",
             module: "hrc_leaves",
             filters: employeeId ? { employee_id: employeeId } : { email },
+            // Newest first, sorted by SmartGateway.
+            order_by: "date_entered",
+            order_dir: "DESC",
             page: 1,
             per_page: 100,
         },
     });
 
-// Admin dashboard feed. Date and employee filtering are performed by
-// SmartGateway so the browser only receives the records it needs.
-export const getAllLeaves = async ({ from, to, dateField = "leave_from", email } = {}) => {
+// Admin dashboard feed. Date, employee and status filtering and sorting are performed by
+// SmartGateway so the browser only receives the records it needs, already in order.
+export const getAllLeaves = async (options = {}) => {
     const records = [];
     let page = 1;
     let totalPages = 1;
@@ -105,19 +109,7 @@ export const getAllLeaves = async ({ from, to, dateField = "leave_from", email }
     do {
         const response = await http({
             method: "POST",
-            body: {
-                action: "fetch",
-                module: "hrc_leaves",
-                filters: email ? { name: email } : {},
-                ...(from && to ? {
-                    date_range: "custom",
-                    date_field: dateField,
-                    date_from: from,
-                    date_to: to,
-                } : {}),
-                page,
-                per_page: 100,
-            },
+            body: leaveFeedBody(options, page),
         });
         if (response?.success !== true || !Array.isArray(response.records))
             throw new Error(response?.message || response?.error || "Could not load employee leave requests.");

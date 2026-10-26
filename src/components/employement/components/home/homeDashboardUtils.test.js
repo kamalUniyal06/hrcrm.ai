@@ -117,3 +117,15 @@ test("announcement previews show readable text instead of HTML tags", () => {
   assert.equal(announcementPreview("Plain message"), "Plain message");
   assert.equal(announcementPreview(null), "");
 });
+
+test("the day period follows India time", async () => {
+  const { dayPeriod } = await import("./homeDashboardUtils.js");
+  // 03:30 UTC is 09:00 in India; 08:30 UTC is 14:00; 12:30 UTC is 18:00; 21:00 UTC is 02:30.
+  assert.equal(dayPeriod(new Date("2026-10-26T03:30:00Z")), "morning");
+  assert.equal(dayPeriod(new Date("2026-10-26T06:29:00Z")), "morning");
+  assert.equal(dayPeriod(new Date("2026-10-26T06:30:00Z")), "afternoon");
+  assert.equal(dayPeriod(new Date("2026-10-26T08:30:00Z")), "afternoon");
+  assert.equal(dayPeriod(new Date("2026-10-26T11:30:00Z")), "evening");
+  assert.equal(dayPeriod(new Date("2026-10-26T21:00:00Z")), "evening");
+  assert.equal(dayPeriod(new Date("2026-10-25T23:30:00Z")), "morning");
+});

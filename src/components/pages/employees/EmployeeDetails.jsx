@@ -3,22 +3,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   AlertTriangle,
-  Briefcase,
   Building2,
   CalendarDays,
-  Info,
   Linkedin,
   Loader2,
   Mail,
-  MapPin,
   Pencil,
   Phone,
   PhoneOff,
   Save,
-  UserRound,
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { groups } from "./employeeFields";
 import {
   employeeDate,
   employeeName,
@@ -28,48 +25,6 @@ import {
   tenure,
 } from "./employeesApi";
 
-const groups = [
-  [
-    "Personal & contact",
-    UserRound,
-    [
-      ["first_name", "First name"],
-      ["last_name", "Last name"],
-      ["email1", "Email", "email"],
-      ["phone_mobile", "Mobile phone", "tel"],
-      ["phone_work", "Work phone", "tel"],
-    ],
-  ],
-  [
-    "Employment",
-    Briefcase,
-    [
-      ["current_designation", "Designation"],
-      ["title", "Title"],
-      ["department", "Department"],
-      ["joining_date", "Joining date", "date"],
-    ],
-  ],
-  [
-    "Location",
-    MapPin,
-    [
-      ["primary_address_street", "Street"],
-      ["primary_address_city", "City"],
-      ["primary_address_state", "State"],
-      ["primary_address_postalcode", "Postal code"],
-      ["primary_address_country", "Country"],
-    ],
-  ],
-  [
-    "Additional information",
-    Info,
-    [
-      ["linkedin_url", "LinkedIn URL", "url"],
-      ["description", "Notes", "textarea"],
-    ],
-  ],
-];
 const fields = [
   ...groups.flatMap(([, , entries]) => entries),
   ["do_not_call", "Do not call"],
@@ -106,7 +61,7 @@ export function EmployeeAvatar({ name, size = "md" }) {
   );
 }
 
-function FieldValue({ field, value }) {
+export function FieldValue({ field, value }) {
   if (!value) return <span className="text-slate-400">—</span>;
   if (field === "email1") return <a href={`mailto:${value}`} className="text-indigo-600 hover:underline">{value}</a>;
   if (field === "phone_mobile" || field === "phone_work") return <a href={`tel:${value}`} className="text-indigo-600 hover:underline">{value}</a>;

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Check, Clock3, Loader2, Palmtree, RefreshCw, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAllLeaves, updateLeaveStatus } from "../../../api/leaves.api";
@@ -11,8 +11,9 @@ import LeaveKanban from "./LeaveKanban";
 import ApproveLeaveDialog from "./ApproveLeaveDialog";
 import {
   ADMIN_LEAVE_QUERY_KEY,
+  LEAVE_STATUSES,
+  boardColumns,
   clean,
-  statusOf,
 } from "./leaveAdminUtils";
 
 function currentMonthRange() {
@@ -55,6 +56,9 @@ export default function AdminLeaveBoard() {
   const [range, setRange] = useState(defaultRange);
   const [dateMode, setDateMode] = useState("applied");
   const [statusFilter, setStatusFilter] = useState("All");
+  // Applied-date order per column; SmartGateway does the sorting.
+  const [sortDirs, setSortDirs] = useState({ Applied: "DESC", Accepted: "DESC", Rejected: "DESC" });
+  const toggleSort = (status) => setSortDirs((current) => ({ ...current, [status]: current[status] === "DESC" ? "ASC" : "DESC" }));
   const [search, setSearch] = useState("");
   const [selectedRequest, setSelectedRequest] = useState(null);
   const closeDetails = useCallback(() => setSelectedRequest(null), []);
@@ -73,24 +77,32 @@ export default function AdminLeaveBoard() {
   }, [employees.data, search]);
   const searchedEmail = clean(searchedEmployee?.email1 || searchedEmployee?.email);
   const hasEmployeeMatch = !search.trim() || Boolean(searchedEmail);
-  const leaveRequest = useMemo(() => ({
-    from: `${range.fromDate} ${range.fromTime || "00:00"}:00`,
-    to: `${range.toDate} ${range.toTime || "23:59"}:59`,
-    dateField: DATE_FIELDS[dateMode],
-    email: searchedEmail || undefined,
-  }), [range, dateMode, searchedEmail]);
-  const leaves = useQuery({
-    queryKey: [...ADMIN_LEAVE_QUERY_KEY, leaveRequest],
-    queryFn: () => getAllLeaves(leaveRequest),
-    enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
+  // Approval dates only exist on approved requests, so that mode has no rejected column feed.
+  const activeStatuses = LEAVE_STATUSES.filter((status) => !(dateMode === "approved" && status === "Rejected"));
+  // One feed per column so each can be sorted on its own. Pending requests ignore the
+  // date range so nothing awaiting a decision is hidden; only search narrows them.
+  const columnQueries = useQueries({
+    queries: LEAVE_STATUSES.map((status) => {
+      const request = {
+        ...(status === "Applied" ? {} : {
+          from: `${range.fromDate} ${range.fromTime || "00:00"}:00`,
+          to: `${range.toDate} ${range.toTime || "23:59"}:59`,
+          dateField: DATE_FIELDS[dateMode],
+        }),
+        email: searchedEmail || undefined,
+        status,
+        orderDir: sortDirs[status],
+      };
+      return {
+        queryKey: [...ADMIN_LEAVE_QUERY_KEY, request],
+        queryFn: () => getAllLeaves(request),
+        enabled: isAdmin && !employees.isPending && hasEmployeeMatch && activeStatuses.includes(status),
+        placeholderData: keepPreviousData,
+      };
+    }),
   });
-  // Pending requests ignore the date range so nothing awaiting a decision is hidden; only search narrows them.
-  const pendingRequest = useMemo(() => ({ email: searchedEmail || undefined }), [searchedEmail]);
-  const pending = useQuery({
-    queryKey: [...ADMIN_LEAVE_QUERY_KEY, pendingRequest],
-    queryFn: () => getAllLeaves(pendingRequest),
-    enabled: isAdmin && !employees.isPending && hasEmployeeMatch,
-  });
+  const feeds = Object.fromEntries(LEAVE_STATUSES.map((status, index) => [status, columnQueries[index]]));
+  const activeQueries = activeStatuses.map((status) => feeds[status]);
   const mutation = useMutation({
     mutationFn: ({ id, status, details }) => updateLeaveStatus(id, status, details),
     onMutate: async ({ id, status, details }) => {
@@ -105,7 +117,7 @@ export default function AdminLeaveBoard() {
         work_handed_over_to_id_name: nameOf(details.handoverToId),
         approved_date: new Date().toISOString().slice(0, 10),
       } : {};
-      queryClient.setQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY }, (current) => current?.records ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, ...approval, date_modified: new Date().toISOString() } : record) } : current);
+      queryClient.setQueriesData({ queryKey: ADMIN_LEAVE_QUERY_KEY }, (current) => current?.records ? { ...current, records: current.records.map((record) => String(record.id) === String(id) ? { ...record, status, ...approval, date_modified: new Date().toISOString(), decidedHere: true } : record) } : current);
       return { previous };
     },
     onError: (_error, _variables, context) => context?.previous?.forEach(([key, data]) => queryClient.setQueryData(key, data)),
@@ -113,22 +125,19 @@ export default function AdminLeaveBoard() {
   });
 
   const employeeMap = useMemo(() => new Map((employees.data || []).map((employee) => [employee.id, employee])), [employees.data]);
-  const rangeRecords = useMemo(() => {
-    const decided = (leaves.data?.records || []).filter((record) => statusOf(record) !== "Applied");
-    const inRange = dateMode === "approved"
-      ? decided.filter((record) => statusOf(record) === "Accepted")
-      : decided;
-    const awaiting = (pending.data?.records || []).filter((record) => statusOf(record) === "Applied");
-    const awaitingIds = new Set(awaiting.map((record) => String(record.id)));
-    return [...awaiting, ...inRange.filter((record) => !awaitingIds.has(String(record.id)))];
-  }, [leaves.data, pending.data, dateMode]);
-  const counts = useMemo(() => ({
-    All: rangeRecords.length,
-    ...Object.fromEntries(["Applied", "Accepted", "Rejected"].map((status) => [status, rangeRecords.filter((record) => statusOf(record) === status).length])),
-  }), [rangeRecords]);
-  const visible = useMemo(() => rangeRecords.filter((record) =>
-    statusFilter === "All" || statusOf(record) === statusFilter
-  ), [rangeRecords, statusFilter]);
+  const appliedData = feeds.Applied.data;
+  const acceptedData = feeds.Accepted.data;
+  const rejectedData = feeds.Rejected.data;
+  const columns = useMemo(() => boardColumns({
+    Applied: appliedData?.records,
+    Accepted: acceptedData?.records,
+    Rejected: dateMode === "approved" ? [] : rejectedData?.records,
+  }), [appliedData, acceptedData, rejectedData, dateMode]);
+  const counts = {
+    All: LEAVE_STATUSES.reduce((total, status) => total + columns[status].length, 0),
+    ...Object.fromEntries(LEAVE_STATUSES.map((status) => [status, columns[status].length])),
+  };
+  const visibleColumns = Object.fromEntries(LEAVE_STATUSES.map((status) => [status, statusFilter === "All" || statusFilter === status ? columns[status] : []]));
 
   const decide = (record, status) => {
     if (!record) return;
@@ -145,9 +154,10 @@ export default function AdminLeaveBoard() {
   );
 
   if (!isAdmin) return null;
-  const loading = employees.isPending || (hasEmployeeMatch && (leaves.isPending || pending.isPending));
-  const failed = leaves.isError || pending.isError || employees.isError;
-  const refresh = () => { leaves.refetch(); pending.refetch(); employees.refetch(); };
+  const loading = employees.isPending || (hasEmployeeMatch && activeQueries.some((query) => query.isPending));
+  const failed = activeQueries.some((query) => query.isError) || employees.isError;
+  const fetching = activeQueries.some((query) => query.isFetching);
+  const refresh = () => { activeQueries.forEach((query) => query.refetch()); employees.refetch(); };
 
   return (
     <section className="mx-auto min-h-full max-w-[1600px] space-y-5 pb-8 text-foreground">
@@ -155,7 +165,7 @@ export default function AdminLeaveBoard() {
         <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">People operations</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Leave approvals</h1><p className="mt-1 max-w-xl text-sm text-muted-foreground">Review pending requests, then drag them into Approved or Rejected.</p></div>
         <div className="flex items-center gap-2 self-start xl:self-auto">
           <button type="button" onClick={() => navigate("/my-leaves")} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><Palmtree size={17} />My leave &amp; apply</button>
-          <button type="button" onClick={refresh} disabled={leaves.isFetching || pending.isFetching || employees.isFetching} className="rounded-xl border border-border p-2.5 text-muted-foreground transition hover:bg-muted disabled:opacity-50" aria-label="Refresh leave requests"><RefreshCw size={17} className={leaves.isFetching || pending.isFetching ? "animate-spin" : ""} /></button>
+          <button type="button" onClick={refresh} disabled={fetching || employees.isFetching} className="rounded-xl border border-border p-2.5 text-muted-foreground transition hover:bg-muted disabled:opacity-50" aria-label="Refresh leave requests"><RefreshCw size={17} className={fetching ? "animate-spin" : ""} /></button>
         </div>
       </header>
 
@@ -166,7 +176,7 @@ export default function AdminLeaveBoard() {
       <AdminLeaveFilters dateMode={dateMode} onDateModeChange={setDateMode} range={range} defaultRange={defaultRange} onRangeChange={setRange} search={search} onSearchChange={setSearch} />
       {mutation.isError && !approving && <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{mutation.error.message}</p>}
 
-      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : !hasEmployeeMatch ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="text-sm text-muted-foreground">No employee with that name or email was found.</p></div> : <LeaveKanban records={visible} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} onDecide={decide} />}
+      {loading ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading leave requests…</p></div> : failed ? <div role="alert" className="rounded-2xl bg-card p-10 text-center ring-1 ring-border"><p className="text-sm text-destructive">Could not load leave requests.</p><button type="button" onClick={refresh} className="mt-3 text-sm font-semibold text-primary">Try again</button></div> : !hasEmployeeMatch ? <div className="grid min-h-72 place-items-center rounded-2xl bg-card ring-1 ring-border"><p className="text-sm text-muted-foreground">No employee with that name or email was found.</p></div> : <LeaveKanban columns={visibleColumns} sortDirs={sortDirs} onToggleSort={toggleSort} fetching={Object.fromEntries(LEAVE_STATUSES.map((status) => [status, feeds[status].isFetching]))} employeeMap={employeeMap} mutation={mutation} onOpen={setSelectedRequest} onDecide={decide} />}
 
       <LeaveDetailPanel record={selectedRequest} employeeMap={employeeMap} mutation={mutation} onClose={closeDetails} onDecide={decide} />
       <ApproveLeaveDialog

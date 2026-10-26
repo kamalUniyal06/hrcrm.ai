@@ -10,8 +10,14 @@ export function isAdminPage(pathname = "") {
   } catch {
     // Malformed paths cannot resolve to a protected route.
   }
-  return /^\/(?:employees|salaries|offboarding|system-alerts|leave-approvals|increment-management)(?:\/|$)/i.test(path) ||
+  return /^\/(?:employees|candidates|limit-management|salaries|exit|offboarding|system-alerts|leave-approvals|increment-management)(?:\/|$)/i.test(path) ||
     /^\/entity\/hrc_(?:employees|salaries|increment|increment_questions|increment_replies)(?:\/|$)/i.test(path);
+}
+
+// Pages everyone can open, whose admin version is the management tool (candidates browse
+// and apply on /job-posting; admins create and delete postings there).
+export function hasAdminView(pathname = "") {
+  return /^\/job-posting(?:\/|$)/i.test(String(pathname).split(/[?#]/)[0]);
 }
 
 export function filterAdminNavigation(groups, isAdmin) {

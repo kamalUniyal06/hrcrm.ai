@@ -53,8 +53,38 @@ export function isRecordInRange(record, fromDate, toDate, dateMode) {
   return Boolean(from && from <= toDate && to >= fromDate);
 }
 
+export const LEAVE_STATUSES = ["Applied", "Accepted", "Rejected"];
+
 export const statusOf = (record) =>
-  ["Applied", "Accepted", "Rejected"].includes(record.status) ? record.status : "Applied";
+  LEAVE_STATUSES.includes(record.status) ? record.status : "Applied";
+
+// One page of the hrc_leaves feed. `orderDir` sorts by applied date on the server.
+export function leaveFeedBody({ from, to, dateField = "leave_from", email, status, orderDir } = {}, page = 1) {
+  return {
+    action: "fetch",
+    module: "hrc_leaves",
+    filters: { ...(email ? { name: email } : {}), ...(status ? { status } : {}) },
+    ...(from && to ? { date_range: "custom", date_field: dateField, date_from: from, date_to: to } : {}),
+    ...(orderDir ? { order_by: "date_entered", order_dir: orderDir } : {}),
+    page,
+    per_page: 100,
+  };
+}
+
+/**
+ * Board columns from one server-sorted feed per status, keeping the server's order.
+ * A request decided on this page (`decidedHere`) shows at the top of its new column
+ * until the refetch returns it from that column's own feed.
+ */
+export function boardColumns(feeds = {}) {
+  const pending = feeds.Applied || [];
+  return Object.fromEntries(LEAVE_STATUSES.map((status) => {
+    const own = (feeds[status] || []).filter((record) => statusOf(record) === status);
+    const ids = new Set(own.map((record) => String(record.id)));
+    const moved = status === "Applied" ? [] : pending.filter((record) => record.decidedHere && statusOf(record) === status && !ids.has(String(record.id)));
+    return [status, [...moved, ...own]];
+  }));
+}
 
 const looksLikeId = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(value);
 const firstName = (...values) => values.map(clean).find((value) => value && !looksLikeId(value)) || "";

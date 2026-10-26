@@ -15,7 +15,7 @@ const sections = [
       "employment_type",
       "job_type",
       "number_of_positions",
-      "job_status",
+      "status",
     ],
   ],
   [
@@ -93,7 +93,7 @@ export default function CreateJobDialog({
   );
   const [draft, setDraft] = useState({
     number_of_positions: "1",
-    job_status: "open",
+    status: "active",
     salary_negotiable: "0",
   });
   const [busy, setBusy] = useState(false);

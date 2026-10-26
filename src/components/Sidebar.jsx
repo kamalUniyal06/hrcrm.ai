@@ -13,7 +13,7 @@ import {
   selectVisibleGroups,
 } from "../utils/sidebarLayout";
 import { useIsDesktop } from "../hooks/useMediaQuery";
-import { sidebarDestination } from "../utils/sidebarNavigation";
+import { sidebarDestination, sidebarLabel } from "../utils/sidebarNavigation";
 import { filterAdminNavigation, hideMergedRecruitmentNavigation, selectIsAdmin } from "../utils/pageAccess";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../store/Slices/userSlice";
@@ -682,7 +682,7 @@ function MenuItem({ item, isDesktop, setActivePage, activePage, sidebarDestinati
     <button
       key={item.id}
       disabled={!sidebarDestination(item)}
-      title={!sidebarDestination(item) ? "Navigation is not configured for this item" : item.name}
+      title={!sidebarDestination(item) ? "Navigation is not configured for this item" : sidebarLabel(item)}
       onClick={() => {
         if (!isDesktop) {
           setMobileSidebarOpen(false);
@@ -719,7 +719,7 @@ function MenuItem({ item, isDesktop, setActivePage, activePage, sidebarDestinati
       {!collapsed && (
         <>
           <span className="flex-1 truncate text-left">
-            {item.name}
+            {sidebarLabel(item)}
           </span>
 
           {item.show_count === true && (

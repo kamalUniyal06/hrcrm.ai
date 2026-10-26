@@ -6,6 +6,8 @@ import { toast } from "react-hot-toast";
 import {
   Archive,
   BriefcaseBusiness,
+  CircleCheck,
+  CirclePause,
   CalendarClock,
   Eye,
   FileCheck2,
@@ -22,15 +24,15 @@ import { fetchCandidateRelated } from "../profile/candidateApi";
 import { candidateRelatedQueryKey } from "../profile/candidateRelated.js";
 import { relatedEntryView } from "../profile/profileDisplay";
 import { useCandidateProfile } from "../../../queries/candidate.queries";
-import { jobsKeys, useApplyToJob, useCandidateApplications, useJobPostings } from "../../../queries/jobs.queries";
+import { jobsKeys, useApplyToJob, useCandidateApplications, useJobPostings, useJobStatusCounts, useUpdateJobStatus } from "../../../queries/jobs.queries";
 import { CandidatePageHeader, CandidateStats, EmptyState } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { applicationStage, applicationSteps } from "../candidate/candidateStatus";
 import JobList, { JobListSkeleton } from "./JobList";
 import JobDetailsDrawer from "./JobDetailsDrawer";
 import CreateJobDialog from "./CreateJobDialog";
-import DeleteJobDialog from "./DeleteJobDialog";
 import { fieldLabel, plainText, readable, titleOf, valueOf } from "./jobFormatting";
+import { jobStatusOf } from "./jobStatus.js";
 
 const tabLink = "inline-flex min-h-11 items-center gap-2 border-b-2 px-0.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary motion-reduce:transition-none";
 // Application filters, each one also a card in the summary strip.
@@ -61,7 +63,8 @@ export default function JobsPage({ applicationsOnly = false }) {
 function CandidateJobs({ applicationsOnly, isAdmin }) {
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState(null);
+  // Admins filter the postings by the Active / Inactive status bars.
+  const [statusFilter, setStatusFilter] = useState("");
   const [notice, setNotice] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -72,6 +75,8 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
   const profile = useCandidateProfile();
   const candidate = isAdmin ? null : profile.data || null;
   const postings = useJobPostings();
+  const statusCounts = useJobStatusCounts({ enabled: isAdmin });
+  const statusMutation = useUpdateJobStatus();
   const applicationsQuery = useCandidateApplications(candidate?.id, { enabled: !isAdmin });
   const jobs = postings.data?.records || [];
   const jobDropdowns = postings.data?.dropdowns || {};
@@ -82,6 +87,7 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
   const refreshing = postings.isFetching || profile.isFetching || applicationsQuery.isFetching;
   const refresh = () => {
     void postings.refetch();
+    if (isAdmin) void statusCounts.refetch();
     if (!isAdmin) {
       void profile.refetch();
       if (candidate?.id) void applicationsQuery.refetch();
@@ -121,7 +127,7 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
         application,
         job: jobsById.get(String(application.jobid).trim()),
       }))
-    : jobs.map((job) => ({ job }));
+    : jobs.filter((job) => !statusFilter || jobStatusOf(job) === statusFilter).map((job) => ({ job }));
   const query = search.trim().toLowerCase();
   const rows = cards
     .filter(({ application }) => !applicationsOnly || applicationFilters[filter].test(applicationStage(application.status)))
@@ -138,7 +144,7 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
     .map(({ job, application }, index) => {
       const applied = job && appliedIds.has(String(job.id).trim());
       const statusValue = application?.status?.trim();
-      const postingStatus = isAdmin && fieldLabel(job, ["job_status"], jobDropdowns, true);
+      const postingStatus = isAdmin && fieldLabel(job, ["status"], jobDropdowns, true);
       const stage = application ? applicationStage(statusValue) : null;
       return {
         key: String(application?.id || job?.id || index),
@@ -163,6 +169,7 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
   const selected = rows[selectedIndex];
   const openRow = (key) => {
     applyMutation.reset();
+    statusMutation.reset();
     setSelectedKey(key);
   };
   const candidateName = candidate
@@ -176,9 +183,15 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
     setFilter((current) => (current === key ? "all" : key));
     setSelectedKey(null);
   };
+  const pickStatus = (status) => {
+    setStatusFilter((current) => (current === status ? "" : status));
+    setSelectedKey(null);
+  };
+  const countText = (status) => (statusCounts.isPending ? "…" : statusCounts.isError ? "—" : statusCounts.data[status]);
   const stats = isAdmin
     ? [
-        { label: "Job postings", value: jobs.length, icon: BriefcaseBusiness, tone: "primary", onClick: () => setSearch("") },
+        { label: "Active jobs", value: countText("active"), hint: "open to candidates", icon: CircleCheck, tone: "success", active: statusFilter === "active", onClick: () => pickStatus("active") },
+        { label: "Inactive jobs", value: countText("inactive"), hint: "paused", icon: CirclePause, tone: "neutral", active: statusFilter === "inactive", onClick: () => pickStatus("inactive") },
         { label: "Matching your search", value: rows.length, icon: Search, tone: "info" },
       ]
     : applicationsOnly
@@ -237,36 +250,38 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
         )}
       </CandidatePageHeader>
 
-      {!loading && !error && <CandidateStats items={stats} label={applicationsOnly ? "Application summary" : "Jobs summary"} />}
+      {!loading && !error && <div data-tour={isAdmin ? "job-status-bars" : undefined}><CandidateStats items={stats} label={applicationsOnly ? "Application summary" : "Jobs summary"} /></div>}
 
       <div className="space-y-4">
-        <nav aria-label="Jobs" className="flex flex-wrap gap-x-6 border-b border-border">
-          {[
-            ["/job-posting", "Job postings", jobs.length],
-            ["/job-application", "My applications", applications.length],
-          ]
-            .filter(([to]) => !isAdmin || to !== "/job-application")
-            .map(([to, label, count]) => (
-              <NavLink
-                key={to}
-                to={to}
-                className={({ isActive }) =>
-                  cn(tabLink, "-mb-px", isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    {label}
-                    {!loading && !error && (
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs tabular-nums", isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                        {count}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
-        </nav>
+        {/* Candidates switch between Jobs and My applications here; admins only have the one page. */}
+        {!isAdmin && (
+          <nav aria-label="Jobs" className="flex flex-wrap gap-x-6 border-b border-border">
+            {[
+              ["/job-posting", "Job postings", jobs.length],
+              ["/job-application", "My applications", applications.length],
+            ]
+              .map(([to, label, count]) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    cn(tabLink, "-mb-px", isActive ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {label}
+                      {!loading && !error && (
+                        <span className={cn("rounded-full px-2 py-0.5 text-xs tabular-nums", isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                          {count}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              ))}
+          </nav>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-border bg-card px-3.5 transition-colors focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 sm:w-96 motion-reduce:transition-none">
@@ -404,24 +419,13 @@ function CandidateJobs({ applicationsOnly, isAdmin }) {
           pending={pending}
           applyError={applyError}
           onApply={apply}
-          onDelete={(job) => {
+          statusPending={statusMutation.isPending}
+          statusError={statusMutation.error?.message || ""}
+          onToggleStatus={(job, status) => {
             if (!isAdmin) return;
-            setSelectedKey(null);
-            setDeleting(job);
-          }}
-        />
-      )}
-      {isAdmin && deleting && (
-        <DeleteJobDialog
-          job={deleting}
-          onClose={() => setDeleting(null)}
-          onDeleted={id => {
-            queryClient.setQueryData(jobsKeys.postings, previous => previous && {
-              ...previous,
-              records: previous.records.filter(job => job.id !== id),
+            statusMutation.mutate({ id: job.id, status }, {
+              onSuccess: () => setNotice(`Job posting marked ${status}.`),
             });
-            setDeleting(null);
-            setNotice("Job posting deleted successfully.");
           }}
         />
       )}

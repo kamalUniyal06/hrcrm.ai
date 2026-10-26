@@ -217,3 +217,12 @@ export function feedDayLabel(stamp, today) {
   yesterday.setUTCDate(yesterday.getUTCDate() - 1);
   return key === yesterday.toISOString().slice(0, 10) ? "Yesterday" : shortDate(key);
 }
+
+// Part of the working day in India time, for the check-in card's artwork and greeting:
+// morning until noon, afternoon until 5 pm, evening after that (and before 5 am).
+export function dayPeriod(date = new Date()) {
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", hourCycle: "h23" }).format(date));
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  return "evening";
+}

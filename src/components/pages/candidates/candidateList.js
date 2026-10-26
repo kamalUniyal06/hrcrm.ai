@@ -66,12 +66,12 @@ export async function loadCandidatePage(request, options) {
 }
 
 /** Request the same server-filtered shortlist for the list and assessment selectors. */
-export async function loadShortlistSource(request, { dateRange = null } = {}) {
+export async function loadShortlistSource(request, { dateRange = null, orderBy, orderDir } = {}) {
   const records = [];
   let page = 1;
   let pages = 1;
   do {
-    const result = await loadCandidatePage(request, { page, shortlistedOnly: true, dateRange });
+    const result = await loadCandidatePage(request, { page, shortlistedOnly: true, dateRange, orderBy, orderDir });
     const active = result.records.filter((record) => String(record.deleted) !== "1");
     if (active.some((record) =>
       !(record.employee === false || String(record.employee ?? "").trim() === "0") ||

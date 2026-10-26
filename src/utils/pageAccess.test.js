@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAdminNavigation, hideMergedRecruitmentNavigation, isAdminPage, selectIsAdmin } from "./pageAccess.js";
+import { filterAdminNavigation, hasAdminView, hideMergedRecruitmentNavigation, isAdminPage, selectIsAdmin } from "./pageAccess.js";
 import { sidebarDestination } from "./sidebarNavigation.js";
 
 test("only authenticated admins receive admin access", () => {
@@ -16,7 +16,7 @@ test("protects direct and generic module routes", () => {
   for (const path of ["/employees", "/salaries/", "/EMPLOYEES", "/salaries?view=list", "/%65mployees", "/entity/hrc_employees/view", "/entity/hrc_salaries/create", "/entity/hrc_employees/person/edit", "/entity/hrc_salaries/list/table"]) {
     assert.equal(isAdminPage(path), true, path);
   }
-  for (const path of ["/", "/profile", "/attendance", "/candidates", "/interviews", "/interviews/", "/INTERVIEWS", "/interviews?view=list", "/interviews-other", "/entity/hrc_interviews/create", "/entity/hrc_interviews/list/table", "/entity/hrc_candidates/view", null]) {
+  for (const path of ["/", "/profile", "/attendance", "/interviews", "/interviews/", "/INTERVIEWS", "/interviews?view=list", "/interviews-other", "/entity/hrc_interviews/create", "/entity/hrc_interviews/list/table", "/entity/hrc_candidates/view", null]) {
     assert.equal(isAdminPage(path), false, String(path));
   }
 });
@@ -76,4 +76,25 @@ test("admins see Shortlisted and Interviews merged into Candidates", () => {
   assert.deepEqual(hideMergedRecruitmentNavigation(groups, true)[0].data.map(item => item.name), ["Candidates", "Job posting"]);
   assert.equal(hideMergedRecruitmentNavigation(groups, false), groups);
   assert.deepEqual(hideMergedRecruitmentNavigation([{ data: [{ name: "Shortlisted" }] }], true), []);
+});
+
+test("the exit page, its old offboarding link and employee profiles are admin only", () => {
+  for (const path of ["/exit", "/exit?status=open", "/offboarding", "/employees/abc-123"]) {
+    assert.equal(isAdminPage(path), true, path);
+  }
+  assert.equal(isAdminPage("/exit-interview-tips"), false);
+});
+
+test("candidates and limit management are admin only", () => {
+  for (const path of ["/candidates", "/candidates?view=shortlisted", "/limit-management", "/limit-management/abc/edit"]) {
+    assert.equal(isAdminPage(path), true, path);
+  }
+  assert.equal(isAdminPage("/candidate-home"), false);
+});
+
+test("job postings stay open to candidates but have an admin view", () => {
+  assert.equal(isAdminPage("/job-posting"), false);
+  assert.equal(hasAdminView("/job-posting"), true);
+  assert.equal(hasAdminView("/job-posting?job=1"), true);
+  assert.equal(hasAdminView("/job-application"), false);
 });
