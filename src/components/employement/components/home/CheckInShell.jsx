@@ -5,7 +5,6 @@ import morningScene from "../../../../assets/attendance/workday-morning.png";
 import afternoonScene from "../../../../assets/attendance/workday-afternoon.png";
 import eveningScene from "../../../../assets/attendance/workday-evening.png";
 import { dayPeriod } from "./homeDashboardUtils";
-import { todayLabel } from "./homeUi";
 
 const toneClasses = {
   neutral: "border-border bg-muted text-muted-foreground",
@@ -45,7 +44,7 @@ function useDayPeriod() {
  * first thing on the home page, so it stands out from the plain cards around it:
  * a morning, afternoon or evening scene with a greeting heads the card.
  * `attention` strengthens the outline while the employee still has to clock in.
- * `badge` (e.g. location) sits with the shift hours.
+ * `badge` (e.g. location) and `status` (present, not checked in…) sit together with the shift hours.
  */
 export default function CheckInShell({ status, shift, badge, attention = false, children }) {
   const titleId = useId();
@@ -68,18 +67,12 @@ export default function CheckInShell({ status, shift, badge, attention = false, 
               <CalendarClock size={14} className="shrink-0" aria-hidden="true" />
               <span className="truncate">Daily Check In</span>
             </h2>
-            {/* The pill's tints sit on the card colour, not on the artwork. */}
-            <span className="shrink-0 rounded-full bg-card shadow-sm">{status}</span>
-          </div>
-          <div className="text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.45)]">
-            <p className="text-lg font-semibold leading-tight tracking-tight">{scene.greeting}</p>
-            <p className="mt-0.5 text-xs font-medium text-white/90">{todayLabel()}</p>
           </div>
         </div>
       </div>
 
       <div className="p-4">
-        {(shift || badge) && (
+        {(shift || badge || status) && (
           <div className="mb-4 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs">
             {shift && (
               <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-muted-foreground">
@@ -87,7 +80,11 @@ export default function CheckInShell({ status, shift, badge, attention = false, 
                 {shift}
               </span>
             )}
-            {badge}
+            {/* Present / absent sits right beside where they logged in from. */}
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              {badge}
+              {status}
+            </span>
           </div>
         )}
         {children}
