@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { createElement, useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -6,7 +6,9 @@ import { ensureSystemAlertsAnswered } from "../api/systemAlerts.api";
 import {
     AlertCircle,
     Coffee,
+    LogIn,
     LogOut,
+    MapPin,
     MessageSquareText,
     Play,
     TimerReset,
@@ -413,15 +415,9 @@ export default function TodayPresentCard({
         : shiftElapsedSeconds;
 
     const isLunchOverdue = isOnBreak && breakOvertimeSeconds > 0;
-    // In and out on separate lines so the narrow cell never cuts off the lunch-out time.
-    const lunchValue = record?.lunch_in ? (
-        <>
-            <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">In </span>{formatTime(record.lunch_in)}</span>
-            {record?.lunch_out && (
-                <span className="block whitespace-nowrap"><span className="font-normal text-muted-foreground">Out </span>{formatTime(record.lunch_out)}</span>
-            )}
-        </>
-    ) : "--";
+    const lunchValue = record?.lunch_in
+        ? `${formatTime(record.lunch_in)} – ${record?.lunch_out ? formatTime(record.lunch_out) : "now"}`
+        : "Not taken yet";
 
     const statusPill = isOnBreak ? (
         <StatusPill tone={isLunchOverdue ? "danger" : "warning"} pulse>
@@ -436,11 +432,13 @@ export default function TodayPresentCard({
     );
 
     const locationBadge = record?.ip_address === "122.176.54.204" ? (
-        <span title="Logged in from the office network" className="rounded-full bg-[var(--employee-green-soft)] px-2 py-1 text-[10px] font-semibold text-[var(--employee-green)]">
+        <span title="Logged in from the office network" className="inline-flex items-center gap-1 rounded-full bg-[var(--employee-green-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--employee-green)]">
+            <MapPin size={11} aria-hidden="true" />
             Office
         </span>
     ) : (
-        <span title="Logged in outside the office network" className="rounded-full bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
+        <span title="Logged in outside the office network" className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">
+            <MapPin size={11} aria-hidden="true" />
             Outside office
         </span>
     );
@@ -453,16 +451,23 @@ export default function TodayPresentCard({
     return (
         <>
             <CheckInShell shift={shift} status={statusPill} badge={locationBadge}>
-                <dl className="grid grid-cols-3 gap-2 text-center">
+                {/* The live shift clock is the headline; login and lunch read as simple rows. */}
+                <p className="text-xs font-medium text-muted-foreground">{isCheckedOut ? "Worked today" : "Shift time"}</p>
+                <p className="mt-0.5 text-3xl font-semibold tracking-tight tabular-nums text-foreground">{formatDuration(displayedShiftSeconds)}</p>
+
+                <dl className="mt-3 divide-y divide-border rounded-xl bg-card/70 ring-1 ring-border">
                     {[
-                        ["Login", formatTime(record?.login), false],
-                        ["Lunch", lunchValue, isLunchOutLate],
-                        [isCheckedOut ? "Worked" : "Shift time", formatDuration(displayedShiftSeconds), false],
-                    ].map(([label, value, warn]) => (
-                        <div key={label} className="min-w-0 rounded-xl bg-muted/60 px-2 py-2">
-                            <dt className="text-[10px] font-medium text-muted-foreground">{label}</dt>
-                            <dd className={`mt-0.5 text-xs font-semibold tabular-nums ${typeof value === "string" ? "truncate" : ""} ${warn ? "text-destructive" : "text-foreground"}`}>
+                        ["Login", LogIn, formatTime(record?.login), false],
+                        ["Lunch", Coffee, lunchValue, isLunchOutLate],
+                    ].map(([label, icon, value, warn]) => (
+                        <div key={label} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                            <dt className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                                {createElement(icon, { size: 14, "aria-hidden": true })}
+                                {label}
+                            </dt>
+                            <dd className={`text-right text-sm font-semibold tabular-nums ${warn ? "text-destructive" : "text-foreground"}`}>
                                 {value}
+                                {warn && <span className="sr-only"> (late)</span>}
                             </dd>
                         </div>
                     ))}
@@ -491,7 +496,7 @@ export default function TodayPresentCard({
                 )}
 
                 {!isCheckedOut && (
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-4 flex gap-2">
                         {isOnBreak ? (
                             <button
                                 type="button"

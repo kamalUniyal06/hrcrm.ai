@@ -1,6 +1,10 @@
-import { useId } from "react";
-import { CalendarClock } from "lucide-react";
+import { useEffect, useId, useState } from "react";
+import { CalendarClock, Clock3 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import morningScene from "../../../../assets/attendance/workday-morning.png";
+import afternoonScene from "../../../../assets/attendance/workday-afternoon.png";
+import eveningScene from "../../../../assets/attendance/workday-evening.png";
+import { dayPeriod } from "./homeDashboardUtils";
 import { todayLabel } from "./homeUi";
 
 const toneClasses = {
@@ -19,39 +23,75 @@ export function StatusPill({ tone = "neutral", pulse = false, children }) {
   );
 }
 
+// Artwork for each part of the day; `position` keeps the sun (or sunset) in the cropped banner.
+const SCENES = {
+  morning: { src: morningScene, greeting: "Good morning", position: "78% 45%" },
+  afternoon: { src: afternoonScene, greeting: "Good afternoon", position: "62% 30%" },
+  evening: { src: eveningScene, greeting: "Good evening", position: "30% 50%" },
+};
+
+/** The current part of the day, rechecked every minute so the artwork changes on its own. */
+function useDayPeriod() {
+  const [period, setPeriod] = useState(() => dayPeriod());
+  useEffect(() => {
+    const timer = setInterval(() => setPeriod(dayPeriod()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+  return period;
+}
+
 /**
  * Highlighted frame shared by every state of the daily check-in widget. It is the
- * first thing on the home page, so it stands out from the plain cards around it.
+ * first thing on the home page, so it stands out from the plain cards around it:
+ * a morning, afternoon or evening scene with a greeting heads the card.
  * `attention` strengthens the outline while the employee still has to clock in.
+ * `badge` (e.g. location) sits with the shift hours.
  */
 export default function CheckInShell({ status, shift, badge, attention = false, children }) {
   const titleId = useId();
+  const scene = SCENES[useDayPeriod()];
   return (
     <section
       aria-labelledby={titleId}
       className={cn(
-        "relative overflow-hidden rounded-2xl border-2 bg-linear-to-br from-card to-accent p-4 pt-5 shadow-sm ring-4 transition-shadow focus-within:ring-primary/30",
+        "relative overflow-hidden rounded-2xl border-2 bg-card shadow-sm ring-4 transition-shadow focus-within:ring-primary/30",
         attention ? "border-primary ring-primary/20" : "border-primary/40 ring-primary/10",
       )}
     >
-      <span aria-hidden="true" className="absolute inset-x-0 top-0 h-1.5 bg-primary" />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <CalendarClock size={18} aria-hidden="true" />
-          </span>
-          <h2 id={titleId} className="text-base font-semibold tracking-tight text-foreground">Daily Check In</h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          {badge}
-          {status}
+      <div className="relative h-32 overflow-hidden">
+        <img src={scene.src} alt="" aria-hidden="true" decoding="async" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: scene.position }} />
+        {/* Darkens the bottom so the white text stays readable on every scene. */}
+        <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/65 via-black/20 to-black/5" />
+        <div className="relative flex h-full flex-col justify-between p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <h2 id={titleId} className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+              <CalendarClock size={14} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">Daily Check In</span>
+            </h2>
+            {/* The pill's tints sit on the card colour, not on the artwork. */}
+            <span className="shrink-0 rounded-full bg-card shadow-sm">{status}</span>
+          </div>
+          <div className="text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.45)]">
+            <p className="text-lg font-semibold leading-tight tracking-tight">{scene.greeting}</p>
+            <p className="mt-0.5 text-xs font-medium text-white/90">{todayLabel()}</p>
+          </div>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-border pb-3">
-        <p className="text-lg font-semibold tracking-tight text-foreground">{todayLabel()}</p>
-        {shift && <p className="text-sm font-semibold tabular-nums text-primary">{shift}</p>}
+
+      <div className="p-4">
+        {(shift || badge) && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-xs">
+            {shift && (
+              <span className="inline-flex items-center gap-1.5 font-medium tabular-nums text-muted-foreground">
+                <Clock3 size={13} aria-hidden="true" />
+                {shift}
+              </span>
+            )}
+            {badge}
+          </div>
+        )}
+        {children}
       </div>
-      <div className="pt-3">{children}</div>
     </section>
   );
 }
