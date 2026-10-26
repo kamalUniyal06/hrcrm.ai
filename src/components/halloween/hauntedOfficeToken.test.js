@@ -78,3 +78,13 @@ test("Halloween season runs from 15 October to 2 November", () => {
   assert.equal(isHalloweenSeason(new Date(2026, 10, 2)), true);
   assert.equal(isHalloweenSeason(new Date(2026, 10, 3)), false);
 });
+
+test("people on the allowed list always see Halloween, unless they are also excluded", () => {
+  const allowed = "Tester@Company.com; ceo@company.com";
+  assert.equal(canSeeHalloween("off", { email: "tester@company.com" }, "", allowed), true);
+  assert.equal(canSeeHalloween("admin", { isEmployee: true, email: " CEO@company.com " }, "", allowed), true);
+  assert.equal(canSeeHalloween("all", { email: "tester@company.com" }, "", allowed), true);
+  assert.equal(canSeeHalloween("off", { isAdmin: true, email: "priya@company.com" }, "", allowed), false);
+  assert.equal(canSeeHalloween("all", { isEmployee: true, email: "ceo@company.com" }, "ceo@company.com", allowed), false);
+  assert.equal(canSeeHalloween("off", { email: "" }, "", allowed), false);
+});

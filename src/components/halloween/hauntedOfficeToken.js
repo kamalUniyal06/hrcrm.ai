@@ -100,11 +100,15 @@ export const parseEmailList = (value) =>
 // Who gets the Halloween look and the game (VITE_SHOW_HALLOWEEN_THEME):
 // "admin" = admins only, "all" = every employee and admin, "off" = nobody.
 // Unset or unknown means "all". Candidates never see it, and neither does anyone whose
-// email is in `excluded` (VITE_HALLOWEEN_EXCLUDED_EMAILS).
-export function canSeeHalloween(setting, { isAdmin = false, isEmployee = false, email = "" } = {}, excluded = "") {
+// email is in `excluded` (VITE_HALLOWEEN_EXCLUDED_EMAILS). Emails in `allowed`
+// (VITE_HALLOWEEN_ALLOWED_EMAILS) always see it, whatever the setting or role,
+// unless they are also excluded.
+export function canSeeHalloween(setting, { isAdmin = false, isEmployee = false, email = "" } = {}, excluded = "", allowed = "") {
   const audience = String(setting ?? "").trim().toLowerCase();
+  const address = String(email ?? "").trim().toLowerCase();
+  if (parseEmailList(excluded).has(address)) return false;
+  if (parseEmailList(allowed).has(address)) return true;
   if (["off", "none", "false", "0"].includes(audience)) return false;
-  if (parseEmailList(excluded).has(String(email ?? "").trim().toLowerCase())) return false;
   if (audience === "admin") return Boolean(isAdmin);
   return Boolean(isAdmin || isEmployee);
 }
