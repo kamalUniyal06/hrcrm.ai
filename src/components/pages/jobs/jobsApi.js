@@ -1,4 +1,5 @@
 import { http } from "../../../services/api";
+import { JOB_STATUSES, jobStatusStatsQueries, readJobStatusCounts } from "./jobStatus.js";
 
 export const candidateRelationship = "hrc_candidates_hrc_job_applications_1hrc_candidates_ida";
 
@@ -22,11 +23,17 @@ async function fetchAll(body) {
 
 export const fetchJobPostings = () => fetchAll({ action: "fetch", module: "hrc_job_postings" });
 
-export async function deleteJobPosting(id) {
+export async function updateJobStatus(id, status) {
   if (!id) throw new Error("A job posting ID is required.");
-  const response = await http({ method: "POST", body: { action: "delete", module: "hrc_job_postings", id } });
-  if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not delete the job posting. Please retry.");
+  if (!JOB_STATUSES.includes(status)) throw new Error("Choose active or inactive.");
+  const response = await http({ method: "POST", body: { action: "update", module: "hrc_job_postings", id, data: { status } } });
+  if (response?.success !== true) throw new Error(response?.message || response?.error || "Could not update the job status. Please retry.");
   return response;
+}
+
+// { active, inactive } posting totals, counted by SmartGateway.
+export async function fetchJobStatusCounts() {
+  return readJobStatusCounts(await http({ method: "POST", body: { action: "get_stats", queries: jobStatusStatsQueries() } }));
 }
 
 export async function createJobPosting(data) {

@@ -17,6 +17,9 @@ import {
 import IncrementReminder from "./components/employement/components/IncrementReminder";
 import { SystemAlertsProvider } from "./components/employement/components/alerts/SystemAlertsProvider";
 import { resetPageScroll } from "./utils/resetPageScroll";
+import { hasAdminView, isAdminPage, selectIsAdmin } from "./utils/pageAccess";
+import AdminPageNotice from "./components/routing/AdminPageNotice";
+import FeatureTour from "./components/FeatureTour";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -25,6 +28,8 @@ const RootLayout = () => {
   const location = route.pathname.split("/")[2];
   const subjectType = useSelector((state) => state.user.userInfo?.subject_type);
   const showFooter = subjectType !== "candidate";
+  const isAdmin = useSelector(selectIsAdmin);
+  const showAdminNotice = isAdmin && (isAdminPage(route.pathname) || hasAdminView(route.pathname));
   const mainRef = useRef(null);
   const {
     data: candidate,
@@ -121,11 +126,13 @@ const RootLayout = () => {
             className="flex min-h-full w-full flex-col px-3 pb-6 pt-3 sm:px-4 sm:pt-4"
           >
             <div className="flex flex-1 flex-col">
+              {showAdminNotice && <AdminPageNotice />}
               <Outlet />
             </div>
           </div>
         </main>
         {showFooter && <Footer />}
+        <FeatureTour />
       </div>
     </div>
     </SystemAlertsProvider>

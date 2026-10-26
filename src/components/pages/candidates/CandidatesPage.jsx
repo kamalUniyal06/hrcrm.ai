@@ -92,12 +92,12 @@ function SortHeader({ label, sortKey, sort, onSort, className = "" }) {
 function RowSkeleton() {
   return Array.from({ length: 8 }, (_, index) => (
     <tr key={index} className="border-b border-border">
+      <td className="py-3 pl-5 pr-4"><Skeleton width={84} /></td>
       <td className="px-4 py-3"><div className="flex items-center gap-3"><Skeleton circle width={36} height={36} /><div><Skeleton width={120} /><Skeleton width={150} height={10} /></div></div></td>
       <td className="px-4 py-3"><Skeleton width={130} /></td>
       <td className="px-4 py-3"><Skeleton width={84} height={24} borderRadius={999} /></td>
       <td className="px-4 py-3"><Skeleton width={84} height={24} borderRadius={999} /></td>
       <td className="px-4 py-3"><Skeleton width={90} /></td>
-      <td className="px-4 py-3"><Skeleton width={84} /></td>
       <td />
     </tr>
   ));
@@ -151,10 +151,14 @@ export default function CandidatesPage() {
     source: filters.source,
   };
   const serverFilterActive = Boolean(serverFilters.search || Object.values(serverFilters.workflow || {}).some(Boolean) || serverFilters.source);
-  const request = {
-    page,
+  // Both lists are sorted by SmartGateway, never in the browser.
+  const order = {
     orderBy: sort.key === "name" ? "first_name" : workflowFields[sort.key] || sort.key,
     orderDir: sort.direction === 1 ? "ASC" : "DESC",
+  };
+  const request = {
+    page,
+    ...order,
     dateRange,
     ...serverFilters,
   };
@@ -171,9 +175,11 @@ export default function CandidatesPage() {
     enabled: serverFilterActive,
   });
   const periodCount = serverFilterActive ? periodTotal.data : directory.data?.total;
+  const shortlistRequest = { dateRange, ...(shortlistedOnly ? order : {}) };
   const shortlist = useQuery({
-    queryKey: [...shortlistedCandidatesKey, { dateRange }],
-    queryFn: () => fetchShortlistSource({ dateRange }),
+    queryKey: [...shortlistedCandidatesKey, shortlistRequest],
+    queryFn: () => fetchShortlistSource(shortlistRequest),
+    placeholderData: keepPreviousData,
   });
   const interviews = useQuery({ queryKey: ["interviews"], queryFn: () => fetchAllRecords("hrc_interviews") });
   const lookupResults = useQueries({
@@ -205,11 +211,6 @@ export default function CandidatesPage() {
     kinds.every((kind) => !filters[kind] || value(record, kind) === optionName(kind, filters[kind])) &&
     (!filters.source || record.candidate_source === filters.source),
   );
-  if (shortlistedOnly) {
-    visible.sort((left, right) => sort.key === "date_entered"
-      ? ((Date.parse(left.date_entered_uni_format || left.date_entered) || 0) - (Date.parse(right.date_entered_uni_format || right.date_entered) || 0)) * sort.direction
-      : String(value(left, sort.key)).localeCompare(String(value(right, sort.key)), undefined, { numeric: true, sensitivity: "base" }) * sort.direction);
-  }
   const pageSize = shortlistedOnly ? SHORTLIST_PAGE_SIZE : directory.data?.perPage ?? 20;
   const total = shortlistedOnly ? visible.length : directory.data?.total ?? 0;
   const pages = shortlistedOnly ? Math.max(1, Math.ceil(visible.length / pageSize)) : directory.data?.pages ?? 1;
@@ -470,12 +471,12 @@ export default function CandidatesPage() {
               <table className="w-full min-w-[860px] text-left text-sm">
                 <thead className="border-b border-border text-[11px] text-muted-foreground">
                   <tr>
-                    <SortHeader label="Candidate" sortKey="name" sort={sort} onSort={onSort} className="pl-5" />
+                    <SortHeader label="Applied" sortKey="date_entered" sort={sort} onSort={onSort} className="pl-5" />
+                    <SortHeader label="Candidate" sortKey="name" sort={sort} onSort={onSort} />
                     <th scope="col" className="px-4 py-3 font-medium">Position</th>
                     <SortHeader label="Stage" sortKey="stage" sort={sort} onSort={onSort} />
                     <SortHeader label="Status" sortKey="status" sort={sort} onSort={onSort} />
-                    <th scope="col" className="px-4 py-3 font-medium">Score</th>
-                    <SortHeader label="Applied" sortKey="date_entered" sort={sort} onSort={onSort} />
+                    <SortHeader label="Score" sortKey="accepted_score" sort={sort} onSort={onSort} />
                     <th scope="col" className="w-12 px-4 py-3"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -495,7 +496,8 @@ export default function CandidatesPage() {
                         onClick={() => { panelDismissed.current = false; selectCandidate(record.id); }}
                         className={`group cursor-pointer border-b border-border transition last:border-0 ${selected ? "bg-primary/[0.06]" : "hover:bg-muted/50"}`}
                       >
-                        <td className={`py-3 pl-5 pr-4 ${selected ? "shadow-[inset_3px_0_0_var(--primary)]" : ""}`}>
+                        <td className={`whitespace-nowrap py-3 pl-5 pr-4 text-xs text-muted-foreground ${selected ? "shadow-[inset_3px_0_0_var(--primary)]" : ""}`}>{appliedDate(record)}</td>
+                        <td className="px-4 py-3">
                           <button type="button" onClick={(event) => { event.stopPropagation(); panelDismissed.current = false; selectCandidate(record.id); }} className="flex min-w-0 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             <CandidateAvatar record={record} className="h-9 w-9 rounded-full bg-primary/10 text-sm font-semibold text-primary" />
                             <span className="min-w-0">
@@ -527,7 +529,6 @@ export default function CandidatesPage() {
                             </div>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{appliedDate(record)}</td>
                         <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

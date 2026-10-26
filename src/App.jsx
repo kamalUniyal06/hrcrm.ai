@@ -19,6 +19,8 @@ import JobPost from "./components/pages/JobPost";
 import JobApplication from "./components/pages/JobApplication";
 import CandidatesPage from "./components/pages/candidates/CandidatesPage";
 import EmployeesPage from "./components/pages/employees/EmployeesPage";
+import EmployeeProfilePage from "./components/pages/employees/EmployeeProfilePage";
+import PoliciesPage from "./components/pages/policies/PoliciesPage";
 import SalariesPage from "./components/pages/salaries/SalariesPage";
 import PageAccessGuard from "./components/routing/PageAccessGuard";
 import Interview from "./components/pages/Interview";
@@ -163,7 +165,7 @@ const router = createBrowserRouter([
 
       {
         path: "candidates",
-        element: <CandidatesPage key="candidates" />,
+        element: <PageAccessGuard><CandidatesPage key="candidates" /></PageAccessGuard>,
         handle: { breadcrumb: "Candidates" },
       },
       {
@@ -172,18 +174,28 @@ const router = createBrowserRouter([
         handle: { breadcrumb: "Employees" },
       },
       {
+        path: "employees/:employeeId",
+        element: <PageAccessGuard><EmployeeProfilePage /></PageAccessGuard>,
+        handle: { breadcrumb: "Employee profile" },
+      },
+      {
+        path: "policies",
+        element: <PoliciesPage />,
+        handle: { breadcrumb: "Terms & policies" },
+      },
+      {
         path: "salaries",
         element: <PageAccessGuard><SalariesPage /></PageAccessGuard>,
         handle: { breadcrumb: "Salary management" },
       },
       {
         path: "limit-management",
-        element: <LimitManagementPage />,
+        element: <PageAccessGuard><LimitManagementPage /></PageAccessGuard>,
         handle: { breadcrumb: "Limit management" },
       },
       {
         path: "limit-management/:recordId/edit",
-        element: <LimitManagementPage />,
+        element: <PageAccessGuard><LimitManagementPage /></PageAccessGuard>,
         handle: { breadcrumb: "Edit limit record" },
       },
       {
@@ -197,9 +209,14 @@ const router = createBrowserRouter([
         handle: { breadcrumb: "Employee attendance" },
       },
       {
-        path: "offboarding",
+        path: "exit",
         element: <PageAccessGuard><OffboardingPage /></PageAccessGuard>,
-        handle: { breadcrumb: "Employee offboarding" },
+        handle: { breadcrumb: "Employee exit" },
+      },
+      {
+        // Old links and bookmarks keep working.
+        path: "offboarding",
+        element: <Navigate to="/exit" replace />,
       },
       {
         path: "system-alerts",

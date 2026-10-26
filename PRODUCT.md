@@ -16,7 +16,7 @@ Three kinds of people use the app. What each one sees depends on their account s
 
 | User | Who they are | What they do in the app |
 |---|---|---|
-| **HR admins** (`admin`) | HR and recruitment staff who use the app all day | Manage candidates, interviews, shortlists, job postings, employees, salaries, increments, leave approvals, attendance, offboarding, system alerts, and the configurable CRM layouts |
+| **HR admins** (`admin`) | HR and recruitment staff who use the app all day | Manage candidates, interviews, shortlists, job postings, employees, salaries, increments, leave approvals, attendance, employee exit, system alerts, and the configurable CRM layouts |
 | **Employees** (`employee`) | Staff using self-service | View their profile, apply for leave and track it, request increments, see their own attendance |
 | **Candidates** (`candidate` → `Joining Confirmed`) | Job seekers and new hires | Complete onboarding (resume upload or manual entry, documents, education, experience), track their applications and interviews from the candidate dashboard |
 
@@ -45,7 +45,7 @@ Built in this app today:
 - Attendance
 - Leave: apply, approvals, applications
 - Increments: requests and management, including question-based flows
-- Offboarding
+- Employee exit
 - System alerts
 - Limit management
 - Dynamic CRM entities (`/entity/:entity/...`) with configurable layouts under Settings

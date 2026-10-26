@@ -3,13 +3,14 @@ import { Link } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarDays, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight,
-  Clock3, ExternalLink, GraduationCap, Laptop, Loader2, MapPin, Trash2, Users, Wallet, X,
+  Clock3, ExternalLink, GraduationCap, Laptop, Loader2, MapPin, Power, Users, Wallet, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { onboardingStyles as styles } from "../profile/onboardingStyles";
 import { StepDot } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { applicationSteps, skillMatches } from "../candidate/candidateStatus";
+import { jobStatusOf } from "./jobStatus.js";
 import { StatusChip } from "./JobList";
 import {
   experienceRange, fieldLabel, isChipList, locationOf, plainText, requirementItems, salaryRange, titleOf, valueOf,
@@ -171,7 +172,7 @@ function JobDetails({ job, application, applicationsOnly, applied, appliedOn, jo
     ["Employment", BriefcaseBusiness, fieldLabel(job, ["employment_type", "job_type"], jobDropdowns, true)],
     ["Openings", Users, plainText(job.number_of_positions)],
     ["Education", GraduationCap, fieldLabel(job, ["education_required"], jobDropdowns, true)],
-    ...(isAdmin ? [["Posting status", BadgeCheck, fieldLabel(job, ["job_status"], jobDropdowns, true)]] : []),
+    ...(isAdmin ? [["Posting status", BadgeCheck, fieldLabel(job, ["status"], jobDropdowns, true)]] : []),
   ].filter(([, , value]) => value);
   const about = plainText(valueOf(job, ["job_description", "description"]));
   const qualifications = plainText(job.qualifications);
@@ -241,7 +242,8 @@ function JobDetails({ job, application, applicationsOnly, applied, appliedOn, jo
 
 export default function JobDetailsDrawer({
   row, index, total, onNavigate, onClose, applicationsOnly, isAdmin, jobDropdowns,
-  applied, canApply, hasProfile, candidateName, profileSkills, pending, applyError, onApply, onDelete,
+  applied, canApply, hasProfile, candidateName, profileSkills, pending, applyError, onApply,
+  onToggleStatus, statusPending = false, statusError = "",
 }) {
   const { job, application, status } = row;
   const scrollRef = useRef(null);
@@ -326,23 +328,27 @@ export default function JobDetailsDrawer({
             )}
           </div>
           <footer className="shrink-0 border-t border-border bg-card px-5 py-4 sm:px-6">
-            {applyError && (
-              <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm leading-6 text-destructive">{applyError}</p>
+            {(applyError || (isAdmin && statusError)) && (
+              <p role="alert" className="mb-3 rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-sm leading-6 text-destructive">{applyError || statusError}</p>
             )}
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
               {isAdmin ? (
                 <>
-                  <p className="text-sm text-muted-foreground">
-                    Posting status: <span className="font-medium text-foreground">{fieldLabel(job, ["job_status"], jobDropdowns, true) || "Not set"}</span>
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    Posting status:
+                    <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold", jobStatusOf(job) === "active" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+                      <span className={cn("size-1.5 rounded-full", jobStatusOf(job) === "active" ? "bg-primary" : "bg-muted-foreground")} aria-hidden="true" />
+                      {jobStatusOf(job) === "active" ? "Active" : "Inactive"}
+                    </span>
                   </p>
                   <button
                     type="button"
-                    disabled={!job?.id}
-                    onClick={() => onDelete(job)}
-                    className={cn(styles.secondary, "border-destructive/30 text-destructive hover:border-destructive hover:bg-destructive/5")}
+                    disabled={!job?.id || statusPending}
+                    onClick={() => onToggleStatus(job, jobStatusOf(job) === "active" ? "inactive" : "active")}
+                    className={jobStatusOf(job) === "active" ? styles.secondary : styles.primary}
                   >
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete posting
+                    {statusPending ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none" aria-hidden="true" /> : <Power size={16} aria-hidden="true" />}
+                    {jobStatusOf(job) === "active" ? "Mark inactive" : "Mark active"}
                   </button>
                 </>
               ) : applicationsOnly ? (

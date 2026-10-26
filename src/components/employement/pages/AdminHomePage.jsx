@@ -257,9 +257,9 @@ export default function AdminHomePage() {
                                 loading={resignations.isPending || employees.isPending}
                                 error={resignations.isError}
                                 onRetry={() => resignations.refetch()}
-                                onOpen={(item) => navigate(item.email ? `/offboarding?email=${encodeURIComponent(item.email)}` : "/offboarding")}
-                                onViewAll={() => navigate("/offboarding")}
-                                onFilter={(status) => navigate(`/offboarding?status=${status}`)}
+                                onOpen={(item) => navigate(item.email ? `/exit?email=${encodeURIComponent(item.email)}` : "/exit")}
+                                onViewAll={() => navigate("/exit")}
+                                onFilter={(status) => navigate(`/exit?status=${status}`)}
                             />
                             <TodayPeopleCard
                                 groups={groups}

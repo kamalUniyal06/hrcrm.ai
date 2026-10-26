@@ -20,7 +20,7 @@ export const getAllResignations = async () => {
         method: "POST",
         body: { action: "fetch", module: RESIGNATION_MODULE, filters: {}, page, per_page: 100 },
       }),
-      "Could not load employee offboarding records.",
+      "Could not load employee exit records.",
     );
     records.push(...(Array.isArray(response.records) ? response.records : []));
     totalPages = Math.max(1, Number(response.total_pages) || 1);

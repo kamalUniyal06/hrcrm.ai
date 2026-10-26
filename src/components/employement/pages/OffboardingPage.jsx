@@ -112,7 +112,7 @@ export default function OffboardingPage() {
       <main className="grid min-h-0 flex-1 place-items-center text-sm text-slate-500">
         <span className="inline-flex items-center gap-2">
           <Loader2 size={18} className="animate-spin" />
-          Loading offboarding records…
+          Loading exit records…
         </span>
       </main>
     );
@@ -127,7 +127,7 @@ export default function OffboardingPage() {
         >
           <p>
             {resignations.error?.message ||
-              "Could not load offboarding records."}
+              "Could not load exit records."}
           </p>
           <button
             type="button"
@@ -153,7 +153,7 @@ export default function OffboardingPage() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="rounded-2xl bg-primary/10 p-3 text-primary"><LogOut className="size-6" /></span>
-          <div><h1 className="text-2xl font-semibold tracking-tight">Employee offboarding</h1><p className="mt-1 text-sm text-muted-foreground">Manage approvals, handovers, and every step of an employee's exit.</p></div>
+          <div><h1 className="text-2xl font-semibold tracking-tight">Employee exit</h1><p className="mt-1 text-sm text-muted-foreground">Manage approvals, handovers, and every step of an employee's exit.</p></div>
         </div>
         <button type="button" onClick={() => { resignations.refetch(); employeesQuery.refetch(); }} disabled={resignations.isFetching || employeesQuery.isFetching} className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm hover:bg-muted disabled:opacity-50"><RefreshCw className={resignations.isFetching || employeesQuery.isFetching ? "size-4 animate-spin" : "size-4"} />Refresh</button>
       </header>
@@ -165,14 +165,14 @@ export default function OffboardingPage() {
           ["complete", "Completed", CheckCircle2],
         ].map(([key, label, Icon]) => <button key={key} type="button" aria-pressed={statusFilter === key} onClick={() => setStatusFilter(key)} className={"rounded-2xl border bg-card p-5 text-left transition " + (statusFilter === key ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-primary/40")}><div className="flex items-start justify-between gap-2"><span className="text-xs font-medium text-muted-foreground">{label}</span><Icon className="size-5 text-primary" /></div><p className="mt-3 text-3xl font-semibold tabular-nums">{counts[key]}</p></button>)}
       </div>
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Offboarding cases">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm" aria-label="Exit cases">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border p-5">
-          <div><h2 className="font-semibold">Offboarding cases <span className="ml-2 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{rows.length}</span></h2><p className="mt-1 text-xs text-muted-foreground">Open a case to review approvals and update its checklist.</p></div>
+          <div><h2 className="font-semibold">Exit cases <span className="ml-2 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">{rows.length}</span></h2><p className="mt-1 text-xs text-muted-foreground">Open a case to review approvals and update its checklist.</p></div>
           <label className="relative w-full sm:w-72"><span className="sr-only">Search employees</span><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name or email" className="w-full rounded-xl border border-border bg-background py-2.5 pl-9 pr-3 text-sm focus-visible:outline-primary" /></label>
         </div>
         {employeesQuery.isError && <p role="alert" className="m-5 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Employee profiles could not be loaded. Showing saved case details. Use Refresh to retry.</p>}
         {mutation.isError && <p role="alert" className="m-5 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{mutation.error?.message || "Could not save checklist update."}</p>}
-        {rows.length === 0 ? <div className="px-6 py-16 text-center"><ClipboardCheck className="mx-auto mb-4 size-10 text-muted-foreground/50" /><h3 className="font-semibold">{records.length ? "No matching cases" : "No offboarding cases yet"}</h3><p className="mt-2 text-sm text-muted-foreground">{records.length ? "Try another search or status filter." : "Employee resignation requests will appear here."}</p>{(search || statusFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="mt-4 text-sm font-semibold text-primary">Clear filters</button>}</div> :
+        {rows.length === 0 ? <div className="px-6 py-16 text-center"><ClipboardCheck className="mx-auto mb-4 size-10 text-muted-foreground/50" /><h3 className="font-semibold">{records.length ? "No matching cases" : "No exit cases yet"}</h3><p className="mt-2 text-sm text-muted-foreground">{records.length ? "Try another search or status filter." : "Employee resignation requests will appear here."}</p>{(search || statusFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setStatusFilter("all"); }} className="mt-4 text-sm font-semibold text-primary">Clear filters</button>}</div> :
           <div className="divide-y divide-border">{rows.map((record) => {
             const employee = employeeForRecord(record, employees);
             const name = employee ? employeeName(employee) : clean(record.name) || "Employee";

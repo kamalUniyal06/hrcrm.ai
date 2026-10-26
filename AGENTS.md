@@ -60,6 +60,7 @@ The full visual system is in `DESIGN.md`. In short:
 - Use the existing primitives in `src/components/ui/` before adding new ones. Add new shadcn components as JSX (see `components.json`).
 - Keep semantic HTML, visible labels, keyboard and focus behavior, and comfortable touch targets. Don't rely on color alone to show state.
 - Layouts must work from mobile width up to desktop.
+- When you add a new page or a user-visible feature, add a "what's new" entry to `FEATURE_TOURS` in `src/utils/featureTours.js` (and a `data-tour` attribute on anything a step points at). Each user sees a tour once.
 
 ### Tests
 
@@ -88,4 +89,5 @@ Don't fix unrelated lint errors in files you didn't otherwise touch.
 - `PRODUCT.md`: who the users are, product purpose, brand voice, design principles. Read it before any UX or copy change.
 - `DESIGN.md`: brand palette, tokens, themes, typography, component patterns. Read it before any UI change.
 - `docs/onboarding-backend-fields.md`: field contract for the candidate onboarding flow
+- `docs/policies-backend-fields.md`: field contract for the `hrc_policies` module behind Terms & policies
 - `docs/recruitment-integration.md`: how the recruitment API integration works

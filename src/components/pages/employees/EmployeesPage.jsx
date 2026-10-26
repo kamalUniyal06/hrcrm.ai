@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   ArrowDown,
   ArrowUp,
@@ -63,6 +64,8 @@ const iconButton =
   "inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-40";
 
 export default function EmployeesPage() {
+  const navigate = useNavigate();
+  const openProfile = (id) => navigate(`/employees/${encodeURIComponent(id)}`);
   const query = useQuery({
     queryKey: ["employees", "list"],
     queryFn: () => fetchAllRecords("hrc_employees"),
@@ -280,7 +283,7 @@ export default function EmployeesPage() {
                 <button
                   type="button"
                   disabled={!record.id}
-                  onClick={() => setSelection({ id: record.id })}
+                  onClick={() => openProfile(record.id)}
                   className="flex h-full w-full flex-col rounded-2xl border border-slate-200 bg-white p-5 text-left transition enabled:hover:-translate-y-0.5 enabled:hover:border-indigo-200 enabled:hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                 >
                   <div className="flex items-center gap-3">
@@ -335,7 +338,7 @@ export default function EmployeesPage() {
                 {rows.map((record, index) => (
                   <tr
                     key={record.id || index}
-                    onClick={record.id ? () => setSelection({ id: record.id }) : undefined}
+                    onClick={record.id ? () => openProfile(record.id) : undefined}
                     className="group cursor-pointer transition hover:bg-indigo-50/40"
                   >
                     <td className="px-5 py-3.5">
@@ -347,7 +350,7 @@ export default function EmployeesPage() {
                             disabled={!record.id}
                             onClick={(event) => {
                               event.stopPropagation();
-                              setSelection({ id: record.id });
+                              openProfile(record.id);
                             }}
                             className="max-w-56 truncate text-left font-semibold text-slate-900 transition hover:text-indigo-600 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500"
                           >
