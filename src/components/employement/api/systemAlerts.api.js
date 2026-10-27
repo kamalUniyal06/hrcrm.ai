@@ -1,4 +1,5 @@
 import { http } from "@/services/api";
+import { CRM_ENDPOINT } from "@/services/crmUrl";
 import { crmFetch } from "@/services/crmClient";
 import { FETCH_GPC_X_API_KEY } from "@/store/constants";
 import { queryClient } from "@/lib/queryClient";
@@ -14,7 +15,7 @@ const ALERT_MODULE = "hrc_system_alert";
 const RESPONSE_MODULE = "hrc_employee_response";
 const EMPLOYEE_MODULE = "hrc_employees";
 const PAGE_SIZE = 100;
-const HRC_URL = "https://flight.hrcrm.ai/index.php?entryPoint=hrc";
+const HRC_URL = `${CRM_ENDPOINT}?entryPoint=hrc`;
 
 // Employees read their alerts through my_alerts only, under this one cache key.
 export const MY_ALERTS_KEY = ["system-alerts", "mine"];

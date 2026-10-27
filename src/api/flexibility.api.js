@@ -19,13 +19,14 @@
  */
 
 import { apiRequest, http } from "../services/api";
+import { CRM_ENDPOINT } from "../services/crmUrl";
 
 /**
  * Same host the sidebar metadata is read and written through. `http()`
  * appends `?entryPoint=smart_gateway` itself.
  */
 
-export const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
+export const METADATA_ENDPOINT = CRM_ENDPOINT;
 
 /** Contract version the reader asks for. */
 export const FLEXIBILITY_API_VERSION = "v1";

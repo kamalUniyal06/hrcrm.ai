@@ -1,7 +1,8 @@
 import { governmentIdError, normalizeGovernmentId } from "./onboardingValidation.js";
+import { CRM_ENDPOINT } from "../../../services/crmUrl.js";
 
 export const documentUploadUrl =
-  "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=upload_doc";
+  `${CRM_ENDPOINT}?entryPoint=hrc&type=upload_doc`;
 
 const documentTypes = { pan: "pan", aadhaar: "aadhaar", driving_licence: "dl" };
 

@@ -1,4 +1,5 @@
 import { apiRequest, http } from "../services/api";
+import { CRM_ENDPOINT } from "../services/crmUrl";
 import { FETCH_GPC_X_API_KEY } from "../store/constants";
 import { getMetadataEndpoint } from "../utils/sidebarLayout";
 import { buildSidebarProfileMoveRequest } from "../utils/sidebarProfileMove";
@@ -112,7 +113,7 @@ export async function fetchSidebar(email) {
   if (!loginEmail)
     throw new Error("Your login email is required to load the sidebar.");
   const response = await apiRequest({
-    endpoint: "https://flight.hrcrm.ai/index.php",
+    endpoint: CRM_ENDPOINT,
     params: { entryPoint: "sidebar", _: Date.now() },
     headers: { "X-Api-Key": FETCH_GPC_X_API_KEY },
   });

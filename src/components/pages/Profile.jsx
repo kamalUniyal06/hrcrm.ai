@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { CRM_ENDPOINT } from "../../services/crmUrl";
 import { onboardingStyles as styles } from "./profile/onboardingStyles";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "react-hot-toast";
@@ -260,7 +261,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
       body.append("stage", stage);
       if (jobId) body.append("job_record_id", jobId);
       const response = await crmFetch(
-        "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=resume_parsing",
+        `${CRM_ENDPOINT}?entryPoint=hrc&type=resume_parsing`,
         {
           method: "POST",
           headers: { "x-api-key": FETCH_GPC_X_API_KEY },

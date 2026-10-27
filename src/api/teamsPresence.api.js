@@ -1,8 +1,9 @@
 import { apiRequest } from "../services/api";
+import { CRM_ENDPOINT } from "../services/crmUrl";
 
-// Read-only Teams presence collected by a cron job on flight.hrcrm.ai (see the Teams Presence API doc).
+// Read-only Teams presence collected by a cron job on the CRM (see the Teams Presence API doc).
 // crmClient attaches the CRM Bearer token for this entry point and retries once on a 401.
-const TEAMS_PRESENCE_URL = "https://flight.hrcrm.ai/index.php";
+const TEAMS_PRESENCE_URL = CRM_ENDPOINT;
 
 async function teamsPresence(params) {
   let response;

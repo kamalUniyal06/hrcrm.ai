@@ -31,12 +31,13 @@
  */
 
 import { http } from "../services/api";
+import { CRM_ENDPOINT } from "../services/crmUrl";
 
 /**
  * Same host the layout metadata is read and written through.
  * `http` appends `?entryPoint=smart_gateway`.
  */
-const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
+const METADATA_ENDPOINT = CRM_ENDPOINT;
 
 /** Flag that turns an ordinary update into a positional move. */
 export const RANK_MOVE_FLAG = "rank_move_requested";

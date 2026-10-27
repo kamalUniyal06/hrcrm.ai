@@ -1,9 +1,10 @@
 import { http } from "../services/api";
+import { CRM_ENDPOINT } from "../services/crmUrl";
 
 import { fetchSidebar } from "./sidebar.api";
 import { store } from "../store/store";
 
-const METADATA_ENDPOINT = "https://flight.hrcrm.ai/index.php";
+const METADATA_ENDPOINT = CRM_ENDPOINT;
 
 export const fetchLayout = async () => fetchSidebar(store.getState().user.user?.email);
 

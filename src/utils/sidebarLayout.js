@@ -26,9 +26,10 @@
  */
 
 import { orderByRank, toRankedRecord } from "./rank.js";
+import { CRM_ENDPOINT } from "../services/crmUrl.js";
 
 /** The HR CRM metadata service used by the layout editors. */
-export const getMetadataEndpoint = () => "https://flight.hrcrm.ai/index.php";
+export const getMetadataEndpoint = () => CRM_ENDPOINT;
 
 /** Scope descriptor: the global UI group list. */
 export const groupScope = (module) => ({

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { CRM_ENDPOINT } from "../../../services/crmUrl";
 import { onboardingStyles as styles } from "./onboardingStyles";
 import { useEffect, useRef, useState } from "react";
 import { motion as Motion, useReducedMotion } from "framer-motion";
@@ -88,7 +89,7 @@ export default function CandidatePhotoUpload({
       body.append("email", email.trim());
       body.append("image", file, file.name);
       const response = await crmFetch(
-        "https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=upload_candidate_image",
+        `${CRM_ENDPOINT}?entryPoint=hrc&type=upload_candidate_image`,
         {
           method: "POST",
           headers: { "x-api-key": FETCH_GPC_X_API_KEY },

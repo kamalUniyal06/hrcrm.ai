@@ -1,4 +1,5 @@
 import { http } from "@/services/api";
+import { CRM_ENDPOINT } from "@/services/crmUrl";
 import { store } from "@/store/store";
 import { buildTableRequestBody } from "../../../utils/preferenceStorage";
 import { fetchGpc } from "../../../services/api";
@@ -27,7 +28,7 @@ export const applyForLeave = async (data) => {
 
     const response = await fetchGpc({
         endpoint:
-            "https://flight.hrcrm.ai/index.php?entryPoint=hrc",
+            `${CRM_ENDPOINT}?entryPoint=hrc`,
         method: "POST",
         params: {
             type: "create_leave",

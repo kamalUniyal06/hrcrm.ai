@@ -1,5 +1,6 @@
 
 import { store } from "../store/store";
+import { CRM_ENDPOINT } from "./crmUrl";
 import { apiRequest, fetchGpc } from "./api";
 
 let CURRENT_USER = {
@@ -20,7 +21,7 @@ export const getStages = async () => {
   const data = await fetchGpc({ params: { type: 'machine_learning', stages: 1 } });
   return data ?? {}
 }
-export const getCRM = "https://flight.hrcrm.ai/index.php";
+export const getCRM = CRM_ENDPOINT;
 
 export const LeaveApplications = {
   "schemaVersion": "1.0",

@@ -1,4 +1,5 @@
 import { apiRequest, http } from "@/services/api";
+import { CRM_ENDPOINT } from "@/services/crmUrl";
 import { store } from "@/store/store";
 import { ensureSystemAlertsAnswered } from "./systemAlerts.api";
 
@@ -20,7 +21,7 @@ export const markActivity = async (action) => {
         await ensureSystemAlertsAnswered(store.getState().user.userInfo?.id);
     }
     return apiRequest({
-        endpoint: 'https://flight.hrcrm.ai/index.php?entryPoint=hrc&type=daily_activity',
+        endpoint: `${CRM_ENDPOINT}?entryPoint=hrc&type=daily_activity`,
         headers: { 'X-Api-Key': import.meta.env.VITE_FETCHGPC_X_API_KEY },
         method: "POST",
         body: {

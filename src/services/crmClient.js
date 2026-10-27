@@ -12,7 +12,7 @@
  *
  * Both paths:
  *   – Attach `Authorization: Bearer <token>` only for requests to
- *     https://flight.hrcrm.ai/index.php with an allowed entry point
+ *     the CRM's index.php (VITE_CRM_URL) with an allowed entry point
  *     (smart_gateway, flexibility, sidebar, hrc, teams_presence).
  *   – Strip the legacy `email` query param from Sidebar requests.
  *   – On a CRM 401, clear the cached token and retry exactly once.
@@ -23,10 +23,11 @@
 
 import axios from "axios";
 import { getCrmToken, clearCrmToken } from "./crmAuth";
+import { CRM_BASE_URL } from "./crmUrl";
 
 /* ── constants ──────────────────────────────────────────────────────────── */
 
-const CRM_URL_PREFIX = "https://flight.hrcrm.ai/";
+const CRM_URL_PREFIX = `${CRM_BASE_URL}/`;
 
 const ALLOWED_ENTRY_POINTS = new Set([
   "smart_gateway",
@@ -151,7 +152,7 @@ crmClient.interceptors.response.use(
 
 /**
  * Drop-in replacement for `fetch()` that adds the CRM Bearer token for
- * requests to flight.hrcrm.ai with an allowed entry point.
+ * requests to the CRM (VITE_CRM_URL) with an allowed entry point.
  *
  * Returns a standard `Response` object so callers can use `.json()`,
  * `.ok`, `.status`, abort signals, etc. exactly as before.

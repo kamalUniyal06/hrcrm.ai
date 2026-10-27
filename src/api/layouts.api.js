@@ -1,4 +1,5 @@
 import { apiRequest } from "@/services/api";
+import { CRM_ENDPOINT } from "@/services/crmUrl";
 import { LeaveApplications, LeavesHistory } from "../services/utils";
 import LeaveHistory from "../components/employement/components/leave/LeaveHistory";
 
@@ -130,7 +131,7 @@ export const getLayout = async (module = 'orders', view_key = "table") => {
     }
 
     const data = await apiRequest({
-        endpoint: `https://flight.hrcrm.ai/index.php?entryPoint=flexibility&api_version=v1`,
+        endpoint: `${CRM_ENDPOINT}?entryPoint=flexibility&api_version=v1`,
         params: { module_key: module, view_key, _: Date.now() },
     })
     return data;
