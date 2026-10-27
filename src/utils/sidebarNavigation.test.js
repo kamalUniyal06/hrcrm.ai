@@ -8,6 +8,12 @@ test("the resignation menu opens the exit page under any of its names", () => {
   }
 });
 
+test("the quotations menu opens the quotation alerts page", () => {
+  for (const item of [{ name: "Quotation alerts" }, { name: "Quotations" }, { module_name: "hrc_quotations" }]) {
+    assert.equal(sidebarDestination(item), "/quotations", JSON.stringify(item));
+  }
+});
+
 test("menu labels say exit instead of offboarding and leave other names alone", () => {
   assert.equal(sidebarLabel({ name: "Offboarding" }), "Exit");
   assert.equal(sidebarLabel({ name: "Employee offboarding" }), "Employee exit");

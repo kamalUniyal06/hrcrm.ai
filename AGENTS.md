@@ -90,4 +90,5 @@ Don't fix unrelated lint errors in files you didn't otherwise touch.
 - `DESIGN.md`: brand palette, tokens, themes, typography, component patterns. Read it before any UI change.
 - `docs/onboarding-backend-fields.md`: field contract for the candidate onboarding flow
 - `docs/policies-backend-fields.md`: field contract for the `hrc_policies` module behind Terms & policies
+- `docs/quotations-backend-fields.md`: field contract for the `hrc_quotations` module behind Quotation alerts
 - `docs/recruitment-integration.md`: how the recruitment API integration works

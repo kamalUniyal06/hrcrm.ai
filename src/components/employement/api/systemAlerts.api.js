@@ -9,6 +9,7 @@ import {
   readMyAlerts,
   respondErrorKind,
 } from "../components/alerts/systemAlertUtils";
+import { isQuotationAcknowledgement } from "../../pages/quotations/quotationAcknowledgements";
 
 const ALERT_MODULE = "hrc_system_alert";
 const RESPONSE_MODULE = "hrc_employee_response";
@@ -242,10 +243,12 @@ export const deleteSystemAlert = async (id) => {
 
 // HR list: every alert (live or not) with the responses saved against it.
 export const fetchSystemAlertResponses = async () => {
-  const [alerts, responses] = await Promise.all([
+  const [alerts, allResponses] = await Promise.all([
     fetchAll(ALERT_MODULE),
     fetchAll(RESPONSE_MODULE),
   ]);
+  // The same module also holds quotation acknowledgements; they belong to Quotation alerts.
+  const responses = allResponses.filter((record) => !isQuotationAcknowledgement(record));
   const groups = new Map(alerts.map((alert) => [String(alert.id).trim(), { alert, responses: [] }]));
   for (const response of responses) {
     const id = responseAlertId(response);

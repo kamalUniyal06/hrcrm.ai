@@ -14,10 +14,14 @@ import IncrementRequestsCard from "../components/home/IncrementRequestsCard";
 import HiringPipelineCard from "../components/home/HiringPipelineCard";
 import ScheduleCard from "../components/home/ScheduleCard";
 import TasksFeedCard from "../components/home/TasksFeedCard";
+import QuotationAlertsCard from "../components/home/QuotationAlertsCard";
+import HomeAlertsCarousel from "../components/home/HomeAlertsCarousel";
+import { LEAVE_WAITING_DAYS, QUOTATION_OVERDUE_DAYS } from "../components/home/generalAlerts";
 import { headerAction, pageGutter } from "../components/home/homeUi";
 import {
     buildAttendanceRows,
     buildLeaveDays,
+    calendarDateKey,
     dateKey,
     daySummary,
     isHalfDayLeave,
@@ -41,8 +45,10 @@ import {
     useResignations,
     monthRange,
 } from "../components/home/homeDashboard.queries";
-import { employeeDisplayName, employeeFor } from "../components/leave/admin/leaveAdminUtils";
+import { dateKey as recordDateKey, employeeDisplayName, employeeFor } from "../components/leave/admin/leaveAdminUtils";
 import { usePublicHolidays } from "../queries/leaves.queries";
+import { useQuotations } from "../../../queries/quotations.queries";
+import { daysOutstanding, isPaid, quotationSummary } from "../../pages/quotations/quotationUtils";
 import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
 
 // Tab values double as /attendance?filter= values for "View all".
@@ -128,6 +134,8 @@ export default function AdminHomePage() {
     const [month] = useState(() => monthRange());
     const candidates = useCandidatesForRange(month);
     const interviews = useInterviews();
+    const quotations = useQuotations();
+    const quotationTotals = useMemo(() => quotationSummary(quotations.data || []), [quotations.data]);
 
     const rows = useMemo(() => buildAttendanceRows(employees.data || [], activity.data || []), [employees.data, activity.data]);
     const leaveDays = useMemo(() => buildLeaveDays(todayLeaves.data || []), [todayLeaves.data]);
@@ -155,6 +163,30 @@ export default function AdminHomePage() {
     const employeeMap = useMemo(() => new Map((employees.data || []).map((employee) => [employee.id, employee])), [employees.data]);
     const nameByEmail = useMemo(() => new Map(rows.filter((row) => row.email).map((row) => [row.email, row.name])), [rows]);
     const pendingLeaves = (leaves.data || []).filter((leave) => String(leave.status).toLowerCase() === "applied").length;
+
+    // Inputs for the general alerts. Each list is empty until its data has loaded, so no alert shows half-counted.
+    const holidayKeys = useMemo(
+        () => new Set((holidays.data?.records || []).filter((holiday) => String(holiday.deleted) !== "1").map((holiday) => calendarDateKey(holiday.holiday_date)).filter(Boolean)),
+        [holidays.data],
+    );
+    const attendanceReady = Boolean(employees.data && activity.data && todayLeaves.data);
+    const notCheckedIn = useMemo(
+        () => (attendanceReady ? groups.missing.map((row) => ({ key: row.key, name: row.name })) : []),
+        [attendanceReady, groups.missing],
+    );
+    const waitingLeaves = useMemo(() => {
+        const appliedBy = dateKey(new Date(Date.now() - LEAVE_WAITING_DAYS * 24 * 60 * 60 * 1000));
+        return (leaves.data || [])
+            .filter((leave) => String(leave.status).toLowerCase() === "applied")
+            .filter((leave) => { const applied = recordDateKey(leave.date_entered); return applied && applied <= appliedBy; })
+            .map((leave) => ({ key: `leave:${leave.id}`, name: employeeDisplayName(leave, employeeFor(leave, employeeMap)) }));
+    }, [leaves.data, employeeMap]);
+    const overdueQuotations = useMemo(
+        () => (quotations.data || [])
+            .filter((quotation) => !isPaid(quotation) && (daysOutstanding(quotation) ?? 0) > QUOTATION_OVERDUE_DAYS)
+            .map((quotation) => ({ key: `quotation:${quotation.id}`, name: [quotation.name, quotation.worker_name].filter(Boolean).join(" · ") })),
+        [quotations.data],
+    );
 
     const feed = useMemo(() => buildFeed({
         activity: activity.data || [],
@@ -228,6 +260,13 @@ export default function AdminHomePage() {
                 />
 
                 <PendingAlertsBanner />
+                <HomeAlertsCarousel
+                    day={today}
+                    holidays={holidayKeys}
+                    notCheckedIn={notCheckedIn}
+                    waitingLeaves={waitingLeaves}
+                    overdueQuotations={overdueQuotations}
+                />
 
                 <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px]">
                     <aside className="order-first min-w-0 space-y-4 lg:sticky lg:top-4 lg:order-0 lg:col-start-2 lg:row-start-1">
@@ -237,6 +276,17 @@ export default function AdminHomePage() {
                             loading={holidays.isPending || leaves.isPending}
                             announcements={liveAnnouncements}
                             announcementsLoading={announcements.isPending}
+                        />
+                        <QuotationAlertsCard
+                            records={quotations.data}
+                            summary={quotationTotals}
+                            loading={quotations.isPending}
+                            error={quotations.isError}
+                            onRetry={() => quotations.refetch()}
+                            onViewAll={() => navigate("/quotations")}
+                            onFilter={(status) => navigate(`/quotations?status=${status}`)}
+                            onOpen={(record) => navigate(`/quotations?quotation=${record.id}`)}
+                            onCreate={() => navigate("/quotations?view=create")}
                         />
                     </aside>
 

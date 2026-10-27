@@ -19,6 +19,9 @@ test("tours match their page and audience", () => {
   assert.equal(tourForPage("/employees", admin), null);
   assert.equal(tourForPage("/", employee).id, "policies-footer-2026-10");
   assert.equal(tourForPage("/", candidate), null);
+  assert.equal(tourForPage("/", admin, new Set(["policies-footer-2026-10"])).id, "quotation-alerts-home-2026-10");
+  assert.equal(tourForPage("/quotations?status=unpaid", admin).id, "quotations-2026-10");
+  assert.equal(tourForPage("/quotations", employee), null);
 });
 
 test("admin-only steps are left out for employees", () => {

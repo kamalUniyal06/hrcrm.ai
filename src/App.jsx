@@ -47,6 +47,7 @@ import LeaveApplications from "./components/employement/components/leave/LeavesA
 import LimitManagementPage from "./components/pages/LimitManagementPage";
 import OffboardingPage from "./components/employement/pages/OffboardingPage";
 import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
+import QuotationsPage from "./components/pages/quotations/QuotationsPage";
 import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 import IncrementManagementPage from "./components/employement/pages/IncrementManagementPage";
 
@@ -222,6 +223,11 @@ const router = createBrowserRouter([
         path: "system-alerts",
         element: <PageAccessGuard><SystemAlertsPage /></PageAccessGuard>,
         handle: { breadcrumb: "System alerts" },
+      },
+      {
+        path: "quotations",
+        element: <PageAccessGuard><QuotationsPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Quotation alerts" },
       },
       {
         path: "shortlisted",

@@ -633,3 +633,22 @@ html {
 body {
   margin: 0 !important;
 }
+
+/* Quotation invoices: while an invoice is open, printing shows only its print copy, in light colours. */
+@media print {
+  body:has(> .invoice-print-root) > :not(.invoice-print-root) {
+    display: none !important;
+  }
+  .invoice-print-root {
+    --background: #fff;
+    --card: #fff;
+    --foreground: #111827;
+    --muted: #f3f4f6;
+    --muted-foreground: #4b5563;
+    --border: #d1d5db;
+    color-scheme: light;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    padding: 12mm;
+  }
+}

@@ -3,6 +3,7 @@ export function sidebarDestination(item) {
   if (/^(?:my\s+)?increment\s+requests?$/i.test(name) || /^\/?increment-request\/?$/i.test(String(item.navigation || "").trim())) return "/increment-request";
   if (/^increment(?:s|\s+management)?$/i.test(name) || ["hrc_increment", "hrc_increment_questions", "hrc_increment_replies"].includes(String(item.fetch_from || item.module_name || "").trim())) return "/increment-management";
   if (/^system[\s-]+alerts?$/i.test(name) || ["hrc_system_alert", "hrc_employee_response"].includes(String(item.fetch_from || item.module_name || "").trim())) return "/system-alerts";
+  if (/^quotations?(?:\s+alerts?)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_quotations") return "/quotations";
   if (/^(?:offboarding|(?:employee\s+)?exits?)(?:\s+management)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_resignation") return "/exit";
   if (/^(?:salary|salaries)(?:\s+management)?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_salaries") return "/salaries";
   if (/^employees?$/i.test(name) || String(item.fetch_from || item.module_name || "").trim() === "hrc_employees") return "/employees";
