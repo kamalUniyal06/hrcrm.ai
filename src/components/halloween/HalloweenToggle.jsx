@@ -3,7 +3,7 @@ import { Pumpkin } from "./HalloweenArt";
 import { setHalloweenTheme, useHalloweenThemeOn } from "./halloweenPreference";
 import { useShowHalloween } from "./useShowHalloween";
 
-/** Top-bar switch for the Halloween decorations. Off until the person turns it on. */
+/** Top-bar switch for the Halloween decorations. On until the person turns it off. */
 export default function HalloweenToggle() {
   const allowed = useShowHalloween();
   const on = useHalloweenThemeOn();

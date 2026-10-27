@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from "react";
 
-// Each person's own Halloween-theme switch, kept in this browser. Off by default.
+// Each person's own Halloween-theme switch, kept in this browser. On by default;
+// it stays off only for someone who has switched it off.
 const KEY = "hrcrm:halloween-theme";
 const EVENT = "hrcrm:halloween-theme-change";
-let memory = false; // used when storage is blocked
+let memory = true; // used when storage is blocked
 
 const read = () => {
   try {
-    return localStorage.getItem(KEY) === "on";
+    return localStorage.getItem(KEY) !== "off";
   } catch {
     return memory;
   }
@@ -32,4 +33,4 @@ const subscribe = (callback) => {
   };
 };
 
-export const useHalloweenThemeOn = () => useSyncExternalStore(subscribe, read, () => false);
+export const useHalloweenThemeOn = () => useSyncExternalStore(subscribe, read, () => true);
