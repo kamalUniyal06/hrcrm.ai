@@ -17,6 +17,7 @@ function authHarness(apiRequest, authenticated = false) {
     "../constants": { AUTH_URL: "https://app.hrcrm.ai/public/index.php" },
     "../../services/api": { apiRequest },
     "../../services/crmAuth": { clearCrmToken() {} },
+    "../../lib/queryClient": { queryClient: { removeQueries() {} } },
     "../../components/employement/api/systemAlerts.api": { ensureSystemAlertsAnswered() {} },
   };
   vm.runInNewContext(source, {

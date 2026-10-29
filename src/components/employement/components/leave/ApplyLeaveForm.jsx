@@ -21,6 +21,9 @@ import leaveIllustration from "@/assets/employement/leave-application-illustrati
 import { useLeave } from "../../context/LeaveContext";
 import { usePublicHolidays } from "../../queries/leaves.queries";
 import { store } from "../../../../store/store";
+import { useLeaveBalance } from "../../../../queries/hr.queries";
+import { normalizeLeaveBalance, unpaidExtraDays } from "../../../../utils/hrRecords";
+import LeaveTokenField from "./LeaveTokenField";
 
 const leaveTypes = [
     "Half Day Sick Leave", "Sick Leave in Family", "Self Marriage",
@@ -70,6 +73,8 @@ export default function ApplyLeaveForm() {
     const [form, setForm] = useState({ type_of_leave: "", other_reason: "", note: "", proof: null });
     const [range, setRange] = useState({ from: undefined, to: undefined });
     const [error, setError] = useState("");
+    const [code, setCode] = useState("");
+    const [codeStatus, setCodeStatus] = useState({ required: false, valid: false, loading: true });
     const holidays = usePublicHolidays();
 
     const holidayEntries = useMemo(() => {
@@ -91,6 +96,9 @@ export default function ApplyLeaveForm() {
     const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
     const leaveDays = calculateLeaveDays(range.from, range.to, holidayKeys);
     const proofRequired = leaveDays > 3;
+    const balance = useLeaveBalance();
+    // Days past the available balance are taken as unpaid leave.
+    const unpaidDays = balance.data ? unpaidExtraDays(leaveDays, normalizeLeaveBalance(balance.data).total) : 0;
 
     useEffect(() => {
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
@@ -125,6 +133,7 @@ export default function ApplyLeaveForm() {
         if (holidays.isError) return setError("Public holidays could not be checked. Please try again.");
         if (proofRequired && !form.proof) return setError("A supporting document is required for leave longer than 3 working days.");
         if (form.proof && form.proof.size > MAX_FILE_SIZE) return setError("PDF must be 10 MB or smaller.");
+        if (codeStatus.required && !codeStatus.valid) return setError(code ? "This leave code can't be used for these dates. Check the message under the code, or ask for a new one." : "Enter the leave code from your team lead or manager, or ask them for one.");
 
         setError("");
         applyLeave({
@@ -136,6 +145,7 @@ export default function ApplyLeaveForm() {
             leave_days: leaveDays,
             description: form.type_of_leave === "Other Reason" ? form.other_reason.trim() : form.note.trim(),
             attachment: form.proof,
+            manager_token: codeStatus.required ? code : "",
         });
     };
 
@@ -243,6 +253,12 @@ export default function ApplyLeaveForm() {
                                         </div>
                                     </PopoverContent>
                                 </Popover>
+                                {unpaidDays > 0 && (
+                                    <p role="status" className="mt-2 flex items-start gap-2 rounded-xl border border-destructive/25 bg-destructive/5 px-3 py-2 text-xs leading-5 text-foreground">
+                                        <Info size={14} className="mt-0.5 shrink-0 text-destructive" aria-hidden="true" />
+                                        This is more than your leave balance. {unpaidDays} {unpaidDays === 1 ? "day" : "days"} will be unpaid.
+                                    </p>
+                                )}
                             </div>
 
                             <div data-form-reveal>
@@ -268,6 +284,16 @@ export default function ApplyLeaveForm() {
                                     </button>
                                 )}
                             </div>
+
+                            <LeaveTokenField
+                                value={code}
+                                onChange={setCode}
+                                leaveFrom={toApiDate(range.from)}
+                                leaveTo={toApiDate(range.to || range.from)}
+                                leaveType={form.type_of_leave}
+                                onStatus={setCodeStatus}
+                                inputClassName={fieldClass}
+                            />
 
                             <div data-form-reveal className="lg:col-span-2">
                                 <div className="flex items-center justify-between gap-3"><label htmlFor="leave-note" className="text-sm font-semibold">A note for your manager</label><span className="text-xs text-[var(--leave-muted)]">{form.note.length}/500</span></div>

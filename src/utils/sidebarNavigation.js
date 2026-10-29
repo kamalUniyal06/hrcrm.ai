@@ -15,8 +15,20 @@ export function sidebarDestination(item) {
   const navigation = String(item.navigation || "").trim().replace(/^\/+/, "");
   if (navigation && !/^profile(?:[/?#]|$)/i.test(navigation)) return `/${navigation}`;
   const module = String(item.fetch_from || item.module_name || "").trim();
+  if (HR_AREA_ROUTES[module.toLowerCase()]) return HR_AREA_ROUTES[module.toLowerCase()];
   return module ? `/entity/${encodeURIComponent(module)}/view` : null;
 }
+
+// Areas added by the HR installer have no `navigation` value; these have their own screens.
+const HR_AREA_ROUTES = {
+  outr_notification: "/notifications",
+  hrc_hr_appointments: "/hr-appointments",
+  hrc_hr_availability: "/hr-appointments/availability",
+  // An employee's own career timeline lives on their profile.
+  hrc_employee_timeline: "/profile",
+  hrc_salary_structures: "/salaries",
+  hrc_leave_transaction: "/my-leaves",
+};
 
 // The backend may still name the resignation menu "Offboarding"; the app calls it "Exit".
 export function sidebarLabel(item) {

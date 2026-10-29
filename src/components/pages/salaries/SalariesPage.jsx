@@ -1,14 +1,19 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { Calculator, ChevronLeft, ChevronRight, Eye, Loader2, RefreshCw, Search, Wallet, X } from "lucide-react";
+import { useHrAccess } from "../../../hooks/useHrAccess";
 import { fetchAllRecords } from "../candidates/candidatesApi";
 import { amount, clean, difference, formatAmount, salaryName } from "./salaryUtils";
 import { pageGutter } from "../../employement/components/home/homeUi";
+import { MarkPaidDialog, RunPayrollDialog } from "./PayrollDialogs";
 
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50";
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const columns = ["Employee / record", "Month", "Offered salary", "Paid amount", "Difference", "Working days", "Leaves", "Details"];
+const columns = ["Employee / record", "Month", "Offered salary", "Paid amount", "Difference", "Working days", "Leaves", "Status", "Details"];
+// Payslips from a payroll run carry a payment status; older records don't.
+const paymentStatus = record => clean(record.payment_status).toLowerCase();
+const period = record => [clean(record.month), clean(record.salary_year)].filter(Boolean).join(" ");
 
 export default function SalariesPage() {
   const query = useQuery({ queryKey: ["salaries", "list"], queryFn: () => fetchAllRecords("hrc_salaries") });
@@ -16,6 +21,11 @@ export default function SalariesPage() {
   const [month, setMonth] = useState("");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  const [running, setRunning] = useState(false);
+  const [paying, setPaying] = useState(null);
+  const access = useHrAccess();
+  const canRunPayroll = access.isAdmin || access.me.data?.capabilities?.salary?.run_payroll === true;
+  const canMarkPaid = access.isAdmin || access.scopeOf("salary", "update") === "all";
   const records = query.data || [];
   const availableMonths = [...new Set(records.map(record => clean(record.month)).filter(Boolean))]
     .sort((a, b) => months.indexOf(a) - months.indexOf(b) || a.localeCompare(b));
@@ -30,7 +40,9 @@ export default function SalariesPage() {
   };
   const details = selected ? [
     ["Employee / record", salaryName(selected)], ["Record name", selected.name],
-    ["Month", selected.month], ["Offered salary", formatAmount(selected.offered_salary)],
+    ["Month", period(selected)], ["Payment status", selected.payment_status], ["Paid on", selected.paid_on],
+    ["Offered salary", formatAmount(selected.offered_salary)], ["Gross amount", formatAmount(selected.gross_amount)],
+    ["Deductions", formatAmount(selected.total_deductions)], ["Unpaid leave deduction", formatAmount(selected.unpaid_leave_deduction)],
     ["Paid amount", formatAmount(selected.paid_amount)], ["Difference (offered − paid)", formatAmount(difference(selected))],
     ["Total working days", selected.total_working_days], ["Leaves of month", selected.leaves_of_month],
     ["Account number", selected.account_number], ["Assigned to", selected.assigned_user_name],
@@ -44,6 +56,7 @@ export default function SalariesPage() {
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">People workspace</p>
       <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold"><Wallet aria-hidden="true" />Salary management</h1>
       <p className="mt-3 text-sm text-slate-200">Review employee salaries, paid amounts and monthly attendance details.</p>
+      {canRunPayroll && <button type="button" onClick={() => setRunning(true)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-card px-4 text-sm font-semibold text-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" data-tour="run-payroll"><Calculator size={17} aria-hidden="true" />Run payroll</button>}
     </header>
     <div className="grid gap-4 sm:grid-cols-3">
       {[["Salary records", filtered.length.toLocaleString()], ["Total offered salary", total("offered_salary")], ["Total paid amount", total("paid_amount")]].map(([label, value]) =>
@@ -61,21 +74,27 @@ export default function SalariesPage() {
       </div>
       {query.isError && <p role="alert" className="mx-5 mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{query.error.message} <button className="underline" onClick={() => query.refetch()}>Retry</button></p>}
       {query.isPending ? <p role="status" className="flex justify-center gap-2 p-16 text-slate-500"><Loader2 size={18} className="animate-spin" />Loading salary records…</p> : rows.length ?
-        <div className="overflow-x-auto"><table className="w-full min-w-[1000px] text-left text-sm">
+        <div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left text-sm">
           <thead className="border-y border-slate-100 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr>{columns.map(label => <th key={label} scope="col" className="px-5 py-3">{label}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">{rows.map((record, index) => <tr key={record.id || index} className="hover:bg-indigo-50/50">
             <td className="px-5 py-4"><button onClick={() => setSelected(record)} className="text-left font-semibold text-slate-900 hover:text-indigo-600">{salaryName(record)}</button>{clean(record.name) && clean(record.name) !== salaryName(record) && <p className="mt-1 text-xs text-slate-500">{clean(record.name)}</p>}</td>
-            <td className="px-5 py-4">{clean(record.month) || "—"}</td>
+            <td className="px-5 py-4">{period(record) || "—"}</td>
             {[record.offered_salary, record.paid_amount, difference(record)].map((value, index) => <td key={index} className="whitespace-nowrap px-5 py-4 tabular-nums">{formatAmount(value)}</td>)}
             <td className="px-5 py-4">{clean(record.total_working_days) || "—"}</td><td className="px-5 py-4">{clean(record.leaves_of_month) || "—"}</td>
+            <td className="px-5 py-4">{paymentStatus(record) ? <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${paymentStatus(record) === "paid" ? "bg-primary/10 text-primary" : "bg-muted text-foreground"}`}>{paymentStatus(record) === "paid" ? `Paid${clean(record.paid_on) ? ` ${clean(record.paid_on)}` : ""}` : "Pending"}</span>
+              {canMarkPaid && paymentStatus(record) === "pending" && <button className={button} onClick={() => setPaying(record)}>Mark paid</button>}
+            </div> : "—"}</td>
             <td className="px-5 py-4"><button className={button} aria-label={`View salary details for ${salaryName(record)}`} onClick={() => setSelected(record)}><Eye size={16} /></button></td>
           </tr>)}</tbody>
-        </table></div> : <div className="p-16 text-center text-slate-500"><Wallet size={32} className="mx-auto mb-4 text-slate-300" /><p>{query.isError ? "Salary records unavailable." : search || month ? "No matching salary records. Try clearing your filters." : "No salary records yet."}</p></div>}
+        </table></div> : <div className="p-16 text-center text-slate-500"><Wallet size={32} className="mx-auto mb-4 text-slate-300" /><p>{query.isError ? "Salary records unavailable." : search || month ? "No matching salary records. Try clearing your filters." : canRunPayroll ? "No payslips yet. Use Run payroll to work out a month's pay." : "No salary records yet."}</p></div>}
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-sm text-slate-500">
         <p>{filtered.length ? (currentPage - 1) * 20 + 1 : 0}–{Math.min(currentPage * 20, filtered.length)} of {filtered.length} records</p>
         <div className="flex items-center gap-3"><button className={button} aria-label="Previous page" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button><span>Page {currentPage} of {pages}</span><button className={button} aria-label="Next page" disabled={currentPage === pages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button></div>
       </footer>
     </section>
+    {running && <RunPayrollDialog open onClose={() => setRunning(false)} />}
+    {paying && <MarkPaidDialog payslip={paying} name={salaryName(paying)} onClose={() => setPaying(null)} />}
     <Dialog.Root open={!!selected} onOpenChange={open => { if (!open) setSelected(null); }}><Dialog.Portal>
       <Dialog.Overlay className="fixed inset-0 z-[1100] bg-slate-950/45" />
       <Dialog.Content className="fixed left-1/2 top-1/2 z-[1101] max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">

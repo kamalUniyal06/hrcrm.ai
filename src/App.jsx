@@ -49,6 +49,14 @@ import OffboardingPage from "./components/employement/pages/OffboardingPage";
 import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
 import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 import IncrementManagementPage from "./components/employement/pages/IncrementManagementPage";
+import OrgChartPage from "./components/pages/org/OrgChartPage";
+import ReportingLinesPage from "./components/pages/org/ReportingLinesPage";
+import RoleLadderPage from "./components/pages/org/RoleLadderPage";
+import NotificationsPage from "./components/pages/notifications/NotificationsPage";
+import HrAppointmentsPage from "./components/pages/hr-appointments/HrAppointmentsPage";
+import TeamPage from "./components/pages/team/TeamPage";
+import DepartmentPage from "./components/pages/department/DepartmentPage";
+import { RequireScope } from "./components/routing/HrAccessGuard";
 
 const router = createBrowserRouter([
   {
@@ -275,6 +283,49 @@ const router = createBrowserRouter([
       {
         path: "/leave-applications",
         element: <LeaveApplications />,
+      },
+      {
+        path: "org/chart",
+        element: <PageAccessGuard><OrgChartPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Org chart" },
+      },
+      {
+        path: "org/reporting",
+        element: <PageAccessGuard><ReportingLinesPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Reporting lines" },
+      },
+      {
+        path: "org/roles",
+        element: <PageAccessGuard><RoleLadderPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Role ladder" },
+      },
+      // Every employee's own inbox and HR bookings: the backend serves them without an area grant.
+      {
+        path: "notifications",
+        element: <NotificationsPage />,
+        handle: { breadcrumb: "Notifications" },
+      },
+      {
+        path: "hr-appointments",
+        element: <HrAppointmentsPage />,
+        handle: { breadcrumb: "HR appointments" },
+      },
+      // The HR Availability area opens here; the hours live on a tab of the appointments page.
+      {
+        path: "hr-appointments/availability",
+        element: <Navigate to="/hr-appointments?tab=hours" replace />,
+      },
+      // Team leads and wider: the backend narrows `people` to the role's employees read scope.
+      {
+        path: "team",
+        element: <RequireScope area="employees" action="read" min="team"><TeamPage /></RequireScope>,
+        handle: { breadcrumb: "My team" },
+      },
+      // Department heads and wider: the backend checks each department against the employees read scope.
+      {
+        path: "department",
+        element: <RequireScope area="employees" action="read" min="dept"><DepartmentPage /></RequireScope>,
+        handle: { breadcrumb: "My department" },
       },
 
 

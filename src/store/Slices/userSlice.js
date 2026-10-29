@@ -2,6 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { AUTH_URL } from "../constants";
 import { apiRequest } from "../../services/api";
 import { clearCrmToken } from "../../services/crmAuth";
+import { queryClient } from "../../lib/queryClient";
 import { ensureSystemAlertsAnswered } from "../../components/employement/api/systemAlerts.api";
 
 const initialState = {
@@ -255,6 +256,9 @@ export const logout = () => {
       // Clear the in-memory CRM access token so no stale token is
       // reused after the next login.
       clearCrmToken();
+
+      // Drop `me`, notifications and other HR data (hrKeys.all) so the next user starts clean.
+      queryClient.removeQueries({ queryKey: ["hr"] });
 
       // Clear all localStorage
       localStorage.clear();

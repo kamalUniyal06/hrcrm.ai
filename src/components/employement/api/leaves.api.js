@@ -17,6 +17,8 @@ export const applyForLeave = async (data) => {
     formData.append("leave_days", String(data.leave_days || ""));
     formData.append("description", data.description || "");
     formData.append("candidate_id", data.candidate_id || "");
+    // One-time code from a team lead / manager; the backend uses it up when the leave is saved.
+    if (data.manager_token) formData.append("manager_token", data.manager_token);
 
     if (data.attachment instanceof File) {
         formData.append(

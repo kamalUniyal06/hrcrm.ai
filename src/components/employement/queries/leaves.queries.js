@@ -51,9 +51,12 @@ export const useApplyForLeave = () =>
         onSuccess: () => {
             toast.success("Leave applied successfully");
             queryClient.invalidateQueries(leavesKey.all);
+            // The leave code is used up.
+            queryClient.invalidateQueries({ queryKey: ["hr", "leave-tokens"] });
         },
-        onError: () => {
-            toast.error("Failed to apply for leave");
+        onError: (error) => {
+            // e.g. "Leave token: K7P2QX was given for 10 Nov to 12 Nov, not for these dates."
+            toast.error(error?.message || "Failed to apply for leave");
         }
     });
 export const useLeaveApplications = (

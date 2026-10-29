@@ -21,6 +21,58 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "hr-self-service-2026-10",
+    path: /^\/$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "notification-bell",
+        title: "New: Notifications",
+        body: "Notices from HR and updates on your bookings arrive here. A red dot means something important is unread.",
+      },
+      {
+        target: "my-place",
+        title: "Your employee details",
+        body: "See your team, department, branch, job role and who you report to, all in one place.",
+      },
+    ],
+  },
+  {
+    id: "org-views-2026-10",
+    path: /^\/org\/(?:chart|reporting|roles)\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        title: "See how the company fits together",
+        body: "The org chart shows branches, departments and teams. Reporting lines show who reports to whom, and the role ladder lists every role by seniority.",
+      },
+    ],
+  },
+  {
+    id: "hr-appointments-2026-10",
+    path: /^\/hr-appointments\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "book-hr",
+        title: "Book time with HR",
+        body: "Pick a topic, how you want to meet and a free time. You can cancel or move a booking later from My appointments.",
+      },
+    ],
+  },
+  {
+    id: "leave-balance-2026-10",
+    path: /^\/my-leaves\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "leave-balance",
+        title: "Your leave balance",
+        body: "See how much planned and sick leave you have left before you apply. If a request goes over your balance, the form tells you how many days will be unpaid.",
+      },
+    ],
+  },
+  {
     id: "policies-2026-10",
     path: /^\/policies\/?$/,
     audience: "everyone",
@@ -64,6 +116,23 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "my-team-2026-10",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-people",
+        title: "New: My team",
+        body: "Everyone you look after, in one list. Open a person to see their career timeline and leave balance, and add events such as awards or training.",
+      },
+      {
+        target: "team-tabs",
+        title: "Team leave balances",
+        body: "See how much leave each person has left before you approve a request. To send your team a notice, use Compose on the Notifications page.",
+      },
+    ],
+  },
+  {
     id: "employee-profile-2026-10",
     path: /^\/employees\/[^/]+\/?$/,
     audience: "admin",
@@ -77,6 +146,146 @@ export const FEATURE_TOURS = [
         target: "employee-tabs",
         title: "Everything in one place",
         body: "Switch between personal details, employment, the attendance calendar, leave requests and a timeline of the employee's time with the company.",
+      },
+    ],
+  },
+  {
+    id: "team-pay-promote-2026-10",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-tabs",
+        title: "New: Pay and promotions",
+        body: "If your role includes salary access, the Pay tab shows your team's monthly pay and yearly cost. Open a person to see their salary, revise it, or promote them to a new designation, role or manager in one step.",
+      },
+    ],
+  },
+  {
+    id: "leave-codes-apply-2026-10",
+    path: /^\/my-leaves\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "leave-code",
+        title: "New: leave codes",
+        body: "To apply for leave you now need a one-time code from your team lead or manager. Ask for one from the form; when it arrives in your notifications, pick it here and submit.",
+      },
+    ],
+  },
+  {
+    id: "leave-codes-team-2026-10",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-tabs",
+        title: "New: give leave codes",
+        body: "People who report to you need a one-time code from you before they can apply for leave. Their requests appear under Leave codes, where you give or refuse a code, or give one without being asked.",
+      },
+    ],
+  },
+  {
+    id: "org-admin-tools-2026-10",
+    path: /^\/org\/(?:chart|reporting|roles)\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        title: "Change where people sit",
+        body: "Select anyone on the org chart or in reporting lines, then Change place to set who they report to, their designation, team and department.",
+      },
+      {
+        title: "Roles and access live in the HR console",
+        body: "Roles, permissions and access rules are edited in the HR console. The buttons at the top open it in a new tab; it starts on Organisation, so pick the tab named on the button.",
+      },
+    ],
+  },
+  {
+    id: "org-arrange-2026-10",
+    path: /^\/org\/chart\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "org-arrange",
+        title: "New: arrange the organisation",
+        body: "Switch to Arrange to drag people between teams and departments, drag a team to another department, pick team leads and department heads, and create or rename teams and departments.",
+      },
+    ],
+  },
+  {
+    id: "employee-move-2026-10",
+    path: /^\/employees\/[^/]+\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "employee-move",
+        title: "Change place and access rules",
+        body: "Change place moves this person to another manager, team or department without logging a promotion. Access rules opens the HR console, where you can give them extra access or block an area.",
+      },
+    ],
+  },
+  {
+    id: "run-payroll-2026-10",
+    path: /^\/salaries\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "run-payroll",
+        title: "New: run payroll here",
+        body: "Pick a month and see every payslip before anything is saved: pay is prorated for joins and exits, and unpaid leave is taken off. Saved payslips stay pending until you mark them paid from the list.",
+      },
+    ],
+  },
+  {
+    id: "hr-desk-hours-2026-10",
+    path: /^\/hr-appointments\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "hr-tabs",
+        title: "For HR: your desk and your hours",
+        body: "If you take HR bookings, As HR lists the ones booked with you, where you can confirm, move, close or cancel them and keep notes. My hours sets when people can book you and blocks out time off.",
+      },
+    ],
+  },
+  {
+    id: "department-dashboard-2026-10",
+    path: /^\/department\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "department-summary",
+        title: "New: your department at a glance",
+        body: "See how many people and teams your department has, who leads each team, and who isn't in a team yet. Open anyone to see their profile, timeline and leave.",
+      },
+      {
+        target: "department-tabs",
+        title: "People, leave and pay",
+        body: "Switch tabs to list everyone in the department, check their leave balances, or, if your role includes salary access, see the department's monthly pay and yearly cost.",
+      },
+    ],
+  },
+  {
+    id: "employee-salary-promote-2026-10",
+    path: /^\/employees\/[^/]+\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "employee-tabs",
+        title: "Salary and promotions",
+        body: "If your role includes salary access, the Salary tab shows this person's pay, history and payslips, and lets you revise it. Promote, at the top, changes their designation, role or manager and logs one Promotion on their timeline.",
+      },
+    ],
+  },
+  {
+    id: "employee-real-timeline-2026-10",
+    path: /^\/employees\/[^/]+\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "employee-tabs",
+        title: "The timeline is now real",
+        body: "The Timeline tab shows what actually happened: joining, promotions, team and manager changes and salary revisions. You can add awards, training or notes. The Leave tab now shows the leave balance too.",
       },
     ],
   },

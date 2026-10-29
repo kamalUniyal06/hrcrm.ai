@@ -22,6 +22,7 @@ import {
 } from "../components/home/homeDashboard.queries";
 import { useEmployeeLeaves, usePublicHolidays } from "../queries/leaves.queries";
 import { timeToMinutes, useAttendanceLimits } from "../attendanceLimits";
+import MyPlaceCard from "../../pages/org/MyPlaceCard";
 
 const PERIODS = [["month", "This month"], ["30d", "Last 30 days"]];
 const recordsOf = (data) => (Array.isArray(data) ? data : data?.records || data?.data?.records || []);
@@ -108,6 +109,7 @@ export default function EmployeHomePage() {
                             announcementsLoading={alertsLoading}
                             onOpenAnnouncement={(alert) => openAlert(alert.id)}
                         />
+                        <MyPlaceCard />
                     </aside>
 
                     <div className="min-w-0 space-y-4 lg:col-start-1 lg:row-start-1">

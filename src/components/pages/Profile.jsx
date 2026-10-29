@@ -17,6 +17,7 @@ import {
   Loader2,
   Mail,
   MapPin,
+  Milestone,
   Pencil,
   Phone,
   Plus,
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import { FETCH_GPC_X_API_KEY } from "../../store/constants";
 import { crmFetch } from "../../services/crmClient";
@@ -57,6 +59,9 @@ import { candidateKey } from "../../queries/candidate.queries";
 import EmployeeOptions from "../employement/components/employee-actions/EmployeeOptions";
 import { CandidateChip, CandidatePageHeader } from "./candidate/candidateUi";
 import { candidateStyles } from "./candidate/candidateStyles";
+import CareerTimeline from "./profile/CareerTimeline";
+import MySalary from "./profile/MySalary";
+import MyPlaceCard from "./org/MyPlaceCard";
 
 const metaItem = "inline-flex min-w-0 max-w-full items-center gap-1.5 text-[13px] text-foreground/80 [&>svg]:shrink-0 [&>svg]:text-muted-foreground";
 const tocLink = "flex min-h-10 items-center justify-between gap-2 rounded-lg px-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-accent hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none";
@@ -453,6 +458,7 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
     ["section-education", "Education", relatedCount("education")],
     ["section-skills", "Skills", relatedCount("skills")],
     ...(record?.id ? [["section-photo", "Profile photo"]] : []),
+    ...(userPhase === "Employment" ? [["section-career", "Career"], ["section-salary", "Salary"]] : []),
   ];
 
   // Related sections (experience, education, skills) share one view and one editor.
@@ -783,9 +789,20 @@ function CandidateProfile({ email, jobId, standalone, onComplete }) {
                       </div>
                     </ProfileSection>
                   )}
+                  {userPhase === "Employment" && (
+                    <>
+                      <ProfileSection id="section-career" icon={Milestone} title="Career">
+                        <CareerTimeline />
+                      </ProfileSection>
+                      <ProfileSection id="section-salary" icon={Wallet} title="Salary">
+                        <MySalary />
+                      </ProfileSection>
+                    </>
+                  )}
                 </div>
 
                 <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
+                  {userPhase === "Employment" && <MyPlaceCard />}
                   <div className={cn(candidateStyles.card, "p-5")}>
                     <div className="flex items-baseline justify-between gap-3">
                       <h2 className="text-[15px] font-semibold">Profile strength</h2>

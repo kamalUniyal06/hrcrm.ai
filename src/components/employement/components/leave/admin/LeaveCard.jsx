@@ -1,6 +1,23 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { Eye, Loader2 } from "lucide-react";
 import { employeeDisplayName, employeeFor, formatDate, statusOf } from "./leaveAdminUtils";
+import { useTeamBalanceMap } from "../../../../../queries/hr.queries";
+import { unpaidExtraDays } from "../../../../../utils/hrRecords";
+
+const days = (value) => `${Number.isInteger(value) ? value : value.toFixed(1)} day${value === 1 ? "" : "s"}`;
+
+// Available leave beside the request; a pending request that goes past it is flagged, since those days are unpaid.
+function CardBalance({ employeeId, requestedDays, pending }) {
+  const balances = useTeamBalanceMap();
+  const balance = balances.data?.get(employeeId);
+  if (!balance) return null;
+  const unpaid = pending ? unpaidExtraDays(requestedDays, balance.total) : 0;
+  return (
+    <p className={`mt-2 text-[11px] ${unpaid ? "font-semibold text-destructive" : "text-muted-foreground"}`}>
+      {days(balance.total)} available{unpaid ? ` · ${days(unpaid)} would be unpaid` : ""}
+    </p>
+  );
+}
 
 export default function LeaveCard({ record, employeeMap, index, onOpen, updatingId }) {
   const employee = employeeFor(record, employeeMap);
@@ -18,7 +35,7 @@ export default function LeaveCard({ record, employeeMap, index, onOpen, updating
             <div className="min-w-0 flex-1"><h3 className="truncate text-sm font-semibold">{name}</h3><p className="mt-0.5 truncate text-xs text-muted-foreground">{record.type_of_leave || "Leave request"}</p></div>
             {updatingId === record.id ? <Loader2 size={16} className="animate-spin text-primary" /> : <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => onOpen(record)} className="rounded-lg p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground" aria-label={`View ${name}'s request`}><Eye size={16} /></button>}
           </div>
-          <div className="mt-4 rounded-xl bg-muted/60 px-3 py-2.5"><p className="text-xs font-semibold">{formatDate(record.leave_from)}{record.leave_to ? ` – ${formatDate(record.leave_to)}` : ""}</p><p className="mt-1 text-[11px] text-muted-foreground">{record.leave_days || "—"} day{String(record.leave_days) === "1" ? "" : "s"} · Applied {formatDate(record.date_entered)}</p></div>
+          <div className="mt-4 rounded-xl bg-muted/60 px-3 py-2.5"><p className="text-xs font-semibold">{formatDate(record.leave_from)}{record.leave_to ? ` – ${formatDate(record.leave_to)}` : ""}</p><p className="mt-1 text-[11px] text-muted-foreground">{record.leave_days || "—"} day{String(record.leave_days) === "1" ? "" : "s"} · Applied {formatDate(record.date_entered)}</p>{employee?.id && <CardBalance employeeId={employee.id} requestedDays={record.leave_days} pending={isPending} />}</div>
           {isPending && <p className="mt-3 text-[11px] font-medium text-muted-foreground">Drag to Approved or Rejected</p>}
         </article>
       )}

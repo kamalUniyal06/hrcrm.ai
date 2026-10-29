@@ -15,3 +15,15 @@ test("menu labels say exit instead of offboarding and leave other names alone", 
   assert.equal(sidebarLabel({ name: "Leave approvals" }), "Leave approvals");
   assert.equal(sidebarLabel({}), "");
 });
+
+test("HR installer areas without a navigation value open their own screens", () => {
+  assert.equal(sidebarDestination({ name: "Notifications", fetch_from: "outr_notification" }), "/notifications");
+  assert.equal(sidebarDestination({ name: "HR Appointments", fetch_from: "hrc_hr_appointments" }), "/hr-appointments");
+  assert.equal(sidebarDestination({ name: "HR Availability", fetch_from: "hrc_hr_availability" }), "/hr-appointments/availability");
+  assert.equal(sidebarDestination({ name: "Career timeline", fetch_from: "hrc_employee_timeline" }), "/profile");
+  assert.equal(sidebarDestination({ name: "Salary structures", fetch_from: "hrc_salary_structures" }), "/salaries");
+  assert.equal(sidebarDestination({ name: "Leave ledger", module_name: "hrc_leave_transaction" }), "/my-leaves");
+  // An explicit navigation value still wins, and unmapped modules keep the generic view.
+  assert.equal(sidebarDestination({ name: "Inbox", fetch_from: "outr_notification", navigation: "inbox" }), "/inbox");
+  assert.equal(sidebarDestination({ name: "Branches", fetch_from: "hrc_branches" }), "/entity/hrc_branches/view");
+});

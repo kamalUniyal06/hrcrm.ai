@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarDays, Check, Clock3, Loader2, Palmtree, RefreshCw, X } from "lucide-react";
+import { CalendarDays, Check, Clock3, Loader2, Palmtree, RefreshCw, Users, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAllLeaves, updateLeaveStatus } from "../../../api/leaves.api";
 import { fetchAllRecords } from "../../../../pages/candidates/candidatesApi";
@@ -164,6 +164,7 @@ export default function AdminLeaveBoard() {
       <header className="flex flex-col gap-4 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border/70 xl:flex-row xl:items-end xl:justify-between">
         <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">People operations</p><h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Leave approvals</h1><p className="mt-1 max-w-xl text-sm text-muted-foreground">Review pending requests, then drag them into Approved or Rejected.</p></div>
         <div className="flex items-center gap-2 self-start xl:self-auto">
+          <button type="button" onClick={() => navigate("/team?tab=balances")} className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:text-primary"><Users size={17} />Team balances</button>
           <button type="button" onClick={() => navigate("/my-leaves")} className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><Palmtree size={17} />My leave &amp; apply</button>
           <button type="button" onClick={refresh} disabled={fetching || employees.isFetching} className="rounded-xl border border-border p-2.5 text-muted-foreground transition hover:bg-muted disabled:opacity-50" aria-label="Refresh leave requests"><RefreshCw size={17} className={fetching ? "animate-spin" : ""} /></button>
         </div>

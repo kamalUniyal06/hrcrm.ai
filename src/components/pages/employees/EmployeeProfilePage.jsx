@@ -3,19 +3,15 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Award,
-  BadgeCheck,
+  ArrowRightLeft,
   Briefcase,
   Building2,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
-  ClipboardCheck,
+  ExternalLink,
   Clock3,
-  Flag,
-  GraduationCap,
   Hourglass,
-  Laptop,
   Linkedin,
   Loader2,
   Mail,
@@ -23,9 +19,9 @@ import {
   Pencil,
   Phone,
   PhoneOff,
-  PartyPopper,
   TrendingUp,
   UserRound,
+  Wallet,
 } from "lucide-react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { AttendanceProvider } from "../../employement/context/AttendanceContext";
@@ -37,24 +33,17 @@ import { dateKey, formatDate, statusOf } from "../../employement/components/leav
 import EmployeeDetails, { EmployeeAvatar, FieldValue } from "./EmployeeDetails";
 import { groups } from "./employeeFields";
 import { employeeName, fetchEmployee, formatJoinDate, tenure } from "./employeesApi";
-import { employeeTimeline } from "./employeeTimeline";
+import { useHrAccess } from "../../../hooks/useHrAccess";
+import LeaveBalanceCard from "../../employement/components/leave/LeaveBalanceCard";
+import CareerTimeline from "../profile/CareerTimeline";
+import MySalary from "../profile/MySalary";
+import PromoteDialog from "../team/PromoteDialog";
+import MoveEmployeeDialog from "../org/MoveEmployeeDialog";
+import { HR_CONSOLE_URL } from "../../../services/crmUrl";
 
 const clean = (value) => String(value ?? "").trim();
 const linkButton =
   "inline-flex min-h-9 items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-primary/30 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
-const TIMELINE_STYLES = {
-  join: [Flag, "var(--primary)"],
-  setup: [Laptop, "var(--employee-blue)"],
-  onboarding: [ClipboardCheck, "var(--employee-green)"],
-  review: [BadgeCheck, "var(--employee-blue)"],
-  training: [GraduationCap, "var(--employee-orange)"],
-  award: [Award, "var(--employee-orange)"],
-  anniversary: [PartyPopper, "var(--primary)"],
-  increment: [TrendingUp, "var(--employee-green)"],
-  leave: [Palmtree, "var(--employee-blue)"],
-  today: [Clock3, "var(--primary)"],
-};
 
 // Profile tabs: [id, label, icon, field group titles shown in that tab].
 const TABS = [
@@ -63,6 +52,8 @@ const TABS = [
   ["attendance", "Attendance", CalendarCheck, []],
   ["leave", "Leave", Palmtree, []],
   ["timeline", "Timeline", CalendarClock, []],
+  // Shown only with salary read access; the backend still checks this person is in scope.
+  ["salary", "Salary", Wallet, []],
 ];
 // Same underline tabs as the Jobs page.
 const tabTrigger =
@@ -89,42 +80,14 @@ function Card({ title, icon, action, className = "", children }) {
   );
 }
 
-function Timeline({ record }) {
-  const { events, estimatedStart } = useMemo(
-    () => employeeTimeline({ joiningDate: record.joining_date, designation: clean(record.current_designation) || clean(record.title), department: clean(record.department) }),
-    [record.joining_date, record.current_designation, record.title, record.department],
-  );
+// The real career timeline from the backend; editing needs Employees update access covering this person.
+function Timeline({ employeeId }) {
+  const access = useHrAccess();
   return (
-    <Card
-      title="Employee timeline"
-      icon={CalendarClock}
-      action={<span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">Sample data</span>}
-    >
-      <p className="mt-2 text-xs text-muted-foreground">
-        From the first day to today. {estimatedStart ? "No joining date is saved, so the dates are estimated." : "Events are placeholders until employee history is recorded."}
-      </p>
-      <ol className="mt-5">
-        {events.map((event, index) => {
-          const [Icon, color] = TIMELINE_STYLES[event.kind] || TIMELINE_STYLES.review;
-          const last = index === events.length - 1;
-          return (
-            <li key={event.id} className="relative flex gap-3 pb-5 last:pb-0">
-              {!last && <span aria-hidden="true" className="absolute left-[17px] top-9 bottom-0 w-px bg-border" />}
-              <span
-                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${event.kind === "today" ? "ring-2 ring-primary/30" : ""}`}
-                style={{ color, backgroundColor: `color-mix(in oklab, ${color} 14%, transparent)` }}
-              >
-                <Icon size={16} aria-hidden="true" />
-              </span>
-              <div className="min-w-0 pt-0.5">
-                <p className="text-sm font-semibold text-foreground">{event.title}</p>
-                <p className="text-[11px] font-medium text-muted-foreground"><time dateTime={event.date}>{formatDate(event.date)}</time></p>
-                <p className="mt-1 text-xs text-muted-foreground">{event.detail}</p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+    <Card title="Employee timeline" icon={CalendarClock}>
+      <div className="mt-4">
+        <CareerTimeline employeeId={employeeId} canEdit={access.canAtLeast("employees", "update", "team")} />
+      </div>
     </Card>
   );
 }
@@ -169,8 +132,13 @@ export default function EmployeeProfilePage() {
   const navigate = useNavigate();
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [params, setParams] = useSearchParams();
-  const tab = TABS.some(([id]) => id === params.get("tab")) ? params.get("tab") : TABS[0][0];
+  const access = useHrAccess();
+  const showSalary = access.canAtLeast("salary", "read", "team");
+  const tabs = TABS.filter(([id]) => id !== "salary" || showSalary);
+  const tab = tabs.some(([id]) => id === params.get("tab")) ? params.get("tab") : TABS[0][0];
   const openTab = (id) => setParams((current) => {
     const next = new URLSearchParams(current);
     if (id === TABS[0][0]) next.delete("tab");
@@ -248,6 +216,18 @@ export default function EmployeeProfilePage() {
             {phone && !doNotCall && <a href={`tel:${phone}`} className={linkButton}><Phone size={14} />Call</a>}
             {linkedin && <a href={/^https?:\/\//.test(linkedin) ? linkedin : `https://${linkedin}`} target="_blank" rel="noreferrer" className={linkButton}><Linkedin size={14} />LinkedIn</a>}
             <button type="button" onClick={() => openTab("attendance")} className={linkButton}><CalendarCheck size={14} />Attendance</button>
+            {access.canAtLeast("employees", "update", "team") && (
+              <button type="button" onClick={() => setPromoting(true)} className={linkButton}><TrendingUp size={14} />Promote</button>
+            )}
+            {access.isAdmin && (
+              <>
+                <button type="button" onClick={() => setMoving(true)} className={linkButton} data-tour="employee-move"><ArrowRightLeft size={14} />Change place</button>
+                {/* Access grants and blocks can only be changed in the console (Employee tab). */}
+                <a href={HR_CONSOLE_URL} target="_blank" rel="noopener noreferrer" title="Opens the HR console. Then choose Employee." className={linkButton}>
+                  <ExternalLink size={14} />Access rules<span className="sr-only"> (opens the HR console in a new tab; choose Employee there)</span>
+                </a>
+              </>
+            )}
             <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Pencil size={14} />Edit profile</button>
           </div>
         </div>
@@ -262,7 +242,7 @@ export default function EmployeeProfilePage() {
 
       <Tabs.Root value={tab} onValueChange={openTab} className="space-y-5">
         <Tabs.List data-tour="employee-tabs" aria-label="Employee profile sections" className="hide-scrollbar flex gap-x-6 overflow-x-auto border-b border-border">
-          {TABS.map(([id, label, icon]) => (
+          {tabs.map(([id, label, icon]) => (
             <Tabs.Trigger key={id} value={id} className={tabTrigger}>
               {createElement(icon, { size: 15, "aria-hidden": true })}
               {label}
@@ -294,9 +274,32 @@ export default function EmployeeProfilePage() {
             <p className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">Add an email to this employee to see their attendance.</p>
           )}
         </Tabs.Content>
-        <Tabs.Content value="leave" className="outline-none"><RecentLeave leaves={leaves} /></Tabs.Content>
-        <Tabs.Content value="timeline" className="outline-none"><Timeline record={record} /></Tabs.Content>
+        <Tabs.Content value="leave" className="space-y-5 outline-none">
+          <LeaveBalanceCard employeeId={employeeId} title="Leave balance" className="" />
+          <RecentLeave leaves={leaves} />
+        </Tabs.Content>
+        <Tabs.Content value="timeline" className="outline-none"><Timeline employeeId={employeeId} /></Tabs.Content>
+        {showSalary && (
+          <Tabs.Content value="salary" className="outline-none">
+            <Card title="Salary" icon={Wallet}>
+              <div className="mt-4">
+                <MySalary employeeId={employeeId} name={name} canRevise={access.canAtLeast("salary", "update", "team")} />
+              </div>
+            </Card>
+          </Tabs.Content>
+        )}
       </Tabs.Root>
+
+      {moving && <MoveEmployeeDialog person={{ id: employeeId, name }} onClose={() => setMoving(false)} />}
+
+      {promoting && (
+        <PromoteDialog
+          open
+          onClose={() => setPromoting(false)}
+          person={{ id: employeeId, name, designation }}
+          canReviseSalary={access.canAtLeast("salary", "update", "team")}
+        />
+      )}
 
       {editing && (
         <EmployeeDetails

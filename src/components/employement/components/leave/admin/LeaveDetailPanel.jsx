@@ -4,6 +4,7 @@ import { Check, FileText, Loader2, X } from "lucide-react";
 import { getLeaveDocuments } from "../../../api/leaves.api";
 import { clean, employeeDisplayName, employeeFor, formatDate, statusOf } from "./leaveAdminUtils";
 import LeaveDetails from "../LeaveDetails";
+import LeaveBalanceCard from "../LeaveBalanceCard";
 
 function LeaveDocuments({ leaveId }) {
   const documents = useQuery({ queryKey: ["leaves", "documents", leaveId], queryFn: () => getLeaveDocuments(leaveId), enabled: Boolean(leaveId) });
@@ -36,6 +37,7 @@ export default function LeaveDetailPanel({ record, employeeMap, mutation, onClos
         <div className="custom-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
           <LeaveDetails record={record} />
           <p className="text-xs text-muted-foreground">Applied {formatDate(record.date_entered)}</p>
+          {employee?.id && <LeaveBalanceCard employeeId={employee.id} title="Leave balance" className="" />}
           <section><p className="mb-2 text-xs font-semibold text-muted-foreground">Attachments</p><LeaveDocuments leaveId={record.id} /></section>
         </div>
         {statusOf(record) === "Applied" && <footer className="flex shrink-0 gap-3 border-t border-border bg-background p-5"><button type="button" disabled={pending} onClick={() => decide("Rejected")} className="flex-1 rounded-xl border border-destructive/25 px-4 py-3 text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:opacity-50">Reject</button><button type="button" disabled={pending} onClick={() => decide("Accepted")} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-50">{pending ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}Approve</button></footer>}
