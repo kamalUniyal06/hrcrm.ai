@@ -48,6 +48,7 @@ import LimitManagementPage from "./components/pages/LimitManagementPage";
 import OffboardingPage from "./components/employement/pages/OffboardingPage";
 import SystemAlertsPage from "./components/employement/pages/SystemAlertsPage";
 import QuotationsPage from "./components/pages/quotations/QuotationsPage";
+import HolidaysPage from "./components/pages/holidays/HolidaysPage";
 import IncrementRequestPage from "./components/employement/pages/IncrementRequestPage";
 import IncrementManagementPage from "./components/employement/pages/IncrementManagementPage";
 import OrgChartPage from "./components/pages/org/OrgChartPage";
@@ -236,6 +237,11 @@ const router = createBrowserRouter([
         path: "quotations",
         element: <PageAccessGuard><QuotationsPage /></PageAccessGuard>,
         handle: { breadcrumb: "Quotation alerts" },
+      },
+      {
+        path: "holidays-management",
+        element: <PageAccessGuard><HolidaysPage /></PageAccessGuard>,
+        handle: { breadcrumb: "Public holidays" },
       },
       {
         path: "shortlisted",

@@ -10,8 +10,8 @@ export function isAdminPage(pathname = "") {
   } catch {
     // Malformed paths cannot resolve to a protected route.
   }
-  return /^\/(?:employees|candidates|limit-management|salaries|exit|offboarding|system-alerts|quotations|leave-approvals|increment-management|org)(?:\/|$)/i.test(path) ||
-    /^\/entity\/hrc_(?:employees|salaries|increment|increment_questions|increment_replies)(?:\/|$)/i.test(path);
+  return /^\/(?:employees|candidates|limit-management|salaries|exit|offboarding|system-alerts|quotations|holidays-management|leave-approvals|increment-management|org)(?:\/|$)/i.test(path) ||
+    /^\/entity\/hrc_(?:employees|salaries|increment|increment_questions|increment_replies|holidays)(?:\/|$)/i.test(path);
 }
 
 // Pages everyone can open, whose admin version is the management tool (candidates browse

@@ -15,6 +15,7 @@ import {
 } from "../../../utils/hrRecords";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { ActionDialog, fieldClass, primaryButton } from "../org/orgUi";
+import { MaskedAmount, SalaryRevealButton } from "../../ui/MaskedAmount";
 
 /** One amount input per salary component, grouped into earnings, deductions and employer cost. */
 export function SalaryFields({ idPrefix, values, onChange }) {
@@ -52,20 +53,23 @@ export function SalaryPreview({ values, currentGross }) {
   const totals = computeSalary(values);
   const change = revisionPercent(currentGross, totals.gross);
   return (
-    <div aria-live="polite" className="rounded-xl bg-muted px-3 py-3">
-      <dl className="grid grid-cols-3 gap-2">
-        {[["Gross / month", totals.gross], ["Net / month", totals.net], ["CTC / year", totals.ctc]].map(([name, value]) => (
-          <div key={name} className="min-w-0">
-            <dt className="text-[11px] text-muted-foreground">{name}</dt>
-            <dd className="truncate text-sm font-semibold tabular-nums text-foreground">{formatMoney(value)}</dd>
-          </div>
-        ))}
-      </dl>
-      {change !== null && (
-        <p className={cn("mt-2 text-xs font-medium", change < 0 ? "text-destructive" : "text-muted-foreground")}>
-          {change === 0 ? "Gross pay is unchanged" : `Gross pay ${change > 0 ? "goes up" : "goes down"} ${Math.abs(change)}% from ${formatMoney(currentGross)}`}
-        </p>
-      )}
+    <div aria-live="polite" className="flex items-start gap-2 rounded-xl bg-muted px-3 py-3">
+      <div className="min-w-0 flex-1">
+        <dl className="grid grid-cols-3 gap-2">
+          {[["Gross / month", totals.gross], ["Net / month", totals.net], ["CTC / year", totals.ctc]].map(([name, value]) => (
+            <div key={name} className="min-w-0">
+              <dt className="text-[11px] text-muted-foreground">{name}</dt>
+              <dd className="truncate text-sm font-semibold tabular-nums text-foreground"><MaskedAmount label={name}>{formatMoney(value)}</MaskedAmount></dd>
+            </div>
+          ))}
+        </dl>
+        {change !== null && (
+          <p className={cn("mt-2 text-xs font-medium", change < 0 ? "text-destructive" : "text-muted-foreground")}>
+            {change === 0 ? "Gross pay is unchanged" : <>Gross pay {change > 0 ? "goes up" : "goes down"} {Math.abs(change)}% from <MaskedAmount label="current gross">{formatMoney(currentGross)}</MaskedAmount></>}
+          </p>
+        )}
+      </div>
+      <SalaryRevealButton className="size-9" />
     </div>
   );
 }

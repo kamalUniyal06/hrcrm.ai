@@ -4,7 +4,8 @@ import { initialsOf, tint } from "./adminInsights";
 
 
 /** Card shell shared by the admin insight cards: tinted glow, icon chip, title and a "View all" link. */
-export default function InsightCard({ icon, color = "var(--primary)", title, subtitle, badge, onViewAll, viewAllLabel = "View all", className = "", children }) {
+// `actions` sits beside "View all" in the header, e.g. an icon button.
+export default function InsightCard({ icon, color = "var(--primary)", title, subtitle, badge, onViewAll, viewAllLabel = "View all", actions, className = "", children }) {
   return (
     <section className={`relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5 ${className}`}>
       <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full blur-3xl" style={{ backgroundColor: tint(color, 18) }} />
@@ -23,10 +24,15 @@ export default function InsightCard({ icon, color = "var(--primary)", title, sub
             {subtitle && <p className="mt-0.5 truncate text-xs text-muted-foreground">{subtitle}</p>}
           </div>
         </div>
-        {onViewAll && (
-          <button type="button" onClick={onViewAll} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {viewAllLabel} <ArrowUpRight size={13} aria-hidden="true" />
-          </button>
+        {(actions || onViewAll) && (
+          <div className="flex shrink-0 items-center gap-1">
+            {actions}
+            {onViewAll && (
+              <button type="button" onClick={onViewAll} className="inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                {viewAllLabel} <ArrowUpRight size={13} aria-hidden="true" />
+              </button>
+            )}
+          </div>
         )}
       </header>
       <div className="relative mt-4 flex min-h-0 flex-1 flex-col">{children}</div>

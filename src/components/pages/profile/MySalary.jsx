@@ -5,6 +5,7 @@ import { formatDate, formatMoney, normalizeSalary } from "../../../utils/hrRecor
 import { candidateStyles } from "../candidate/candidateStyles";
 import { EmptyState, QueryState } from "../org/orgUi";
 import { ReviseSalaryDialog } from "./SalaryForm";
+import { MaskedAmount, SalaryRevealButton } from "../../ui/MaskedAmount";
 import SampleDataNotice from "../salaries/SampleDataNotice";
 
 const label = (value) => String(value ?? "").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
@@ -17,12 +18,12 @@ function Lines({ title, lines, total, totalLabel }) {
         {lines.map((line) => (
           <div key={line.label} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
             <dt className="text-foreground/80">{line.label}</dt>
-            <dd className="tabular-nums text-foreground">{formatMoney(line.amount)}</dd>
+            <dd className="tabular-nums text-foreground"><MaskedAmount label={line.label}>{formatMoney(line.amount)}</MaskedAmount></dd>
           </div>
         ))}
         <div className="flex items-baseline justify-between gap-3 py-1.5 text-sm font-semibold">
           <dt>{totalLabel}</dt>
-          <dd className="tabular-nums">{formatMoney(total)}</dd>
+          <dd className="tabular-nums"><MaskedAmount label={totalLabel}>{formatMoney(total)}</MaskedAmount></dd>
         </div>
       </dl>
     </div>
@@ -42,11 +43,14 @@ export default function MySalary({ employeeId, name, canRevise = false }) {
 
   return (
     <QueryState query={query} rows={3}>
-      {revisable && (
-        <div className="mb-3 flex justify-end">
-          <button type="button" onClick={() => setRevising(true)} className={candidateStyles.ghost} data-tour="salary-revise">
-            <Pencil size={15} aria-hidden="true" /> {salary.hasStructure ? "Revise" : "Set salary"}
-          </button>
+      {(revisable || salary.hasStructure) && (
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+          {salary.hasStructure && <SalaryRevealButton />}
+          {revisable && (
+            <button type="button" onClick={() => setRevising(true)} className={candidateStyles.ghost} data-tour="salary-revise">
+              <Pencil size={15} aria-hidden="true" /> {salary.hasStructure ? "Revise" : "Set salary"}
+            </button>
+          )}
         </div>
       )}
       {salary.hasStructure ? (
@@ -56,7 +60,7 @@ export default function MySalary({ employeeId, name, canRevise = false }) {
             {[["Gross / month", salary.gross], ["Net / month", salary.net], ["CTC / year", salary.ctc]].map(([name, value]) => (
               <div key={name} className="rounded-xl bg-muted px-3 py-2.5">
                 <dt className="text-[11px] text-muted-foreground">{name}</dt>
-                <dd className="truncate text-base font-semibold tabular-nums text-foreground">{value ? formatMoney(value) : "—"}</dd>
+                <dd className="truncate text-base font-semibold tabular-nums text-foreground">{value ? <MaskedAmount label={name}>{formatMoney(value)}</MaskedAmount> : "—"}</dd>
               </div>
             ))}
           </dl>
@@ -78,7 +82,7 @@ export default function MySalary({ employeeId, name, canRevise = false }) {
                       <span className="text-muted-foreground"> · {formatDate(revision.date)}</span>
                     </span>
                     {(revision.ctc ?? revision.gross) !== undefined && (
-                      <span className="tabular-nums text-foreground">{formatMoney(revision.ctc ?? revision.gross)}{revision.ctc !== undefined ? " CTC / year" : " gross"}</span>
+                      <span className="tabular-nums text-foreground"><MaskedAmount label={revision.ctc !== undefined ? "CTC" : "gross pay"}>{formatMoney(revision.ctc ?? revision.gross)}</MaskedAmount>{revision.ctc !== undefined ? " CTC / year" : " gross"}</span>
                     )}
                   </li>
                 ))}
@@ -94,7 +98,7 @@ export default function MySalary({ employeeId, name, canRevise = false }) {
                   <li key={slip.id ?? index} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2 text-sm">
                     <span className="text-foreground">{slip.period || "Payslip"}</span>
                     <span className="flex items-baseline gap-3">
-                      <span className="tabular-nums text-foreground">{formatMoney(slip.net)}</span>
+                      <span className="tabular-nums text-foreground"><MaskedAmount label={`${slip.period || "payslip"} net pay`}>{formatMoney(slip.net)}</MaskedAmount></span>
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">{label(slip.status) || "Pending"}</span>
                     </span>
                   </li>

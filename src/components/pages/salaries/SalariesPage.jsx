@@ -8,6 +8,7 @@ import { amount, clean, difference, formatAmount, salaryName } from "./salaryUti
 import { pageGutter } from "../../employement/components/home/homeUi";
 import { MarkPaidDialog, RunPayrollDialog } from "./PayrollDialogs";
 import SampleDataNotice from "./SampleDataNotice";
+import { MaskedAmount, SalaryRevealButton } from "../../ui/MaskedAmount";
 
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50";
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -42,9 +43,10 @@ export default function SalariesPage() {
   const details = selected ? [
     ["Employee / record", salaryName(selected)], ["Record name", selected.name],
     ["Month", period(selected)], ["Payment status", selected.payment_status], ["Paid on", selected.paid_on],
-    ["Offered salary", formatAmount(selected.offered_salary)], ["Gross amount", formatAmount(selected.gross_amount)],
-    ["Deductions", formatAmount(selected.total_deductions)], ["Unpaid leave deduction", formatAmount(selected.unpaid_leave_deduction)],
-    ["Paid amount", formatAmount(selected.paid_amount)], ["Difference (offered − paid)", formatAmount(difference(selected))],
+    // A third `true` marks a salary amount, which stays masked until revealed.
+    ["Offered salary", formatAmount(selected.offered_salary), true], ["Gross amount", formatAmount(selected.gross_amount), true],
+    ["Deductions", formatAmount(selected.total_deductions), true], ["Unpaid leave deduction", formatAmount(selected.unpaid_leave_deduction), true],
+    ["Paid amount", formatAmount(selected.paid_amount), true], ["Difference (offered − paid)", formatAmount(difference(selected)), true],
     ["Total working days", selected.total_working_days], ["Leaves of month", selected.leaves_of_month],
     ["Account number", selected.account_number], ["Assigned to", selected.assigned_user_name],
     ["Created", selected.date_entered_uni_format || selected.date_entered], ["Created by", selected.created_by_name],
@@ -57,12 +59,15 @@ export default function SalariesPage() {
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-200">People workspace</p>
       <h1 className="mt-3 flex items-center gap-3 text-3xl font-semibold"><Wallet aria-hidden="true" />Salary management</h1>
       <p className="mt-3 text-sm text-slate-200">Review employee salaries, paid amounts and monthly attendance details.</p>
-      {canRunPayroll && <button type="button" onClick={() => setRunning(true)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-card px-4 text-sm font-semibold text-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" data-tour="run-payroll"><Calculator size={17} aria-hidden="true" />Run payroll</button>}
+      <div className="mt-5 flex flex-wrap items-center gap-2">
+        {canRunPayroll && <button type="button" onClick={() => setRunning(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-card px-4 text-sm font-semibold text-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" data-tour="run-payroll"><Calculator size={17} aria-hidden="true" />Run payroll</button>}
+        <SalaryRevealButton className="size-11" />
+      </div>
     </header>
     <SampleDataNotice />
     <div className="grid gap-4 sm:grid-cols-3">
       {[["Salary records", filtered.length.toLocaleString()], ["Total offered salary", total("offered_salary")], ["Total paid amount", total("paid_amount")]].map(([label, value]) =>
-        <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-slate-900">{query.isPending || (query.isError && !query.data) ? "—" : value}</p><p className="mt-2 text-xs text-slate-400">Current filtered records</p></div>)}
+        <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-slate-900">{query.isPending || (query.isError && !query.data) ? "—" : label === "Salary records" || value === "—" ? value : <MaskedAmount label={label}>{value}</MaskedAmount>}</p><p className="mt-2 text-xs text-slate-400">Current filtered records</p></div>)}
     </div>
     <section aria-label="Salary records" className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 p-5">
@@ -81,7 +86,7 @@ export default function SalariesPage() {
           <tbody className="divide-y divide-slate-100">{rows.map((record, index) => <tr key={record.id || index} className="hover:bg-indigo-50/50">
             <td className="px-5 py-4"><button onClick={() => setSelected(record)} className="text-left font-semibold text-slate-900 hover:text-indigo-600">{salaryName(record)}</button>{clean(record.name) && clean(record.name) !== salaryName(record) && <p className="mt-1 text-xs text-slate-500">{clean(record.name)}</p>}</td>
             <td className="px-5 py-4">{period(record) || "—"}</td>
-            {[record.offered_salary, record.paid_amount, difference(record)].map((value, index) => <td key={index} className="whitespace-nowrap px-5 py-4 tabular-nums">{formatAmount(value)}</td>)}
+            {[record.offered_salary, record.paid_amount, difference(record)].map((value, index) => <td key={index} className="whitespace-nowrap px-5 py-4 tabular-nums">{formatAmount(value) === "—" ? "—" : <MaskedAmount label={`${salaryName(record)} ${columns[index + 2].toLowerCase()}`}>{formatAmount(value)}</MaskedAmount>}</td>)}
             <td className="px-5 py-4">{clean(record.total_working_days) || "—"}</td><td className="px-5 py-4">{clean(record.leaves_of_month) || "—"}</td>
             <td className="px-5 py-4">{paymentStatus(record) ? <div className="flex flex-wrap items-center gap-2">
               <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${paymentStatus(record) === "paid" ? "bg-primary/10 text-primary" : "bg-muted text-foreground"}`}>{paymentStatus(record) === "paid" ? `Paid${clean(record.paid_on) ? ` ${clean(record.paid_on)}` : ""}` : "Pending"}</span>
@@ -103,8 +108,8 @@ export default function SalariesPage() {
         <Dialog.Title className="pr-10 text-xl font-semibold text-slate-900">Salary details</Dialog.Title>
         <Dialog.Description className="mt-2 text-sm text-slate-500">Salary, attendance and record information for the selected employee.</Dialog.Description>
         <Dialog.Close aria-label="Close salary details" className="absolute right-5 top-5 rounded-lg p-2 hover:bg-slate-100"><X size={18} /></Dialog.Close>
-        <SampleDataNotice className="mt-4" />
-        <dl className="mt-6 grid gap-5 sm:grid-cols-2">{details.map(([label, value]) => <div key={label}><dt className="text-xs font-medium text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{clean(value) || "—"}</dd></div>)}</dl>
+        <div className="mt-4 flex items-start gap-2"><SampleDataNotice className="min-w-0 flex-1" /><SalaryRevealButton /></div>
+        <dl className="mt-6 grid gap-5 sm:grid-cols-2">{details.map(([label, value, money]) => <div key={label}><dt className="text-xs font-medium text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{money && clean(value) && value !== "—" ? <MaskedAmount label={label}>{value}</MaskedAmount> : clean(value) || "—"}</dd></div>)}</dl>
       </Dialog.Content>
     </Dialog.Portal></Dialog.Root>
   </main>;

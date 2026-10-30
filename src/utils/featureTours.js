@@ -172,6 +172,18 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "holidays-management-2026-10",
+    path: /^\/holidays-management\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "holiday-add",
+        title: "New: manage public holidays",
+        body: "Add, edit or delete the public holidays here. Changes show on everyone's leave and attendance calendars, and leave isn't counted on these days.",
+      },
+    ],
+  },
+  {
     id: "leave-codes-apply-2026-10",
     path: /^\/my-leaves\/?$/,
     audience: "staff",

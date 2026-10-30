@@ -13,7 +13,7 @@ test("only authenticated admins receive admin access", () => {
 });
 
 test("protects direct and generic module routes", () => {
-  for (const path of ["/employees", "/salaries/", "/EMPLOYEES", "/salaries?view=list", "/%65mployees", "/entity/hrc_employees/view", "/entity/hrc_salaries/create", "/entity/hrc_employees/person/edit", "/entity/hrc_salaries/list/table", "/org/chart", "/org/reporting", "/org/roles"]) {
+  for (const path of ["/employees", "/salaries/", "/EMPLOYEES", "/salaries?view=list", "/%65mployees", "/entity/hrc_employees/view", "/entity/hrc_salaries/create", "/entity/hrc_employees/person/edit", "/entity/hrc_salaries/list/table", "/org/chart", "/org/reporting", "/org/roles", "/holidays-management", "/entity/hrc_holidays/view"]) {
     assert.equal(isAdminPage(path), true, path);
   }
   for (const path of ["/", "/profile", "/attendance", "/interviews", "/interviews/", "/INTERVIEWS", "/interviews?view=list", "/interviews-other", "/entity/hrc_interviews/create", "/entity/hrc_interviews/list/table", "/entity/hrc_candidates/view", "/organisation", null]) {

@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { pageGutter } from "../components/home/homeUi";
+import { MaskedAmount, SalaryRevealButton } from "../../ui/MaskedAmount";
 import {
   fetchAdminQuestions, fetchAdminReplies, fetchAdminRequest, fetchAdminRequests, fetchAdminRequestsByEmail,
   saveAdminQuestion,
@@ -209,7 +210,7 @@ function RequestList({ questions, onSelect, onQuestions, initialCompletion = "al
                       </div>
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-5 py-4 tabular-nums">{salary === null ? <span className="text-xs text-muted-foreground">Not recorded</span> : <><span className="text-base font-semibold tracking-tight text-foreground">{money(salary)}</span><span className="ml-1.5 text-[11px] text-muted-foreground">/ year</span></>}</td>
+                  <td className="whitespace-nowrap px-5 py-4 tabular-nums">{salary === null ? <span className="text-xs text-muted-foreground">Not recorded</span> : <><span className="text-base font-semibold tracking-tight text-foreground"><MaskedAmount label={`${identity.name} requested salary`}>{money(salary)}</MaskedAmount></span><span className="ml-1.5 text-[11px] text-muted-foreground">/ year</span></>}</td>
                   <td className="whitespace-nowrap px-5 py-4"><ProgressMeter progress={progress} /></td>
                   <td className="whitespace-nowrap px-5 py-4 text-xs text-muted-foreground"><span className="inline-flex items-center gap-1.5"><CalendarDays size={14} className="text-muted-foreground/70" aria-hidden="true" />{dateText(record.date_entered)}</span></td>
                   <td className="py-4 pl-5 pr-6 text-right"><Button variant="ghost" className="h-10 rounded-lg px-3.5 text-primary hover:bg-primary/10" onClick={() => onSelect(record.id)} aria-label={`Review increment request for ${identity.name}`}>Review<ArrowRight size={14} aria-hidden="true" /></Button></td>
@@ -261,7 +262,7 @@ function RequestDetail({ id, questions, onBack }) {
           </div>
           <div className="flex min-w-60 items-center gap-4 rounded-2xl border border-primary/15 bg-primary/5 px-5 py-4">
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/25"><BadgeIndianRupee size={22} aria-hidden="true" /></span>
-            <div><p className="text-xs font-medium text-muted-foreground">Requested annual salary</p><p className={`mt-0.5 tabular-nums tracking-tight ${salary === null ? "text-sm text-muted-foreground" : "text-2xl font-semibold text-foreground"}`}>{money(salary)}</p></div>
+            <div><p className="text-xs font-medium text-muted-foreground">Requested annual salary</p><p className={`mt-0.5 tabular-nums tracking-tight ${salary === null ? "text-sm text-muted-foreground" : "text-2xl font-semibold text-foreground"}`}>{salary === null ? money(salary) : <MaskedAmount label="requested annual salary">{money(salary)}</MaskedAmount>}</p></div>
           </div>
         </div>
       </SectionCard>
@@ -295,7 +296,7 @@ function RequestDetail({ id, questions, onBack }) {
           <div className="border-b border-border px-5 py-4"><h3 className="text-sm font-semibold">Request details</h3></div>
           <dl className="divide-y divide-border">
             {[
-              { icon: BadgeIndianRupee, label: "Requested annual salary", value: money(salary), hint: "INR" },
+              { icon: BadgeIndianRupee, label: "Requested annual salary", value: salary === null ? money(salary) : <MaskedAmount label="requested annual salary">{money(salary)}</MaskedAmount>, hint: "INR" },
               { icon: CalendarDays, label: "Submitted", value: dateText(record.date_entered) },
               { icon: Clock3, label: "Last updated", value: dateText(record.date_modified) },
               { icon: ListChecks, label: "Questionnaire", value: repliesReady ? (progress.total ? `${progress.answered} of ${progress.total} answered` : "No questions") : "Loading…" },
@@ -399,7 +400,10 @@ export default function IncrementManagementPage() {
             <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">A clear view of employee requests, their expectations, and their contributions.</p>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur"><span className="size-1.5 rounded-full bg-(--employee-green)" aria-hidden="true" />Admin workspace</span>
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-xs backdrop-blur"><span className="size-1.5 rounded-full bg-(--employee-green)" aria-hidden="true" />Admin workspace</span>
+          <SalaryRevealButton />
+        </div>
       </div>
       <nav aria-label="Increment management views" className="relative mt-6 inline-flex rounded-xl border border-border bg-muted/60 p-1">
         {TABS.map(({ key, label, icon }) => {

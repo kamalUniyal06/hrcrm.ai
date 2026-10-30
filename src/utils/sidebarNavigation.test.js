@@ -14,6 +14,12 @@ test("the quotations menu opens the quotation alerts page", () => {
   }
 });
 
+test("the holidays menu opens the public holidays page", () => {
+  for (const item of [{ name: "Holidays Management" }, { name: "Public holidays" }, { name: "Holidays" }, { name: "Calendar", fetch_from: "hrc_holidays" }]) {
+    assert.equal(sidebarDestination(item), "/holidays-management", JSON.stringify(item));
+  }
+});
+
 test("menu labels say exit instead of offboarding and leave other names alone", () => {
   assert.equal(sidebarLabel({ name: "Offboarding" }), "Exit");
   assert.equal(sidebarLabel({ name: "Employee offboarding" }), "Employee exit");

@@ -1,6 +1,7 @@
 import { BadgeIndianRupee, ChevronRight, Inbox } from "lucide-react";
 import Skeleton from "react-loading-skeleton";
 import InsightCard, { InsightAvatar, InsightEmpty, InsightError, MiniMetric } from "./InsightCard";
+import { MaskedAmount, SalaryRevealButton } from "../../../ui/MaskedAmount";
 import { requestIdentity, requestedAnnualSalary } from "../../api/incrementAdminData";
 import { appliedDate } from "../../../pages/candidates/candidateView";
 
@@ -22,6 +23,7 @@ export default function IncrementRequestsCard({ overview, loading, error, onRetr
       subtitle="Compensation requests from employees"
       badge={blank ? null : overview?.awaiting ? `${overview.awaiting} open` : null}
       onViewAll={onViewAll}
+      actions={<SalaryRevealButton className="size-8 border-transparent bg-transparent" />}
     >
       <div className="grid grid-cols-3 gap-2">
         <MiniMetric label="Total" value={blank ? "—" : overview.total} color="var(--primary)" onClick={onViewAll} />
@@ -75,7 +77,7 @@ export default function IncrementRequestsCard({ overview, loading, error, onRetr
                       </span>
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className="block text-sm font-semibold tabular-nums text-foreground">{salary === null ? "—" : amountFormat.format(salary)}</span>
+                      <span className="block text-sm font-semibold tabular-nums text-foreground">{salary === null ? "—" : <MaskedAmount label={`${identity.name} requested salary`}>{amountFormat.format(salary)}</MaskedAmount>}</span>
                       <span className="block text-[10px] text-muted-foreground">requested / yr</span>
                     </span>
                     <ChevronRight size={14} className="shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" aria-hidden="true" />

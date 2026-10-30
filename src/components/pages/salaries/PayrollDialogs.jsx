@@ -8,6 +8,7 @@ import { dayKey, formatDate, formatMoney, normalizePayrollRun, previousMonth } f
 import { candidateStyles } from "../candidate/candidateStyles";
 import { ActionDialog, EmptyState, fieldClass, primaryButton } from "../org/orgUi";
 import SampleDataNotice from "./SampleDataNotice";
+import { MaskedAmount, SalaryRevealButton } from "../../ui/MaskedAmount";
 
 const monthLabel = (month) => formatDate(`${month}-01`, undefined, { month: "long", year: "numeric" }) || month;
 const days = (value) => (Number.isInteger(value) ? value : value.toFixed(1));
@@ -15,10 +16,10 @@ const days = (value) => (Number.isInteger(value) ? value : value.toFixed(1));
 function Totals({ run }) {
   const tiles = [
     ["People", run.totals.employees.toLocaleString()],
-    ["Gross", formatMoney(run.totals.gross)],
-    ["Deductions", formatMoney(run.totals.deductions)],
-    ["Unpaid leave", formatMoney(run.totals.unpaidLeave)],
-    ["Net to pay", formatMoney(run.totals.net)],
+    ["Gross", <MaskedAmount key="gross" label="total gross">{formatMoney(run.totals.gross)}</MaskedAmount>],
+    ["Deductions", <MaskedAmount key="deductions" label="total deductions">{formatMoney(run.totals.deductions)}</MaskedAmount>],
+    ["Unpaid leave", <MaskedAmount key="unpaid" label="total unpaid leave">{formatMoney(run.totals.unpaidLeave)}</MaskedAmount>],
+    ["Net to pay", <MaskedAmount key="net" label="net to pay">{formatMoney(run.totals.net)}</MaskedAmount>],
   ];
   return (
     <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -64,10 +65,10 @@ function Lines({ run }) {
               </th>
               <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{days(line.payableDays)} / {line.days}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{days(line.unpaidDays)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatMoney(line.gross)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatMoney(line.deductions)}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-foreground">{formatMoney(line.unpaidDeduction)}</td>
-              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-foreground">{formatMoney(line.net)}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-foreground"><MaskedAmount label={`${line.name} gross`}>{formatMoney(line.gross)}</MaskedAmount></td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-foreground"><MaskedAmount label={`${line.name} deductions`}>{formatMoney(line.deductions)}</MaskedAmount></td>
+              <td className="px-3 py-2.5 text-right tabular-nums text-foreground"><MaskedAmount label={`${line.name} unpaid leave`}>{formatMoney(line.unpaidDeduction)}</MaskedAmount></td>
+              <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-foreground"><MaskedAmount label={`${line.name} net`}>{formatMoney(line.net)}</MaskedAmount></td>
             </tr>
           ))}
         </tbody>
@@ -143,7 +144,10 @@ export function RunPayrollDialog({ open, onClose }) {
     >
       {result ? (
         <div className="space-y-4">
-          <SampleDataNotice />
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1"><SampleDataNotice /></div>
+            <SalaryRevealButton />
+          </div>
           <Totals run={result} />
           <Lines run={result} />
           {saved ? (
