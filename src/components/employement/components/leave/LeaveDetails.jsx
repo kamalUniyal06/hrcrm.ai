@@ -14,7 +14,7 @@ const STATUS = {
 const employeeName = (employee) =>
   clean(employee.name) || [employee.first_name, employee.last_name].map(clean).filter(Boolean).join(" ");
 
-function Row({ icon, label, children, muted = false }) {
+export function LeaveDetailRow({ icon, label, children, muted = false }) {
   return (
     <div className="flex gap-3 py-2.5">
       {createElement(icon, { size: 16, className: "mt-0.5 shrink-0 text-muted-foreground", "aria-hidden": true })}
@@ -29,8 +29,9 @@ function Row({ icon, label, children, muted = false }) {
 /**
  * Everything about one leave: dates, the employee's reason, and the decision
  * (who approved it, why, and who covers the work). Used by HR and by employees.
+ * `children` adds rows (LeaveDetailRow) after the employee's reason.
  */
-export default function LeaveDetails({ record, className }) {
+export default function LeaveDetails({ record, className, children }) {
   const employees = useEmployeesDirectory();
   const nameById = useMemo(
     () => new Map((employees.data || []).map((employee) => [clean(employee.id), employeeName(employee)])),
@@ -58,27 +59,28 @@ export default function LeaveDetails({ record, className }) {
       </div>
 
       <dl className="mt-2 divide-y divide-border">
-        <Row icon={CalendarDays} label="Dates">
+        <LeaveDetailRow icon={CalendarDays} label="Dates">
           {dates}{days && <span className="font-normal text-muted-foreground"> · {days} day{days === "1" ? "" : "s"}</span>}
-        </Row>
-        <Row icon={MessageSquareText} label="Employee's reason" muted={!clean(record.description)}>
+        </LeaveDetailRow>
+        <LeaveDetailRow icon={MessageSquareText} label="Employee's reason" muted={!clean(record.description)}>
           {clean(record.description) || "No reason given"}
-        </Row>
+        </LeaveDetailRow>
+        {children}
         {decided && (
-          <Row icon={UserCheck} label={accepted ? "Approved by" : "Decided by"} muted={!approval.approvedBy}>
+          <LeaveDetailRow icon={UserCheck} label={accepted ? "Approved by" : "Decided by"} muted={!approval.approvedBy}>
             {approval.approvedBy || pending(approval.approvedById)}
             {approval.decidedOn && <span className="font-normal text-muted-foreground"> · {formatDate(approval.decidedOn)}</span>}
-          </Row>
+          </LeaveDetailRow>
         )}
         {decided && (
-          <Row icon={MessageSquareText} label={accepted ? "Reason for approval" : "Admin's note"} muted={!approval.reason}>
+          <LeaveDetailRow icon={MessageSquareText} label={accepted ? "Reason for approval" : "Admin's note"} muted={!approval.reason}>
             {approval.reason || "No reason recorded"}
-          </Row>
+          </LeaveDetailRow>
         )}
         {(accepted || approval.handoverTo) && (
-          <Row icon={Handshake} label="Work handed over to" muted={!approval.handoverTo}>
+          <LeaveDetailRow icon={Handshake} label="Work handed over to" muted={!approval.handoverTo}>
             {approval.handoverTo || (approval.handoverId ? pending(approval.handoverId) : "No handover")}
-          </Row>
+          </LeaveDetailRow>
         )}
       </dl>
     </div>

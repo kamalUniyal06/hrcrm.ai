@@ -11,7 +11,7 @@ export function TopNav({ sidebarAvailable = true }) {
   return (
     <header
       data-tour="top-nav"
-      className="sticky top-0 z-[999] flex min-h-10 w-full min-w-0 items-center rounded-xl border border-transparent bg-transparent p-1"
+      className="sticky top-0 z-40 flex min-h-10 w-full min-w-0 items-center rounded-xl border border-transparent bg-transparent p-1"
     >
       {sidebarAvailable && (
         <button

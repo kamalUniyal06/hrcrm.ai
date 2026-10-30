@@ -34,6 +34,7 @@ import {
   tokenCode,
   tokenDates,
   tokenFitsDates,
+  tokenForLeave,
   toIsoWithOffset,
   unpaidExtraDays,
   weekRange,
@@ -359,6 +360,24 @@ test("reads leave tokens and who can give them", () => {
   assert.equal(approvers.expiryHours, 48);
   assert.deepEqual(approvers.approvers.map((person) => [person.id, person.relation]), [["m1", "Team lead"], ["m2", "Manager"]]);
   assert.equal(normalizeTokenApprovers({ settings: { required: false } }).required, false);
+});
+
+test("finds the code a leave was applied with", () => {
+  const tokens = [
+    { id: "t1", status: "used", token_code: "AAA111", employee_id: "e1", issued_by_id: "k1", issued_by_name: "Kamal Uniyal", issued_by_relation: "team_lead", remarks: "Covered by Anshika", leave_id: "l1" },
+    { id: "t2", status: "used", token_code: "BBB222", employee_id: "e1", issued_by_name: "Vikas", leave_from: "2026-11-10", leave_to: "2026-11-12" },
+    { id: "t3", status: "used", token_code: "CCC333", employee_id: "e2", kind_label: "Manager / team lead" },
+  ].map(normalizeLeaveToken);
+  assert.equal(tokens[0].issuedByRelation, "Team lead");
+  assert.equal(tokens[0].issuedById, "k1");
+  assert.equal(tokens[2].issuedByRelation, "Manager / team lead");
+  assert.equal(tokenForLeave(tokens, { id: "l1", employee_id: "e1" })?.id, "t1");
+  assert.equal(tokenForLeave(tokens, { id: "l9", employee_id: "e2", manager_token: "ccc-333" })?.id, "t3");
+  // Another employee's code never matches.
+  assert.equal(tokenForLeave(tokens, { id: "l9", employee_id: "e1", manager_token: "CCC333" }), null);
+  assert.equal(tokenForLeave(tokens, { id: "l8", employee_id: "e1", leave_from: "2026-11-10", leave_to: "2026-11-12" })?.id, "t2");
+  assert.equal(tokenForLeave(tokens, { id: "l8", employee_id: "e1", leave_from: "2026-11-10", leave_to: "2026-11-11" }), null);
+  assert.equal(tokenForLeave(null, { id: "l1" }), null);
 });
 
 test("a token fits the leave when it has no dates or the same dates", () => {

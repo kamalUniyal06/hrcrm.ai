@@ -270,6 +270,7 @@ export function readAttendanceStats(response) {
   const late = count("late_check_ins");
   return {
     all: count("employees_shown"),
+    checkedIn,
     notCheckedIn: count("not_checked_in"),
     // Half-day leave has its own card, so "On leave" counts full days only.
     leave: count("on_leave_full"),

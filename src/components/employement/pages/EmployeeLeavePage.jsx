@@ -1,6 +1,5 @@
 import ApplyLeaveForm from "../components/leave/ApplyLeaveForm";
 import LeaveOverview from "../components/leave/LeaveOverview";
-import LeaveBalanceCard from "../components/leave/LeaveBalanceCard";
 import { LeaveProvider, useLeave } from "../context/LeaveContext";
 import "../components/leave/LeaveManagement.css";
 import { pageGutter } from "../components/home/homeUi";
@@ -12,7 +11,6 @@ function EmployeeLeaveContent() {
   return (
     <div className="leave-page leave-page--flush">
       <div className={pageGutter}>
-        <LeaveBalanceCard />
         {view === "apply" ? <ApplyLeaveForm /> : <LeaveOverview />}
       </div>
     </div>

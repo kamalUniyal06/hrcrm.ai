@@ -2,6 +2,8 @@ import { useId, useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, Loader2, X } from "lucide-react";
+import { useEmployeeLeaveTokens } from "../../../../../queries/hr.queries";
+import { normalizeLeaveToken, recordsOf, tokenForLeave } from "../../../../../utils/hrRecords";
 import { employeeOptions } from "../../alerts/systemAlertUtils";
 import { clean, employeeDisplayName, employeeFor, formatDate } from "./leaveAdminUtils";
 
@@ -9,30 +11,35 @@ const SUGGESTIONS = ["Leave balance is available", "Work handover is arranged", 
 const MAX_LENGTH = 500;
 const fieldClass = "mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60";
 const errorText = "mt-1 text-xs font-medium text-destructive";
+const readOnlyClass = "mt-1.5 truncate rounded-xl border border-border bg-muted/60 px-3 py-2.5 text-sm font-medium text-foreground";
 
 /**
  * Approving a leave asks who approves it, who covers the work and why.
- * The approver defaults to the signed-in admin.
+ * The approver is always the signed-in admin, and the handover whoever gave the leave code.
  */
 export default function ApproveLeaveDialog({ record, employees = [], employeeMap, pending, error, onCancel, onConfirm }) {
-  const ids = { reason: useId(), approver: useId(), handover: useId() };
+  const reasonId = useId();
   const currentUserId = useSelector((state) => clean(state.user.userInfo?.id));
   const options = useMemo(() => employeeOptions(employees), [employees]);
+  const nameOf = (id) => options.find((option) => option.id === id)?.name || "";
   const leaveEmployeeId = clean(record?.employee_id || record?.hrc_employees_hrc_leaves_1hrc_employees_ida);
-  const [approvedById, setApprovedById] = useState(() =>
-    clean(record?.approved_by_id) || (options.some((option) => option.id === currentUserId) ? currentUserId : ""));
-  const [handoverToId, setHandoverToId] = useState(() => clean(record?.work_handed_over_to_id));
+  const approvedById = options.some((option) => option.id === currentUserId) ? currentUserId : "";
   const [reason, setReason] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const trimmed = reason.trim();
   const name = record ? employeeDisplayName(record, employeeFor(record, employeeMap)) : "";
   const dates = record ? `${formatDate(record.leave_from)}${record.leave_to && record.leave_to !== record.leave_from ? ` – ${formatDate(record.leave_to)}` : ""}` : "";
-  const handoverOptions = options.filter((option) => option.id !== leaveEmployeeId);
+  const tokens = useEmployeeLeaveTokens(leaveEmployeeId, { enabled: Boolean(record) });
+  const codeToken = useMemo(() => tokenForLeave(recordsOf(tokens.data, ["tokens"]).map(normalizeLeaveToken), record), [tokens.data, record]);
+  // The person who gave the leave code covers the work (never the employee on leave).
+  const handoverToId = codeToken?.issuedById && codeToken.issuedById !== leaveEmployeeId ? codeToken.issuedById : "";
+  const handoverName = handoverToId ? nameOf(handoverToId) || codeToken.issuedByName : "";
+  const loadingCode = tokens.isPending && tokens.fetchStatus !== "idle";
 
   const submit = (event) => {
     event.preventDefault();
     setSubmitted(true);
-    if (trimmed && approvedById) onConfirm({ reason: trimmed, approvedById, handoverToId });
+    if (trimmed && approvedById && !loadingCode) onConfirm({ reason: trimmed, approvedById, handoverToId });
   };
 
   return (
@@ -63,32 +70,27 @@ export default function ApproveLeaveDialog({ record, employees = [], employeeMap
                 </dl>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <dl className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label htmlFor={ids.approver} className="text-sm font-semibold text-foreground">Approved by</label>
-                  <select id={ids.approver} value={approvedById} onChange={(event) => setApprovedById(event.target.value)} aria-invalid={submitted && !approvedById} className={fieldClass}>
-                    <option value="">Choose an approver</option>
-                    {options.map((option) => (
-                      <option key={option.id} value={option.id}>{option.name}{option.id === currentUserId ? " (you)" : ""}</option>
-                    ))}
-                  </select>
-                  {submitted && !approvedById && <p className={errorText}>Choose who is approving.</p>}
+                  <dt className="text-sm font-semibold text-foreground">Approved by</dt>
+                  <dd className={readOnlyClass}>
+                    {approvedById ? `${nameOf(approvedById)} (you)` : <span className="text-muted-foreground">Not available</span>}
+                  </dd>
+                  {!approvedById && options.length > 0 && <p className={errorText}>Your account isn&apos;t linked to an employee, so this approval can&apos;t be recorded.</p>}
                 </div>
                 <div>
-                  <label htmlFor={ids.handover} className="text-sm font-semibold text-foreground">
-                    Work handed over to <span className="font-normal text-muted-foreground">(optional)</span>
-                  </label>
-                  <select id={ids.handover} value={handoverToId} onChange={(event) => setHandoverToId(event.target.value)} className={fieldClass}>
-                    <option value="">No handover</option>
-                    {handoverOptions.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
-                  </select>
+                  <dt className="text-sm font-semibold text-foreground">Work handed over to</dt>
+                  <dd className={readOnlyClass}>
+                    {loadingCode ? <span className="text-muted-foreground">Loading…</span> : handoverName || <span className="text-muted-foreground">No handover</span>}
+                  </dd>
+                  {!loadingCode && handoverName && <p className="mt-1 text-xs text-muted-foreground">Gave the leave code for this request.</p>}
                 </div>
-              </div>
+              </dl>
 
               <div>
-                <label htmlFor={ids.reason} className="text-sm font-semibold text-foreground">Reason for approval</label>
+                <label htmlFor={reasonId} className="text-sm font-semibold text-foreground">Reason for approval</label>
                 <textarea
-                  id={ids.reason}
+                  id={reasonId}
                   value={reason}
                   onChange={(event) => setReason(event.target.value.slice(0, MAX_LENGTH))}
                   rows={3}
@@ -116,7 +118,7 @@ export default function ApproveLeaveDialog({ record, employees = [], employeeMap
               <Dialog.Close type="button" disabled={pending} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50">
                 Cancel
               </Dialog.Close>
-              <button type="submit" disabled={pending} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60">
+              <button type="submit" disabled={pending || loadingCode || !approvedById} className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-60">
                 {pending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Check size={16} aria-hidden="true" />}
                 Approve leave
               </button>

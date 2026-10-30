@@ -137,8 +137,12 @@ export const issueLeaveToken = ({ requestId, employeeId, leaveFrom, leaveTo, rem
   hrApi("leave_token_issue", { ...(requestId ? { request_id: requestId } : { employee_id: employeeId }), ...leaveDates(leaveFrom, leaveTo), remarks });
 export const rejectLeaveToken = ({ requestId, remarks }) => hrApi("leave_token_reject", { request_id: requestId, remarks });
 export const revokeLeaveToken = (id) => hrApi("leave_token_revoke", { id });
-/** `view` mine (my codes and requests) or to_issue (requests I can answer and codes I gave). */
-export const fetchLeaveTokens = ({ view = "mine", status } = {}) => hrApi("leave_tokens", { view, ...(status ? { status } : {}) });
+/**
+ * `view` mine (my codes and requests), to_issue (requests I can answer and codes I gave) or all
+ * (every code, in `tokens`, for admins). `employeeId` narrows to one employee's codes.
+ */
+export const fetchLeaveTokens = ({ view = "mine", status, employeeId } = {}) =>
+  hrApi("leave_tokens", { view, ...(status ? { status } : {}), ...forEmployee(employeeId) });
 /** Checks a code for the caller's leave dates without using it up. */
 export const verifyLeaveToken = ({ code, leaveFrom, leaveTo }) => hrApi("leave_token_verify", { manager_token: code, ...leaveDates(leaveFrom, leaveTo) });
 
