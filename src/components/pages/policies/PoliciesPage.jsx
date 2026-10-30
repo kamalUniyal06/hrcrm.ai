@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import DOMPurify from "dompurify";
 import toast from "react-hot-toast";
-import { BookOpenCheck, FileText, Library, Loader2, Pencil, Plus, Search } from "lucide-react";
+import { BookOpenCheck, FileText, FlaskConical, Library, Loader2, Pencil, Plus, Search } from "lucide-react";
 import { selectIsAdmin } from "../../../utils/pageAccess";
 import { pageGutter } from "../../employement/components/home/homeUi";
 import { formatDate } from "../../employement/components/leave/admin/leaveAdminUtils";
@@ -130,6 +130,15 @@ export default function PoliciesPage() {
           </div>
         )}
       </header>
+
+      {!isAdmin && (
+        <div role="note" className="flex items-start gap-3 rounded-2xl border border-[var(--employee-orange)]/30 bg-[var(--employee-break-soft)] px-4 py-3 text-[var(--employee-break-foreground)]">
+          <FlaskConical size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <p className="text-sm">
+            <span className="font-semibold">For testing only.</span> These policies are sample content for trying out this page. They are not the company&apos;s real policies and do not apply to you.
+          </p>
+        </div>
+      )}
 
       {policies.isPending ? (
         <p role="status" className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-card p-16 text-sm text-muted-foreground"><Loader2 size={18} className="animate-spin" />Loading policies…</p>

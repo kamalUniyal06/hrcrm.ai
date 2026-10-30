@@ -201,6 +201,18 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "quotation-alerts-home-2026-10",
+    path: /^\/$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "quotation-alerts",
+        title: "New: Quotation alerts",
+        body: "Costs for work done around the office, like electrical or plumbing jobs, now show here until they are paid. Open one to see its invoice.",
+      },
+    ],
+  },
+  {
     id: "org-arrange-2026-10",
     path: /^\/org\/chart\/?$/,
     audience: "admin",
@@ -209,6 +221,17 @@ export const FEATURE_TOURS = [
         target: "org-arrange",
         title: "New: arrange the organisation",
         body: "Switch to Arrange to drag people between teams and departments, drag a team to another department, pick team leads and department heads, and create or rename teams and departments.",
+      },
+    ],
+  },
+  {
+    id: "general-alerts-home-2026-10",
+    path: /^\/$/,
+    audience: "admin",
+    steps: [
+      {
+        title: "New: alerts for things that need you today",
+        body: "Your home page now flags employees who haven't checked in by 11:00 AM and aren't on leave, leave requests waiting two or more days, and quotations unpaid for over a week. Hide one with ✕ and it stays hidden until tomorrow.",
       },
     ],
   },
@@ -286,6 +309,32 @@ export const FEATURE_TOURS = [
         target: "employee-tabs",
         title: "The timeline is now real",
         body: "The Timeline tab shows what actually happened: joining, promotions, team and manager changes and salary revisions. You can add awards, training or notes. The Leave tab now shows the leave balance too.",
+      },
+    ],
+  },
+  {
+    id: "quotations-2026-10",
+    path: /^\/quotations\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "quotation-new",
+        title: "Record a quotation",
+        body: "Add the work, the worker's name, contact and agency, the amount and whether it has been paid. An invoice is generated as soon as you save.",
+      },
+      {
+        target: "quotation-period",
+        title: "Pick a period",
+        body: "Look at one month, the last three months, this year or any dates you choose. The totals and the list follow the period.",
+      },
+      {
+        target: "quotation-totals",
+        title: "Know what is outstanding",
+        body: "See the total billed, what has been paid and what is still due. To add a payment, edit the quotation and mark it paid. Open any quotation to print or save its invoice as a PDF.",
+      },
+      {
+        title: "Acknowledge each other's quotations",
+        body: "When another admin raises a quotation, it shows on your home page until you acknowledge it. The Acknowledged by column shows which admins have seen each one.",
       },
     ],
   },

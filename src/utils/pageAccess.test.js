@@ -53,6 +53,13 @@ test("system alerts route and module navigation are admin only", () => {
   assert.equal(filterAdminNavigation(groups, true), groups);
 });
 
+test("quotation alerts are admin only", () => {
+  assert.equal(isAdminPage("/quotations?quotation=q-1"), true);
+  const groups = [{ data: [{ name: "Quotation alerts" }, { module_name: "hrc_quotations" }] }];
+  assert.deepEqual(filterAdminNavigation(groups, false), []);
+  assert.equal(filterAdminNavigation(groups, true), groups);
+});
+
 test("increment management and its three modules are admin only while employee requests remain available", () => {
   assert.equal(isAdminPage("/increment-management"), true);
   assert.equal(isAdminPage("/increment-request"), false);
