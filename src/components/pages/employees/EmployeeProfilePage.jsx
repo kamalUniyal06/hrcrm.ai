@@ -9,7 +9,6 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
-  ExternalLink,
   Clock3,
   Hourglass,
   Linkedin,
@@ -39,7 +38,6 @@ import CareerTimeline from "../profile/CareerTimeline";
 import MySalary from "../profile/MySalary";
 import PromoteDialog from "../team/PromoteDialog";
 import MoveEmployeeDialog from "../org/MoveEmployeeDialog";
-import { HR_CONSOLE_URL } from "../../../services/crmUrl";
 
 const clean = (value) => String(value ?? "").trim();
 const linkButton =
@@ -220,13 +218,7 @@ export default function EmployeeProfilePage() {
               <button type="button" onClick={() => setPromoting(true)} className={linkButton}><TrendingUp size={14} />Promote</button>
             )}
             {access.isAdmin && (
-              <>
-                <button type="button" onClick={() => setMoving(true)} className={linkButton} data-tour="employee-move"><ArrowRightLeft size={14} />Change place</button>
-                {/* Access grants and blocks can only be changed in the console (Employee tab). */}
-                <a href={HR_CONSOLE_URL} target="_blank" rel="noopener noreferrer" title="Opens the HR console. Then choose Employee." className={linkButton}>
-                  <ExternalLink size={14} />Access rules<span className="sr-only"> (opens the HR console in a new tab; choose Employee there)</span>
-                </a>
-              </>
+              <button type="button" onClick={() => setMoving(true)} className={linkButton} data-tour="employee-move"><ArrowRightLeft size={14} />Change place</button>
             )}
             <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Pencil size={14} />Edit profile</button>
           </div>

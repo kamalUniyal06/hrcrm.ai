@@ -106,7 +106,7 @@ test("reads overview totals and derives on-time check-ins", () => {
   const stats = Object.fromEntries(Object.entries({
     employees_shown: 48, checked_in: 42, late_check_ins: "2", not_checked_in: 5, on_leave_full: 1, on_leave_half: 3,
   }).map(([key, count]) => [key, { count }]));
-  assert.deepEqual(readAttendanceStats({ success: true, stats }), { all: 48, notCheckedIn: 5, leave: 1, late: 2, onTime: 40 });
+  assert.deepEqual(readAttendanceStats({ success: true, stats }), { all: 48, checkedIn: 42, notCheckedIn: 5, leave: 1, late: 2, onTime: 40 });
   assert.throws(() => readAttendanceStats({ success: true, stats: { ...stats, checked_in: { error: "Module 'x' not found" } } }), /not found/);
   assert.throws(() => readAttendanceStats({ success: false, message: "Denied" }), /Denied/);
 });

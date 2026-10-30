@@ -12,6 +12,7 @@ import {
   Loader2,
   RefreshCw,
   Search,
+  UserCheck,
   Users,
   X,
 } from "lucide-react";
@@ -229,6 +230,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
   const targetProgress = effectiveMinutes === null ? 0 : Math.min(Math.round((effectiveMinutes / 540) * 100), 100);
   const overviewItems = [
     ["All employees", attendanceStats.data?.all, Users, "text-slate-700 bg-slate-100", "all"],
+    ["Checked in", attendanceStats.data?.checkedIn, UserCheck, "text-emerald-700 bg-emerald-50", "checkedIn"],
     ["Not checked in", attendanceStats.data?.notCheckedIn, Users, "text-orange-600 bg-orange-50", "missing"],
     ["On leave", attendanceStats.data?.leave, CalendarDays, "text-indigo-600 bg-indigo-50", "leave"],
     ["Half-day leave", halfDayCount, CalendarClock, "text-sky-600 bg-sky-50", "halfDay"],
@@ -293,7 +295,7 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
 
       <section
         aria-label="Attendance overview"
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7"
       >
         {overviewItems.map((item) => {
           const [label, count, Icon, color, filter, cardTone = "border-slate-200"] = item;
@@ -333,10 +335,10 @@ export default function AdminAttendanceDashboard({ onViewMyAttendance }) {
         </p>
       )}
 
-      {overviewFilter === "onTime" && (
+      {(overviewFilter === "onTime" || overviewFilter === "checkedIn") && (
         <div className="flex items-center gap-2 text-sm text-slate-600">
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-medium text-emerald-800">
-            Showing on-time check-ins
+            {overviewFilter === "onTime" ? "Showing on-time check-ins" : "Showing everyone who checked in"}
           </span>
           <button type="button" onClick={() => setOverviewFilter("all")} className="font-medium text-indigo-600 hover:underline">
             Clear

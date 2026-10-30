@@ -7,6 +7,7 @@ import { fetchAllRecords } from "../candidates/candidatesApi";
 import { amount, clean, difference, formatAmount, salaryName } from "./salaryUtils";
 import { pageGutter } from "../../employement/components/home/homeUi";
 import { MarkPaidDialog, RunPayrollDialog } from "./PayrollDialogs";
+import SampleDataNotice from "./SampleDataNotice";
 
 const button = "inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50";
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -58,6 +59,7 @@ export default function SalariesPage() {
       <p className="mt-3 text-sm text-slate-200">Review employee salaries, paid amounts and monthly attendance details.</p>
       {canRunPayroll && <button type="button" onClick={() => setRunning(true)} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-lg bg-card px-4 text-sm font-semibold text-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" data-tour="run-payroll"><Calculator size={17} aria-hidden="true" />Run payroll</button>}
     </header>
+    <SampleDataNotice />
     <div className="grid gap-4 sm:grid-cols-3">
       {[["Salary records", filtered.length.toLocaleString()], ["Total offered salary", total("offered_salary")], ["Total paid amount", total("paid_amount")]].map(([label, value]) =>
         <div key={label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-semibold text-slate-900">{query.isPending || (query.isError && !query.data) ? "—" : value}</p><p className="mt-2 text-xs text-slate-400">Current filtered records</p></div>)}
@@ -101,6 +103,7 @@ export default function SalariesPage() {
         <Dialog.Title className="pr-10 text-xl font-semibold text-slate-900">Salary details</Dialog.Title>
         <Dialog.Description className="mt-2 text-sm text-slate-500">Salary, attendance and record information for the selected employee.</Dialog.Description>
         <Dialog.Close aria-label="Close salary details" className="absolute right-5 top-5 rounded-lg p-2 hover:bg-slate-100"><X size={18} /></Dialog.Close>
+        <SampleDataNotice className="mt-4" />
         <dl className="mt-6 grid gap-5 sm:grid-cols-2">{details.map(([label, value]) => <div key={label}><dt className="text-xs font-medium text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm text-slate-900">{clean(value) || "—"}</dd></div>)}</dl>
       </Dialog.Content>
     </Dialog.Portal></Dialog.Root>

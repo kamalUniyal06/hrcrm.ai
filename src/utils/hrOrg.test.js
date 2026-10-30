@@ -18,6 +18,7 @@ import {
   pathToPerson,
   personName,
   personTitle,
+  teamsOfMe,
   placementOf,
   placeFromMe,
   roleCategory,
@@ -356,6 +357,17 @@ test("moves a person on the board the way assign will", () => {
   assert.deepEqual(out.unassigned.map((person) => person.id), ["u1", "a1"]);
   // A lead keeps leading their team.
   assert.equal(movePerson(board, kamal, "department:d2").departments[0].teams[0].lead.id, "k1");
+});
+
+test("lists the teams the user leads or is in, led teams first", () => {
+  const withWordpress = { tree: { ...tree.tree, teams_without_department: [...tree.tree.teams_without_department, { id: "t3", name: "Wordpress", lead: kamal, members: [{ id: "n1", name: "Niranjan" }] }] } };
+  const asKamal = teamsOfMe({ employee: { id: "k1", teams: [{ id: "t1", membership: "lead" }] } }, withWordpress);
+  assert.deepEqual(asKamal.map((item) => [item.name, item.department, item.role, item.size]), [["Frontend", "Engineering", "lead", 2], ["Wordpress", "", "lead", 2]]);
+  assert.deepEqual(asKamal[0].members.map((person) => person.id), ["g1"]);
+  const asGagan = teamsOfMe({ employee: { id: "g1" } }, withWordpress);
+  assert.deepEqual(asGagan.map((item) => [item.name, item.role, item.lead.name]), [["Frontend", "member", "Kamal"]]);
+  assert.deepEqual(teamsOfMe({ employee: { id: "u1" } }, withWordpress), []);
+  assert.deepEqual(teamsOfMe(null, null), []);
 });
 
 test("moves a team between departments", () => {

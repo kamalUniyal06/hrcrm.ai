@@ -1,10 +1,9 @@
 import { createElement } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import Skeleton from "react-loading-skeleton";
-import { BriefcaseBusiness, Building2, ExternalLink, Mail, RotateCw, Users, X } from "lucide-react";
+import { BriefcaseBusiness, Building2, Mail, RotateCw, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEmployee } from "../../../queries/hr.queries";
-import { HR_CONSOLE_URL } from "../../../services/crmUrl";
 import { initials, personName, personTitle, roleCategory } from "../../../utils/hrOrg";
 import { candidateStyles } from "../candidate/candidateStyles";
 
@@ -122,26 +121,6 @@ export function ActionDialog({ title, description, open, onClose, wide = false, 
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
-  );
-}
-
-/**
- * Opens the HR console in a new tab. It always starts on its Organisation tab, so `tab` names the
- * one to open there. Roles, permissions and access rules can only be changed in the console.
- */
-export function ConsoleLink({ tab, children, className }) {
-  return (
-    <a
-      href={HR_CONSOLE_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      title={tab ? `Opens the HR console. Then choose ${tab}.` : "Opens the HR console."}
-      className={cn("inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none", className)}
-    >
-      {children}
-      <ExternalLink size={14} aria-hidden="true" />
-      <span className="sr-only"> (opens the HR console in a new tab{tab ? `; choose ${tab} there` : ""})</span>
-    </a>
   );
 }
 

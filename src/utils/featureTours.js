@@ -7,6 +7,9 @@
 // - steps[].target: optional `data-tour` value of an element to spotlight.
 // - steps[].adminOnly: shown only to admins.
 
+// Off: no tour opens, and none is marked as seen, so each still shows once when this is turned back on.
+export const TOURS_ENABLED = false;
+
 export const FEATURE_TOURS = [
   {
     id: "policies-footer-2026-10",
@@ -150,9 +153,21 @@ export const FEATURE_TOURS = [
     audience: "staff",
     steps: [
       {
-        target: "team-tabs",
+        target: "team-people",
         title: "New: Pay and promotions",
-        body: "If your role includes salary access, the Pay tab shows your team's monthly pay and yearly cost. Open a person to see their salary, revise it, or promote them to a new designation, role or manager in one step.",
+        body: "If your role includes salary access, open a person to see their salary, revise it, or promote them to a new designation, role or manager in one step.",
+      },
+    ],
+  },
+  {
+    id: "team-groups-2026-10",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-people",
+        title: "New: your teams, one card each",
+        body: "Each team you lead or belong to has its own card with its name, department, team lead and members, plus a note saying whether you lead it or are a member.",
       },
     ],
   },
@@ -188,10 +203,6 @@ export const FEATURE_TOURS = [
       {
         title: "Change where people sit",
         body: "Select anyone on the org chart or in reporting lines, then Change place to set who they report to, their designation, team and department.",
-      },
-      {
-        title: "Roles and access live in the HR console",
-        body: "Roles, permissions and access rules are edited in the HR console. The buttons at the top open it in a new tab; it starts on Organisation, so pick the tab named on the button.",
       },
     ],
   },
@@ -237,8 +248,8 @@ export const FEATURE_TOURS = [
     steps: [
       {
         target: "employee-move",
-        title: "Change place and access rules",
-        body: "Change place moves this person to another manager, team or department without logging a promotion. Access rules opens the HR console, where you can give them extra access or block an area.",
+        title: "Change place",
+        body: "Change place moves this person to another manager, team or department without logging a promotion.",
       },
     ],
   },

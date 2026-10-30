@@ -8,7 +8,7 @@ import { useHrAccess } from "../../../hooks/useHrAccess";
 import { structureError } from "../../../utils/hrAccess";
 import { buildStructure, movePerson, moveTeamTo, personName, zoneTarget } from "../../../utils/hrOrg";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { ActionDialog, ConsoleLink, PersonAvatar, QueryState, fieldClass, primaryButton } from "./orgUi";
+import { ActionDialog, PersonAvatar, QueryState, fieldClass, primaryButton } from "./orgUi";
 import MoveEmployeeDialog from "./MoveEmployeeDialog";
 
 const byName = (a, b) => personName(a).localeCompare(personName(b));
@@ -282,8 +282,7 @@ export default function OrgStructureBoard() {
           <p role="note" className="flex items-start gap-2 rounded-xl border border-border bg-muted px-4 py-3 text-sm leading-6 text-foreground">
             <Lock size={16} className="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
             <span>
-              You can look, but not rearrange. Moving people and editing teams needs <span className="font-semibold">Everyone</span> update access on Employees in your role.{" "}
-              <ConsoleLink tab="Roles & permissions" className="mt-2 min-h-9">Open HR console</ConsoleLink>
+              You can look, but not rearrange. Moving people and editing teams needs <span className="font-semibold">Everyone</span> update access on Employees in your role.
             </span>
           </p>
         ) : (

@@ -271,6 +271,16 @@ export const useLeaveTokenApprovers = () =>
 export const useLeaveTokens = (view = "mine", { enabled = true } = {}) =>
   useQuery({ queryKey: hrKeys.leaveTokenView(view), queryFn: () => fetchLeaveTokens({ view }), enabled, refetchOnWindowFocus: true, retry });
 
+/** One employee's leave codes (`all` view, admins), to show who gave the code a leave was applied with. */
+export const useEmployeeLeaveTokens = (employeeId, { enabled = true } = {}) =>
+  useQuery({
+    queryKey: hrKeys.leaveTokenView(`employee:${employeeId}`),
+    queryFn: () => fetchLeaveTokens({ view: "all", employeeId }),
+    enabled: enabled && Boolean(employeeId),
+    staleTime: 60 * 1000,
+    retry,
+  });
+
 /** Checks `code` for the leave dates; runs once the code is complete. Nothing is used up. */
 export const useLeaveTokenCheck = ({ code, leaveFrom, leaveTo }, { enabled = true } = {}) =>
   useQuery({

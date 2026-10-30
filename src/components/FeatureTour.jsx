@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Sparkles, X } from "lucide-react";
 import { selectIsAdmin } from "../utils/pageAccess";
-import { readSeenTours, rememberTourSeen, tourForPage } from "../utils/featureTours";
+import { TOURS_ENABLED, readSeenTours, rememberTourSeen, tourForPage } from "../utils/featureTours";
 
 // Seen tours fall back to memory when the browser blocks storage.
 const memory = new Map();
@@ -59,7 +59,7 @@ export default function FeatureTour() {
   const titleId = useId();
 
   useEffect(() => {
-    if (!userId) return undefined;
+    if (!TOURS_ENABLED || !userId) return undefined;
     // Let the page render first, so the tour points at what is on screen.
     const timer = setTimeout(() => {
       const tour = tourForPage(pathname, { isAdmin, isCandidate }, readSeenTours(storage(), userId));

@@ -485,7 +485,11 @@ export function normalizeLeaveToken(row) {
     code: text(row?.token_code),
     employeeId: text(row?.employee_id),
     employeeName: text(row?.employee_name) || "Employee",
+    issuedById: text(row?.issued_by_id),
     issuedByName: text(row?.issued_by_name),
+    issuedByRelation: APPROVER_RELATIONS[text(row?.issued_by_relation ?? row?.relation)] || text(row?.kind_label),
+    // The leave the code was used for, once used.
+    leaveId: text(row?.leave_id ?? row?.used_leave_id ?? row?.hrc_leave_id),
     requestedFromId: text(row?.requested_from_id),
     requestedFromName: text(row?.requested_from_name),
     leaveFrom: text(row?.leave_from).slice(0, 10),
@@ -511,6 +515,27 @@ export function normalizeTokenApprovers(data) {
       relation: APPROVER_RELATIONS[text(person?.relation)] || "Manager",
     })).filter((person) => person.id),
   };
+}
+
+/**
+ * The code a leave was applied with, from normalized tokens: the one linked to the leave, else
+ * the one whose code the leave stores (`manager_token`), else a used code for the same employee
+ * fixed to the leave's dates. Null when none fits.
+ */
+export function tokenForLeave(tokens, leave) {
+  const rows = list(tokens);
+  const leaveId = text(leave?.id);
+  const code = tokenCode(leave?.manager_token);
+  const employeeId = text(leave?.employee_id || leave?.hrc_employees_hrc_leaves_1hrc_employees_ida);
+  const from = text(leave?.leave_from).slice(0, 10);
+  const to = text(leave?.leave_to).slice(0, 10) || from;
+  const sameEmployee = (token) => !employeeId || !token.employeeId || token.employeeId === employeeId;
+  return (
+    (leaveId && rows.find((token) => token.leaveId === leaveId)) ||
+    (code && rows.find((token) => token.code === code && sameEmployee(token))) ||
+    (employeeId && from && rows.find((token) => token.status === "used" && token.employeeId === employeeId && token.leaveFrom === from && (token.leaveTo || token.leaveFrom) === to)) ||
+    null
+  );
 }
 
 /** True when a token can be used for this leave: it has no fixed dates, or the same ones. */
