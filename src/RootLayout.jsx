@@ -20,7 +20,6 @@ import { resetPageScroll } from "./utils/resetPageScroll";
 import { hasAdminView, isAdminPage, selectIsAdmin } from "./utils/pageAccess";
 import AdminPageNotice from "./components/routing/AdminPageNotice";
 import FeatureTour from "./components/FeatureTour";
-import HalloweenDecor from "./components/halloween/HalloweenDecor";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -136,8 +135,6 @@ const RootLayout = () => {
           <FeatureTour />
         </div>
       </div>
-      {/* Shows in season, to the audience set by VITE_SHOW_HALLOWEEN_THEME. */}
-      <HalloweenDecor />
     </SystemAlertsProvider>
   );
 };

@@ -30,11 +30,6 @@ export const FEATURE_TOURS = [
         title: "New: Notifications",
         body: "Notices from HR and updates on your bookings arrive here. A red dot means something important is unread.",
       },
-      {
-        target: "my-place",
-        title: "Your employee details",
-        body: "See your team, department, branch, job role and who you report to, all in one place.",
-      },
     ],
   },
   {

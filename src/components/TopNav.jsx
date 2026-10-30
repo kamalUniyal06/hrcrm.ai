@@ -4,8 +4,6 @@ import { PageContext } from "../context/pageContext";
 import { WorldClock } from "./WorldClock";
 import AlertBell from "./employement/components/alerts/AlertBell";
 import NotificationBell from "./pages/notifications/NotificationBell";
-import HauntedOfficeButton from "./halloween/HauntedOfficeButton";
-import HalloweenToggle from "./halloween/HalloweenToggle";
 
 export function TopNav({ sidebarAvailable = true }) {
   const { mobileSidebarOpen, setMobileSidebarOpen } = useContext(PageContext);
@@ -29,8 +27,6 @@ export function TopNav({ sidebarAvailable = true }) {
       )}
       <div className="ml-auto flex items-center gap-2">
         <NotificationBell />
-        <HalloweenToggle />
-        <HauntedOfficeButton />
         <AlertBell />
         <WorldClock />
       </div>
