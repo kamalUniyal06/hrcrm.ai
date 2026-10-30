@@ -5,6 +5,7 @@ import { formatDate, formatMoney, normalizeSalary } from "../../../utils/hrRecor
 import { candidateStyles } from "../candidate/candidateStyles";
 import { EmptyState, QueryState } from "../org/orgUi";
 import { ReviseSalaryDialog } from "./SalaryForm";
+import SampleDataNotice from "../salaries/SampleDataNotice";
 
 const label = (value) => String(value ?? "").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
@@ -50,6 +51,7 @@ export default function MySalary({ employeeId, name, canRevise = false }) {
       )}
       {salary.hasStructure ? (
         <div className="space-y-5">
+          <SampleDataNotice />
           <dl className="grid grid-cols-3 gap-2">
             {[["Gross / month", salary.gross], ["Net / month", salary.net], ["CTC / year", salary.ctc]].map(([name, value]) => (
               <div key={name} className="rounded-xl bg-muted px-3 py-2.5">

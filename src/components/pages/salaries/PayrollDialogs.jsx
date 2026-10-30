@@ -7,6 +7,7 @@ import { personName } from "../../../utils/hrOrg";
 import { dayKey, formatDate, formatMoney, normalizePayrollRun, previousMonth } from "../../../utils/hrRecords";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { ActionDialog, EmptyState, fieldClass, primaryButton } from "../org/orgUi";
+import SampleDataNotice from "./SampleDataNotice";
 
 const monthLabel = (month) => formatDate(`${month}-01`, undefined, { month: "long", year: "numeric" }) || month;
 const days = (value) => (Number.isInteger(value) ? value : value.toFixed(1));
@@ -142,6 +143,7 @@ export function RunPayrollDialog({ open, onClose }) {
     >
       {result ? (
         <div className="space-y-4">
+          <SampleDataNotice />
           <Totals run={result} />
           <Lines run={result} />
           {saved ? (

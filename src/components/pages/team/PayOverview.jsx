@@ -5,6 +5,7 @@ import { SCOPE_LABELS } from "../../../utils/hrAccess";
 import { formatMoney, normalizePayrollOverview } from "../../../utils/hrRecords";
 import { candidateStyles } from "../candidate/candidateStyles";
 import { QueryState } from "../org/orgUi";
+import SampleDataNotice from "../salaries/SampleDataNotice";
 
 /** Headcount and current pay totals for everyone in the viewer's salary read scope. */
 export default function PayOverview({ tour = "team-pay", note }) {
@@ -19,6 +20,7 @@ export default function PayOverview({ tour = "team-pay", note }) {
   return (
     <QueryState query={query} rows={2}>
       <div className="space-y-3">
+        <SampleDataNotice />
         <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour={tour}>
           {tiles.map(([label, value]) => (
             <div key={label} className={cn(candidateStyles.card, "min-w-0 px-4 py-3")}>
