@@ -5,7 +5,7 @@ import { useAssignEmployee, useEmployee, useLookups } from "../../../queries/hr.
 import { structureError } from "../../../utils/hrAccess";
 import { assignChanges, personName, placementOf } from "../../../utils/hrOrg";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { ActionDialog, ConsoleLink, fieldClass, primaryButton } from "./orgUi";
+import { ActionDialog, fieldClass, primaryButton } from "./orgUi";
 
 const byName = (a, b) => String(a.name).localeCompare(String(b.name));
 
@@ -39,7 +39,7 @@ function MoveForm({ employee, onClose }) {
         onError: (error) =>
           setProblem({
             title: "Nothing was changed",
-            detail: error.code === 403 ? `${structureError(error)} Ask whoever manages roles to add it, or make this change in the HR console.` : error.message,
+            detail: error.code === 403 ? `${structureError(error)} Ask whoever manages roles to add it.` : error.message,
           }),
       },
     );
@@ -95,7 +95,6 @@ function MoveForm({ employee, onClose }) {
         <div role="alert" className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
           <p className="text-sm font-semibold text-foreground">{problem.title}</p>
           {problem.detail && <p className="text-sm leading-6 text-muted-foreground">{problem.detail}</p>}
-          <ConsoleLink tab="Organisation" className="min-h-10">Open HR console</ConsoleLink>
         </div>
       )}
 
@@ -109,7 +108,7 @@ function MoveForm({ employee, onClose }) {
 
 /**
  * Admins: change who someone reports to, their designation, team, department and job role with
- * `assign`. The role needs "Everyone" update access on Employees; otherwise it points to the HR console.
+ * `assign`. The role needs "Everyone" update access on Employees.
  */
 export default function MoveEmployeeDialog({ person, onClose }) {
   const id = person?.id ?? person?.employee_id;

@@ -4,6 +4,3 @@ export const CRM_BASE_URL = (import.meta.env?.VITE_CRM_URL || "https://flight.hr
 
 /** The CRM's index.php, which every entry point (smart_gateway, hrc, flexibility, ...) goes through. */
 export const CRM_ENDPOINT = `${CRM_BASE_URL}/index.php`;
-
-/** The HR org console (roles, permissions, access rules, structure). It needs a CRM admin login. */
-export const HR_CONSOLE_URL = `${CRM_ENDPOINT}?entryPoint=hrc_org_admin`;

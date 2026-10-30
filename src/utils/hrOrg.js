@@ -394,6 +394,25 @@ export function buildStructure(response) {
   };
 }
 
+/**
+ * The teams the user leads or is in, from `me.employee.teams` and `org_tree`: name, department,
+ * lead, the other members and the user's part in it (`role` "lead" or "member"). Led teams first.
+ */
+export function teamsOfMe(me, response) {
+  const selfId = personId(me?.employee);
+  const linked = new Map(list(me?.employee?.teams).map((row) => [text(row?.id), row?.membership]));
+  const structure = buildStructure(response);
+  const teams = [
+    ...structure.departments.flatMap((department) => department.teams.map((item) => ({ ...item, department: department.name }))),
+    ...structure.looseTeams.map((item) => ({ ...item, department: "" })),
+  ];
+  const leads = (item) => Boolean(selfId && item.lead?.id === selfId) || linked.get(item.id) === "lead";
+  return teams
+    .filter((item) => linked.has(item.id) || leads(item) || Boolean(selfId && item.members.some((person) => person.id === selfId)))
+    .map((item) => ({ ...item, role: leads(item) ? "lead" : "member", size: item.members.length + (item.lead ? 1 : 0) }))
+    .sort((a, b) => Number(b.role === "lead") - Number(a.role === "lead") || a.name.localeCompare(b.name));
+}
+
 /** Where a drop zone puts people: "team:<id>", "department:<id>" (no team) or "none". */
 export function zoneTarget(structure, zoneId) {
   const [kind, id = ""] = text(zoneId).split(":");

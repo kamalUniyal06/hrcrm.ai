@@ -6,7 +6,7 @@ import { buildRoleTree, placeFromMe, roleCategory } from "../../../utils/hrOrg";
 import { recordsOf } from "../../../utils/hrRecords";
 import { CandidatePageHeader } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { ConsoleLink, EmptyState, QueryState, RoleBadge } from "./orgUi";
+import { EmptyState, QueryState, RoleBadge } from "./orgUi";
 
 function RoleNode({ role, viewerRoleId }) {
   const isViewer = role.id === viewerRoleId;
@@ -50,9 +50,7 @@ export default function RoleLadderPage() {
         eyebrow="Organisation"
         title="Role ladder"
         description="Every access role from most to least senior. A higher level is more senior; moving to a higher level counts as a promotion."
-      >
-        <ConsoleLink tab="Roles & permissions">Edit roles and permissions</ConsoleLink>
-      </CandidatePageHeader>
+      />
       <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
         The ladder is for reference. What each person can open is set by their role's access, area by area.
       </p>

@@ -6,7 +6,7 @@ import { useOrgTree } from "../../../queries/hr.queries";
 import { allNodeIds, buildOrgTree, filterOrgTree, personName } from "../../../utils/hrOrg";
 import { CandidatePageHeader } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { EmptyState, PersonButton, ConsoleLink, PersonDrawer, QueryState, Segmented, primaryButton } from "./orgUi";
+import { EmptyState, PersonButton, PersonDrawer, QueryState, Segmented, primaryButton } from "./orgUi";
 import MoveEmployeeDialog from "./MoveEmployeeDialog";
 import OrgStructureBoard from "./OrgStructureBoard";
 
@@ -124,12 +124,7 @@ export default function OrgChartPage() {
       )}
 
       {arranging ? (
-        <>
-          <OrgStructureBoard />
-          <p className="text-xs text-muted-foreground">
-            Branches, and anything this board can't change, are edited in the HR console. <ConsoleLink tab="Organisation" className="ml-1 min-h-9">Open HR console</ConsoleLink>
-          </p>
-        </>
+        <OrgStructureBoard />
       ) : (
         <>
           <label className="relative block max-w-md">
