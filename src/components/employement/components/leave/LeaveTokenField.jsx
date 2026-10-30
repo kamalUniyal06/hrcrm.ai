@@ -103,7 +103,7 @@ export default function LeaveTokenField({ value, onChange, leaveFrom, leaveTo, l
           inputMode="text"
           aria-describedby="leave-code-status"
           aria-invalid={Boolean(result && !result.valid)}
-          className={cn(inputClassName, "pl-11 font-mono text-base tracking-[0.3em] uppercase")}
+          className={cn(inputClassName, "pl-11 font-mono text-base tracking-[0.3em] uppercase placeholder:font-sans placeholder:text-sm placeholder:tracking-normal placeholder:normal-case")}
         />
       </div>
 

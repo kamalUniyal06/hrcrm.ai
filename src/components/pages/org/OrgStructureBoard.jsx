@@ -29,7 +29,8 @@ const patchDepartment = (board, departmentId, patch) => ({
 
 function PersonChip({ person, zoneId, index, canEdit, onOpen }) {
   return (
-    <Draggable draggableId={`${zoneId}|${person.id}`} index={index} isDragDisabled={!canEdit}>
+    // The chip is a button (click opens Change place); the library won't drag from buttons unless told to.
+    <Draggable draggableId={`${zoneId}|${person.id}`} index={index} isDragDisabled={!canEdit} disableInteractiveElementBlocking>
       {(provided, snapshot) => (
         <li ref={provided.innerRef} {...provided.draggableProps}>
           <button
