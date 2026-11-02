@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Palmtree, Search, Wallet } from "lucide-react";
+import { CalendarDays, Info, Palmtree, Search, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLeavesBetween } from "../../employement/queries/leaves.queries";
 import { formatDate } from "../../employement/components/leave/admin/leaveAdminUtils";
 import { dateKey } from "../../employement/components/attendance/adminAttendanceUtils";
+import { SCOPE_LABELS, SCOPE_RANK } from "../../../utils/hrAccess";
 import { personName, personTitle } from "../../../utils/hrOrg";
 import { LEAVE_STATUS_LABELS, teamLeaves } from "../../../utils/teamLeaves";
 import { candidateStyles } from "../candidate/candidateStyles";
@@ -71,7 +72,7 @@ function LeaveRow({ row, onOpenPerson }) {
  * Leaves of the people on the user's team cards: upcoming (applied or approved) and the past year,
  * with a switch to everyone's leave balances.
  */
-export default function TeamLeavesPanel({ me, directReports, hasReports, balanceScopes, startOnBalances = false, onOpenPerson }) {
+export default function TeamLeavesPanel({ me, directReports, hasReports, leaveScope, balanceScopes, startOnBalances = false, onOpenPerson }) {
   const [showBalances, setShowBalances] = useState(startOnBalances);
   const [wantedScope, setWantedScope] = useState(null);
   const [view, setView] = useState("upcoming");
@@ -85,6 +86,10 @@ export default function TeamLeavesPanel({ me, directReports, hasReports, balance
   const waiting = lists.upcoming.filter((row) => row.status === "Applied").length;
   const query = { ...leaves, isPending: leaves.isPending || teams.query.isPending, isError: leaves.isError || teams.query.isError, error: leaves.error || teams.query.error, refetch: () => (leaves.isError ? leaves.refetch() : teams.query.refetch()) };
   const scope = pick(wantedScope, balanceScopes);
+  // Leaves come back only for people inside the role's leave read scope. Below "My reportees" that
+  // leaves out the people under a manager who aren't in a team with them, so say so instead of
+  // letting an empty list read as "nobody is on leave".
+  const hidden = SCOPE_RANK[leaveScope] < SCOPE_RANK.reports && teams.teams.some((team) => team.role === "under" || team.role === "unplaced");
 
   const toggle = (
     <button type="button" onClick={() => setShowBalances((value) => !value)} className={cn(candidateStyles.ghost, "min-h-11")}>
@@ -129,6 +134,15 @@ export default function TeamLeavesPanel({ me, directReports, hasReports, balance
         </label>
         <div className="sm:ml-auto">{toggle}</div>
       </div>
+
+      {hidden && (
+        <p role="note" className={cn(candidateStyles.card, "flex items-start gap-3 px-4 py-3 text-sm text-muted-foreground")}>
+          <Info size={18} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+          <span>
+            Your access role reads leave for &quot;{SCOPE_LABELS[leaveScope]}&quot; only, so leave of people under you who aren&apos;t in a team with you isn&apos;t listed. HR can change your role&apos;s Leaves access to &quot;{SCOPE_LABELS.reports}&quot;.
+          </span>
+        </p>
+      )}
 
       <QueryState query={query} rows={5}>
         {view === "upcoming" && waiting > 0 && (

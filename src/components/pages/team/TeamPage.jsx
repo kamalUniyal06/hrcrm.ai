@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useHrAccess } from "../../../hooks/useHrAccess";
-import { scopeOptions } from "../../../utils/hrAccess";
+import { scopeOf, scopeOptions } from "../../../utils/hrAccess";
 import { personId, personName, personTitle } from "../../../utils/hrOrg";
 import { recordsOf } from "../../../utils/hrRecords";
 import { CandidatePageHeader } from "../candidate/candidateUi";
@@ -197,7 +197,7 @@ export default function TeamPage() {
 
       <section role="tabpanel" id={`team-panel-${tab}`} aria-labelledby={tabs.length > 1 ? `team-tab-${tab}` : undefined}>
         {tab === "leaves" ? (
-          <TeamLeavesPanel me={access.me.data} directReports={directReports} hasReports={hasReports} balanceScopes={balanceScopes} startOnBalances={params.get("tab") === "balances"} onOpenPerson={setPerson} />
+          <TeamLeavesPanel me={access.me.data} directReports={directReports} hasReports={hasReports} leaveScope={scopeOf(capabilities, "leaves", "read")} balanceScopes={balanceScopes} startOnBalances={params.get("tab") === "balances"} onOpenPerson={setPerson} />
         ) : tab === "codes" ? (
           <LeaveCodesPanel />
         ) : (
