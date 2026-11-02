@@ -172,6 +172,18 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "team-leaves-2026-11",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-tabs",
+        title: "New: your teams' leave",
+        body: "The Leaves tab lists upcoming leave your teams have applied for or had approved, and their leave over the past year. Use Show balances to see how much leave each person has left.",
+      },
+    ],
+  },
+  {
     id: "team-today-2026-11",
     path: /^\/team\/?$/,
     audience: "staff",

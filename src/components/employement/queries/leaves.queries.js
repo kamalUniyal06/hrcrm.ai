@@ -9,6 +9,7 @@ import {
     getLeavesHistory,
     getPublicHolidays,
     getEmployeeLeaves,
+    getAllLeaves,
 } from "../api/leaves.api";
 import toast from "react-hot-toast";
 import { queryClient } from "@/lib/queryClient";
@@ -44,6 +45,23 @@ export const useEmployeeLeaves = ({ employeeId, email }) => useQuery({
     staleTime: 5 * 60 * 1000,
 });
 
+
+// Leaves in the caller's leave read scope that end between `from` and `to` (YYYY-MM-DD), plus
+// those starting in that range saved without an end date. The gateway filters on one date field
+// per request, so this takes two.
+export const useLeavesBetween = ({ from, to, enabled = true }) => useQuery({
+    queryKey: ["leaves", "between", from, to],
+    queryFn: async () => {
+        const range = { from: `${from} 00:00:00`, to: `${to} 23:59:59` };
+        const [ending, starting] = await Promise.all([
+            getAllLeaves({ ...range, dateField: "leave_to" }),
+            getAllLeaves({ ...range, dateField: "leave_from" }),
+        ]);
+        return [...ending.records, ...starting.records];
+    },
+    enabled: Boolean(enabled && from && to),
+    staleTime: 60 * 1000,
+});
 
 export const useApplyForLeave = () =>
     useMutation({

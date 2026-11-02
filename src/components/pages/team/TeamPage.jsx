@@ -2,53 +2,37 @@ import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useOrgTree, useReportingTree } from "../../../queries/hr.queries";
 import { useHrAccess } from "../../../hooks/useHrAccess";
 import { scopeOptions } from "../../../utils/hrAccess";
-import { buildReportingTree, peopleUnder, personId, personName, personTitle, teamsUnderMe } from "../../../utils/hrOrg";
+import { personId, personName, personTitle } from "../../../utils/hrOrg";
 import { recordsOf } from "../../../utils/hrRecords";
 import { CandidatePageHeader } from "../candidate/candidateUi";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { EmptyState, PersonButton, QueryState, Segmented } from "../org/orgUi";
+import { EmptyState, PersonButton, QueryState } from "../org/orgUi";
 import LeaveCodesPanel from "./LeaveCodesPanel";
-import TeamBalancesTable from "./TeamBalancesTable";
+import TeamLeavesPanel from "./TeamLeavesPanel";
 import TeamMemberDrawer from "./TeamMemberDrawer";
 import { DayStatus, DaySummary } from "./TeamDay";
+import useMyTeams, { inTeam } from "./useMyTeams";
 import useTeamDay from "./useTeamDay";
-
-// The scope chosen on a list, kept only while it is still one of the options.
-const pick = (wanted, options) => (options.some((option) => option.id === wanted) ? wanted : options.at(-1)?.id);
 
 const plural = (count, word, many = `${word}s`) => `${count.toLocaleString()} ${count === 1 ? word : many}`;
 const matchesTerm = (term) => (person) => `${personName(person)} ${personTitle(person)} ${person.email ?? ""}`.toLowerCase().includes(term);
 
 const BADGES = { lead: "You lead this team", member: "You're a member", under: "Under you", unplaced: "Reports to you" };
 
-// The people in a team's card, lead first; the manager isn't one of its members.
-const inTeam = (team) => (team.lead ? [team.lead, ...team.members] : team.members);
-
 /**
  * One card per real team: the ones the user leads or is in, then, for managers, every team that
  * someone under them leads or is in, and last the people under them who aren't in any team.
  */
 function TeamGroups({ me, directReports, hasReports, canOpenReports, term, onOpenPerson }) {
-  const tree = useOrgTree();
-  const reporting = useReportingTree({ enabled: hasReports });
-  const selfId = personId(me?.employee);
-  const teams = useMemo(() => {
-    // Without the reporting tree (it failed to load), the direct reports in `me` still count.
-    const under = hasReports && reporting.isError
-      ? recordsOf(directReports, ["people", "records", "data"])
-      : peopleUnder(buildReportingTree(reporting.data), selfId);
-    return teamsUnderMe(me, tree.data, under);
-  }, [me, tree.data, reporting.data, reporting.isError, selfId, hasReports, directReports]);
+  const { teams, selfId, query: loading } = useMyTeams({ me, directReports, hasReports });
   const visible = term
     ? teams
         .map((team) => (team.name.toLowerCase().includes(term) ? team : { ...team, members: team.members.filter(matchesTerm(term)) }))
         .filter((team) => team.members.length || team.name.toLowerCase().includes(term) || (team.lead && matchesTerm(term)(team.lead)))
     : teams;
   const you = (person) => Boolean(selfId && personId(person) === selfId);
-  const loading = { ...tree, isPending: tree.isPending || (hasReports && reporting.isPending), refetch: tree.refetch };
   const statusOf = useTeamDay();
   const status = (person) => <DayStatus status={statusOf?.(person)} />;
 
@@ -100,9 +84,6 @@ function TeamGroups({ me, directReports, hasReports, canOpenReports, term, onOpe
                   </dl>
                   <DaySummary people={inTeam(team)} statusOf={statusOf} className="flex flex-wrap gap-x-3 gap-y-1 px-2 text-xs text-muted-foreground" />
                   <ul className="space-y-1 border-t border-border pt-2">
-                    {team.manager && personId(team.manager) !== personId(team.lead) && (
-                      <li><PersonButton person={team.manager} onOpen={onOpenPerson} note={you(team.manager) ? "Manager · You" : "Manager"} aside={status(team.manager)} /></li>
-                    )}
                     {team.lead && (
                       <li><PersonButton person={team.lead} onOpen={onOpenPerson} note={you(team.lead) ? "Team lead · You" : "Team lead"} aside={status(team.lead)} /></li>
                     )}
@@ -161,19 +142,6 @@ function People({ canSeeOthers, me, directReports, hasReports, canOpenReports, o
   );
 }
 
-function Balances({ scopes, onOpenPerson }) {
-  const [wanted, setWanted] = useState(null);
-  const scope = pick(wanted, scopes);
-  return (
-    <div className="space-y-4">
-      {scopes.length > 1 && (
-        <Segmented label="Whose balances" options={scopes.map((option) => [option.id, option.label])} value={scope} onChange={setWanted} />
-      )}
-      <TeamBalancesTable scope={scope} onOpenPerson={onOpenPerson} />
-    </div>
-  );
-}
-
 /** The people a team lead (or wider) can see: profiles, career timelines and leave balances. */
 export default function TeamPage() {
   const access = useHrAccess();
@@ -190,11 +158,13 @@ export default function TeamPage() {
   const balanceScopes = useMemo(() => scopeOptions(capabilities, "leaves").filter((option) => option.id !== "own"), [capabilities]);
   const tabs = [
     ["people", "People"],
-    ...(balanceScopes.length ? [["balances", "Leave balances"]] : []),
+    ...(balanceScopes.length ? [["leaves", "Leaves"]] : []),
     // Anyone with people below them gives the one-time codes needed to apply for leave; everyone sees their own.
     ["codes", "Leave codes"],
   ];
-  const tab = tabs.some(([id]) => id === params.get("tab")) ? params.get("tab") : "people";
+  // ?tab=balances (the "Team balances" link on leave approvals) opens the leaves tab on the balances.
+  const wanted = params.get("tab") === "balances" ? "leaves" : params.get("tab");
+  const tab = tabs.some(([id]) => id === wanted) ? wanted : "people";
   const show = (next) => setParams(next === "people" ? {} : { tab: next }, { replace: true });
 
   return (
@@ -226,8 +196,8 @@ export default function TeamPage() {
       )}
 
       <section role="tabpanel" id={`team-panel-${tab}`} aria-labelledby={tabs.length > 1 ? `team-tab-${tab}` : undefined}>
-        {tab === "balances" ? (
-          <Balances scopes={balanceScopes} onOpenPerson={setPerson} />
+        {tab === "leaves" ? (
+          <TeamLeavesPanel me={access.me.data} directReports={directReports} hasReports={hasReports} balanceScopes={balanceScopes} startOnBalances={params.get("tab") === "balances"} onOpenPerson={setPerson} />
         ) : tab === "codes" ? (
           <LeaveCodesPanel />
         ) : (
