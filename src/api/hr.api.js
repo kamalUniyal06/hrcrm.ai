@@ -118,6 +118,12 @@ export const promoteEmployee = ({ employeeId, newDesignation, roleId, reportingP
     ...(reportingPersonId ? { reporting_person_id: reportingPersonId } : {}),
     ...(salary ? { salary } : {}),
   });
+/**
+ * Ends one person's employment. Returns `termination`: status, who took over their reports
+ * (`taken_over_by`), `reports_moved`, who was `notified` and a `health` check of the reporting lines.
+ */
+export const terminateEmployee = ({ employeeId, reason, category, lastWorkingDay }) =>
+  hrApi("employee_terminate", { employee_id: employeeId, reason, category, last_working_day: lastWorkingDay });
 /** Headcount, monthly gross and net and annual CTC for everyone in the caller's salary read scope. */
 export const fetchPayrollOverview = () => hrApi("payroll_overview");
 /** Previews (`commit` false) or stores one month's payslips; leave out `employeeIds` for everyone. Paid payslips are never changed. */

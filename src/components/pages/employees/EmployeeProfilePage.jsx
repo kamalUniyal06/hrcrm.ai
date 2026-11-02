@@ -20,6 +20,7 @@ import {
   PhoneOff,
   TrendingUp,
   UserRound,
+  UserX,
   Wallet,
 } from "lucide-react";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -31,13 +32,14 @@ import { useEmployeeLeaves } from "../../employement/queries/leaves.queries";
 import { dateKey, formatDate, statusOf } from "../../employement/components/leave/admin/leaveAdminUtils";
 import EmployeeDetails, { EmployeeAvatar, FieldValue } from "./EmployeeDetails";
 import { groups } from "./employeeFields";
-import { employeeName, fetchEmployee, formatJoinDate, tenure } from "./employeesApi";
+import { employeeName, fetchEmployee, formatJoinDate, isTerminated, tenure, terminationCategoryLabel } from "./employeesApi";
 import { useHrAccess } from "../../../hooks/useHrAccess";
 import LeaveBalanceCard from "../../employement/components/leave/LeaveBalanceCard";
 import CareerTimeline from "../profile/CareerTimeline";
 import MySalary from "../profile/MySalary";
 import PromoteDialog from "../team/PromoteDialog";
 import MoveEmployeeDialog from "../org/MoveEmployeeDialog";
+import TerminateDialog from "../team/TerminateDialog";
 
 const clean = (value) => String(value ?? "").trim();
 const linkButton =
@@ -132,6 +134,7 @@ export default function EmployeeProfilePage() {
   const [editing, setEditing] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [terminating, setTerminating] = useState(false);
   const [params, setParams] = useSearchParams();
   const access = useHrAccess();
   const showSalary = access.canAtLeast("salary", "read", "team");
@@ -188,6 +191,7 @@ export default function EmployeeProfilePage() {
   const doNotCall = clean(record.do_not_call) === "1";
   const linkedin = clean(record.linkedin_url);
   const time = tenure(record.joining_date);
+  const terminated = isTerminated(record);
   const departments = [...new Set((client.getQueryData(["employees", "list"]) || []).map((item) => clean(item.department)).filter(Boolean))].sort();
 
   return (
@@ -205,6 +209,7 @@ export default function EmployeeProfilePage() {
               <div className="mt-2 flex flex-wrap gap-2 text-xs">
                 {department && <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary"><Building2 size={12} />{department}</span>}
                 {record.joining_date && <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 font-medium text-muted-foreground"><CalendarDays size={12} />Joined {formatJoinDate(record.joining_date)}</span>}
+                {terminated && <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-semibold text-destructive"><UserX size={12} />Terminated</span>}
                 {doNotCall && <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-2.5 py-1 font-medium text-destructive"><PhoneOff size={12} />Do not call</span>}
               </div>
             </div>
@@ -220,9 +225,35 @@ export default function EmployeeProfilePage() {
             {access.isAdmin && (
               <button type="button" onClick={() => setMoving(true)} className={linkButton} data-tour="employee-move"><ArrowRightLeft size={14} />Change place</button>
             )}
+            {access.isAdmin && !terminated && (
+              <button type="button" onClick={() => setTerminating(true)} className={`${linkButton} text-destructive hover:border-destructive/40 hover:text-destructive`} data-tour="employee-terminate"><UserX size={14} />Terminate</button>
+            )}
             <button type="button" onClick={() => setEditing(true)} className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 py-1.5 text-xs font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"><Pencil size={14} />Edit profile</button>
           </div>
         </div>
+        {terminated && (
+          <div role="status" className="mt-5 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-destructive"><UserX size={16} aria-hidden="true" />Terminated employee</p>
+            <dl className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+              <div className="sm:col-span-3">
+                <dt className="text-xs text-muted-foreground">Reason</dt>
+                <dd className="mt-0.5 font-medium text-foreground">{clean(record.termination_reason) || "No reason recorded"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Category</dt>
+                <dd className="mt-0.5 font-medium text-foreground">{terminationCategoryLabel(record.termination_category) || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Last working day</dt>
+                <dd className="mt-0.5 font-medium text-foreground">{formatJoinDate(record.exit_date)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Terminated on</dt>
+                <dd className="mt-0.5 font-medium text-foreground">{clean(record.terminated_on_uni_format) || clean(record.terminated_on) || "—"}</dd>
+              </div>
+            </dl>
+          </div>
+        )}
       </header>
 
       <section aria-label="Employee summary" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -283,6 +314,8 @@ export default function EmployeeProfilePage() {
       </Tabs.Root>
 
       {moving && <MoveEmployeeDialog person={{ id: employeeId, name }} onClose={() => setMoving(false)} />}
+
+      {terminating && <TerminateDialog open onClose={() => setTerminating(false)} person={{ id: employeeId, name }} />}
 
       {promoting && (
         <PromoteDialog

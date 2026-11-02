@@ -30,6 +30,21 @@ export function tenure(value) {
   return [years && `${years}y`, months % 12 && `${months % 12}m`].filter(Boolean).join(" ");
 }
 
+// The `termination_category` dropdown on hrc_employees, as [value, label] pairs.
+export const TERMINATION_CATEGORIES = [
+  ["misconduct", "Misconduct"],
+  ["performance", "Performance"],
+  ["absconding", "Absconding"],
+  ["redundancy", "Redundancy / restructuring"],
+  ["policy_violation", "Policy violation"],
+  ["other", "Other"],
+];
+
+export const terminationCategoryLabel = (value) =>
+  TERMINATION_CATEGORIES.find(([key]) => key === value)?.[1] || String(value || "").trim();
+
+export const isTerminated = (record) => String(record?.status_id_name || "").trim().toLowerCase() === "terminated";
+
 export async function fetchEmployee(id) {
   const response = await http({ method: "POST", body: {
     action: "fetch", module: "hrc_employees", filters: { id }, page: 1, per_page: 1,

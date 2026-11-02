@@ -331,6 +331,29 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "candidate-full-profile-2026-11",
+    path: /^\/candidates\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        title: "New: full candidate profile",
+        body: "Click a candidate to open their full profile. Interviews & feedback shows each round's result and the interviewer's feedback. Click a round to read it.",
+      },
+    ],
+  },
+  {
+    id: "employee-terminate-2026-11",
+    path: /^\/employees\/[^/]+\/?$/,
+    audience: "admin",
+    steps: [
+      {
+        target: "employee-terminate",
+        title: "New: Terminate an employee",
+        body: "Terminate ends this person's employment with a reason, category and last working day. Their reports move to whoever takes over, and you'll see who was moved and notified.",
+      },
+    ],
+  },
+  {
     id: "quotations-2026-10",
     path: /^\/quotations\/?$/,
     audience: "admin",

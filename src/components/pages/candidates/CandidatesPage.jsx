@@ -65,7 +65,6 @@ import {
 const kinds = Object.keys(workflowModules);
 const VIEWS = ["all", "shortlisted", "interviews"];
 const SHORTLIST_PAGE_SIZE = 20;
-const XL_QUERY = "(min-width: 1280px)";
 const NO_FILTERS = { stage: "", phase: "", status: "", source: "" };
 const tint = (color, amount = 12) => `color-mix(in oklab, ${color} ${amount}%, transparent)`;
 
@@ -108,9 +107,7 @@ export default function CandidatesPage() {
   const client = useQueryClient();
   const [params, setParams] = useSearchParams();
   const view = VIEWS.includes(params.get("view")) ? params.get("view") : "all";
-  const selectedId = view === "interviews" ? null : params.get("candidate");
-  // The interview board opens profiles in a drawer so the board keeps its full width.
-  const interviewProfileId = view === "interviews" ? params.get("candidate") : null;
+  const selectedId = params.get("candidate");
   const shortlistedOnly = view === "shortlisted";
 
   const [search, setSearch] = useState("");
@@ -125,7 +122,6 @@ export default function CandidatesPage() {
   const [assessment, setAssessment] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [busyId, setBusyId] = useState(null);
-  const panelDismissed = useRef(false);
   const profileOpener = useRef(null);
   const profileDrawer = useRef(null);
 
@@ -224,30 +220,19 @@ export default function CandidatesPage() {
   const upcomingCount = openInterviews.filter((record) => (interviewDate(record.interview_datetime)?.getTime() ?? 0) >= Date.now()).length;
   const unscheduledCount = openInterviews.filter((record) => !interviewDate(record.interview_datetime)).length;
 
-  const selectCandidate = useCallback((id, options) => updateParams({ candidate: id }, options), [updateParams]);
-  const closePanel = useCallback(() => {
-    panelDismissed.current = true;
-    updateParams({ candidate: null });
-  }, [updateParams]);
-
-  const openInterviewProfile = useCallback((id) => {
+  // Every view opens the full profile in a wide drawer and returns focus to the opener on close.
+  const openProfile = useCallback((id) => {
     profileOpener.current = document.activeElement;
     updateParams({ candidate: id });
   }, [updateParams]);
-  const closeInterviewProfile = useCallback(() => {
+  const closeProfile = useCallback(() => {
     updateParams({ candidate: null });
     requestAnimationFrame(() => profileOpener.current?.focus?.());
   }, [updateParams]);
 
   useEffect(() => {
-    if (interviewProfileId) profileDrawer.current?.focus();
-  }, [interviewProfileId]);
-
-  // Wide screens open the first candidate so the profile panel is never empty.
-  useEffect(() => {
-    if (view === "interviews" || selectedId || panelDismissed.current || !rows[0]?.id) return;
-    if (window.matchMedia?.(XL_QUERY).matches) selectCandidate(rows[0].id, { replace: true });
-  }, [rows, selectedId, selectCandidate, view]);
+    if (selectedId) profileDrawer.current?.focus();
+  }, [selectedId]);
 
   useEffect(() => {
     if (source.isSuccess && !source.isPlaceholderData && page > pages) setPage(pages);
@@ -259,7 +244,6 @@ export default function CandidatesPage() {
     setDebouncedSearch("");
     setFilters(NO_FILTERS);
     setSort(next === "shortlisted" ? { key: "name", direction: 1 } : { key: "date_entered", direction: -1 });
-    panelDismissed.current = false;
     updateParams({ view: next === "all" ? null : next, candidate: null });
   }
 
@@ -325,7 +309,8 @@ export default function CandidatesPage() {
     ["shortlisted", "Shortlisted", BookmarkCheck, shortlist.data?.length],
     ["interviews", "Interviews", SquareKanban, openInterviews.length],
   ];
-  const selectedRecord = records.find((record) => record.id === selectedId);
+  const selectedRecord = records.find((record) => record.id === selectedId)
+    ?? client.getQueryData(["candidates", "list"])?.find?.((record) => String(record.id) === selectedId);
   const filterOptions = (kind) => (lookups[kind].data || [])
     .map((option) => ({ id: String(option.id), name: he.decode(String(option.name)) }))
     .filter(({ name }) => name.trim() && name.trim().toLowerCase() !== "unassigned");
@@ -374,31 +359,9 @@ export default function CandidatesPage() {
 
       {view === "interviews" ? (
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5">
-          <AdminInterviews embedded onOpenCandidate={openInterviewProfile} />
-          {interviewProfileId && (
-            <div
-              className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-[1px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
-              onClick={(event) => event.target === event.currentTarget && closeInterviewProfile()}
-            >
-              <div ref={profileDrawer} tabIndex={-1} className="h-full w-full max-w-md shadow-2xl outline-none motion-safe:animate-in motion-safe:slide-in-from-right-8 motion-safe:duration-200">
-                <CandidatePanel
-                  key={interviewProfileId}
-                  id={interviewProfileId}
-                  listRecord={client.getQueryData(["candidates", "list"])?.find((record) => String(record.id) === interviewProfileId)}
-                  lookups={lookups}
-                  interviews={interviews.data}
-                  interviewsLoading={interviews.isPending}
-                  isAdmin={isAdmin}
-                  actions={actions}
-                  initialTab="interviews"
-                  onClose={closeInterviewProfile}
-                />
-              </div>
-            </div>
-          )}
+          <AdminInterviews embedded onOpenCandidate={openProfile} />
         </div>
       ) : (
-        <div className={`grid grid-cols-1 items-start gap-4 ${selectedId ? "xl:grid-cols-[minmax(0,1fr)_420px]" : ""}`}>
           <section className="min-w-0 rounded-2xl border border-border bg-card shadow-sm" aria-label="Candidate list" aria-busy={source.isFetching}>
             <div className="flex flex-wrap items-center gap-2 border-b border-border p-4">
               <h2 className="mr-auto text-base font-semibold text-foreground">{shortlistedOnly ? "Shortlisted Candidates" : "All Candidates"}</h2>
@@ -493,12 +456,12 @@ export default function CandidatesPage() {
                     return (
                       <tr
                         key={record.id}
-                        onClick={() => { panelDismissed.current = false; selectCandidate(record.id); }}
+                        onClick={() => openProfile(record.id)}
                         className={`group cursor-pointer border-b border-border transition last:border-0 ${selected ? "bg-primary/[0.06]" : "hover:bg-muted/50"}`}
                       >
                         <td className={`whitespace-nowrap py-3 pl-5 pr-4 text-xs text-muted-foreground ${selected ? "shadow-[inset_3px_0_0_var(--primary)]" : ""}`}>{appliedDate(record)}</td>
                         <td className="px-4 py-3">
-                          <button type="button" onClick={(event) => { event.stopPropagation(); panelDismissed.current = false; selectCandidate(record.id); }} className="flex min-w-0 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          <button type="button" onClick={(event) => { event.stopPropagation(); openProfile(record.id); }} className="flex min-w-0 items-center gap-3 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             <CandidateAvatar record={record} className="h-9 w-9 rounded-full bg-primary/10 text-sm font-semibold text-primary" />
                             <span className="min-w-0">
                               <span className="block truncate text-sm font-semibold text-foreground">{candidateName(record)}</span>
@@ -537,7 +500,7 @@ export default function CandidatesPage() {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-52">
-                              <DropdownMenuItem onSelect={() => { panelDismissed.current = false; selectCandidate(record.id); }}><Eye />View details</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openProfile(record.id)}><Eye />View full profile</DropdownMenuItem>
                               <DropdownMenuItem
                                 disabled={stage.toLowerCase() === "shortlisted" || !lookups.stage.isSuccess || Boolean(busyId)}
                                 onSelect={() => changeWorkflow(record, "stage", "Shortlisted").catch(() => {})}
@@ -600,27 +563,27 @@ export default function CandidatesPage() {
               </nav>
             </footer>
           </section>
+      )}
 
-          {selectedId && (
-            <div
-              className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-[1px] xl:sticky xl:inset-auto xl:top-4 xl:z-auto xl:block xl:h-[calc(100dvh-2rem)] xl:bg-transparent xl:backdrop-blur-none"
-              onClick={(event) => event.target === event.currentTarget && closePanel()}
-            >
-              <div className="h-full w-full max-w-md shadow-2xl xl:max-w-none xl:shadow-none">
-                <CandidatePanel
-                  key={selectedId}
-                  id={selectedId}
-                  listRecord={selectedRecord}
-                  lookups={lookups}
-                  interviews={interviews.data}
-                  interviewsLoading={interviews.isPending}
-                  isAdmin={isAdmin}
-                  actions={actions}
-                  onClose={closePanel}
-                />
-              </div>
-            </div>
-          )}
+      {selectedId && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-foreground/30 backdrop-blur-[1px] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+          onClick={(event) => event.target === event.currentTarget && closeProfile()}
+        >
+          <div ref={profileDrawer} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Candidate profile" className="h-full w-full max-w-5xl overflow-hidden shadow-2xl outline-none motion-safe:animate-in motion-safe:slide-in-from-right-8 motion-safe:duration-200 sm:rounded-l-2xl">
+            <CandidatePanel
+              key={selectedId}
+              id={selectedId}
+              listRecord={selectedRecord}
+              lookups={lookups}
+              interviews={interviews.data}
+              interviewsLoading={interviews.isPending}
+              isAdmin={isAdmin}
+              actions={actions}
+              initialTab={view === "interviews" ? "interviews" : "overview"}
+              onClose={closeProfile}
+            />
+          </div>
         </div>
       )}
 

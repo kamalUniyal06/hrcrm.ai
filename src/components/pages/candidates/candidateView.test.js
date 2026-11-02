@@ -8,6 +8,7 @@ import {
   isoDate,
   pageWindow,
   readableSource,
+  roundJourney,
   scoreLabel,
   upcomingInterview,
   workflowTone,
@@ -72,4 +73,19 @@ test("friendly date labels relative days", () => {
   assert.match(friendlyDateTime(new Date(2026, 9, 15, 10, 30), now), /^Tomorrow, 10:30/);
   assert.match(friendlyDateTime(new Date(2026, 9, 21, 10, 30), now), /^Oct 21, 10:30/);
   assert.equal(friendlyDateTime(null, now), "Not scheduled");
+});
+
+test("round journey lists the standard rounds and summarises each one", () => {
+  const item = (round, key, open = false) => ({ record: { id: `${round}-${key}` }, round, date: null, status: { key, label: key }, open });
+  const journey = roundJourney([item("Round 2", "scheduled", true), item("Round 1", "passed"), item("Round 1", "failed"), item("Culture fit", "pending", true)]);
+  assert.deepEqual(journey.steps.map((step) => step.name), ["Round 1", "Round 2", "Round 3", "Culture fit"]);
+  assert.equal(journey.steps[0].item.status.key, "passed");
+  assert.equal(journey.steps[2].item, null);
+  assert.deepEqual(journey.stats, { total: 3, passed: 1, failed: 0, scheduled: 1, pending: 1 });
+  assert.equal(journey.focus, "Round 2");
+
+  const done = roundJourney([item("Round 2", "failed"), item("Round 1", "passed")]);
+  assert.equal(done.focus, "Round 2");
+  assert.equal(roundJourney([]).focus, "");
+  assert.equal(roundJourney([]).stats.total, 0);
 });

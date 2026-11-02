@@ -43,6 +43,7 @@ import {
   saveDepartment,
   saveTeam,
   sendNotification,
+  terminateEmployee,
   updateAppointment,
   verifyLeaveToken,
 } from "../api/hr.api";
@@ -248,6 +249,12 @@ export function useSaveTeam() {
 export function useSaveDepartment() {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: saveDepartment, onSettled: () => refreshStructure(queryClient) });
+}
+
+/** Terminates one employee; their reports move to whoever takes over, so the whole structure refreshes. */
+export function useTerminateEmployee() {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: terminateEmployee, onSettled: (_, __, { employeeId }) => refreshStructure(queryClient, employeeId) });
 }
 
 export function usePromote() {

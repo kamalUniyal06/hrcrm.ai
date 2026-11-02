@@ -1,5 +1,5 @@
 import { candidateInterviewStatus } from "../interviews/candidateInterviewData.js";
-import { candidateId, hasOutcome, interviewDate, roundName } from "../interviews/interviewUtils.js";
+import { PIPELINE_ROUNDS, candidateId, hasOutcome, interviewDate, roundName } from "../interviews/interviewUtils.js";
 
 const clean = (value) => String(value ?? "").trim();
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -75,6 +75,31 @@ export function interviewsForCandidate(interviews = [], candidate = {}, now = Da
     .filter((record) => (id && candidateId(record) === id) || (!candidateId(record) && email && clean(record.email).toLowerCase() === email))
     .map((record) => ({ record, round: roundName(record), date: interviewDate(record.interview_datetime), status: candidateInterviewStatus(record, now), open: !hasOutcome(record) }))
     .sort((left, right) => (right.date?.getTime() ?? Infinity) - (left.date?.getTime() ?? Infinity));
+}
+
+/**
+ * One step per round, with the standard rounds first, then any custom rounds in name order.
+ * Each step holds the newest interview for that round, or null when the candidate hasn't reached it.
+ * `stats` counts the rounds the candidate has, and `focus` is the round to open first:
+ * the one still in progress, otherwise the latest one.
+ */
+export function roundJourney(items = []) {
+  const byRound = new Map();
+  // `items` is newest first, so the first interview per round wins.
+  for (const item of items) if (!byRound.has(item.round.toLowerCase())) byRound.set(item.round.toLowerCase(), item);
+  const custom = [...byRound.values()]
+    .map((item) => item.round)
+    .filter((name) => !PIPELINE_ROUNDS.some((round) => round.toLowerCase() === name.toLowerCase()))
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  const steps = [...PIPELINE_ROUNDS, ...custom].map((name) => ({ name, item: byRound.get(name.toLowerCase()) || null }));
+  const reached = steps.filter((step) => step.item);
+  const count = (...keys) => reached.filter((step) => keys.includes(step.item.status.key)).length;
+  const focus = reached.find((step) => step.item.open) || reached.at(-1) || null;
+  return {
+    steps,
+    stats: { total: reached.length, passed: count("passed", "completed"), failed: count("failed"), scheduled: count("scheduled"), pending: count("pending") },
+    focus: focus?.name || "",
+  };
 }
 
 /** The earliest interview still ahead of `now`. */
