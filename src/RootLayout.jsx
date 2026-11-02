@@ -20,6 +20,7 @@ import { resetPageScroll } from "./utils/resetPageScroll";
 import { hasAdminView, isAdminPage, selectIsAdmin } from "./utils/pageAccess";
 import AdminPageNotice from "./components/routing/AdminPageNotice";
 import FeatureTour from "./components/FeatureTour";
+import RealtimeListener from "./components/RealtimeListener";
 
 const RootLayout = () => {
   const { setActivePage, displayIntro, setDisplayIntro } =
@@ -133,6 +134,7 @@ const RootLayout = () => {
           </main>
           {showFooter && <Footer />}
           <FeatureTour />
+          <RealtimeListener />
         </div>
       </div>
     </SystemAlertsProvider>

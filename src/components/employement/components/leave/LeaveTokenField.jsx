@@ -64,7 +64,11 @@ export default function LeaveTokenField({ value, onChange, leaveFrom, leaveTo, l
   const approversQuery = useLeaveTokenApprovers();
   const settings = useMemo(() => normalizeTokenApprovers(approversQuery.data), [approversQuery.data]);
   const required = settings.required;
-  const mine = useLeaveTokens("mine", { enabled: required });
+  // While a code is asked for, check every 30 s too, in case the real-time event never arrives.
+  const mine = useLeaveTokens("mine", {
+    enabled: required,
+    refetchInterval: (query) => (recordsOf(query.state.data, ["tokens"]).some((token) => normalizeLeaveToken(token).status === "requested") ? 30 * 1000 : false),
+  });
   const check = useLeaveTokenCheck({ code: value, leaveFrom, leaveTo }, { enabled: required && Boolean(leaveFrom) });
   const [asking, setAsking] = useState(false);
   const tokens = useMemo(() => recordsOf(mine.data, ["tokens"]).map(normalizeLeaveToken), [mine.data]);

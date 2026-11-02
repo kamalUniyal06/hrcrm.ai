@@ -6,7 +6,8 @@ import { useIssueLeaveToken, useLeaveTokens, usePeople, useRejectLeaveToken, use
 import { personName } from "../../../utils/hrOrg";
 import { LEAVE_TOKEN_STATUSES, formatDate, normalizeLeaveToken, recordsOf, tokenDates } from "../../../utils/hrRecords";
 import { candidateStyles } from "../candidate/candidateStyles";
-import { ActionDialog, EmptyState, QueryState, fieldClass, primaryButton } from "../org/orgUi";
+import { ActionDialog, QueryState, Segmented, fieldClass, primaryButton } from "../org/orgUi";
+import CopyItemButton from "../notifications/CopyItemButton";
 
 const when = (value) => formatDate(value, undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
@@ -119,9 +120,85 @@ function RefuseDialog({ request, onClose }) {
   );
 }
 
+const MY_CODE_FILTERS = [["all", "All"], ["requested", "Waiting"], ["issued", "Ready"], ["used", "Used"], ["closed", "Refused or ended"]];
+const CLOSED = ["rejected", "revoked", "expired"];
+const STATUS_BADGE = {
+  requested: "bg-accent text-accent-foreground",
+  issued: "bg-primary/10 text-primary",
+  rejected: "bg-destructive/10 text-destructive",
+};
+
+/** What happened to one of the caller's own codes, in a line. */
+function myCodeNote(token) {
+  const by = token.issuedByName;
+  switch (token.status) {
+    case "requested":
+      return `Asked ${when(token.askedAt)} · ${token.requestedFromName ? `to ${token.requestedFromName}` : "to everyone who can approve"}`;
+    case "issued":
+      return `From ${by || "your manager"}${token.expiresAt ? ` · use by ${when(token.expiresAt)}` : ""}`;
+    case "used":
+      return `From ${by || "your manager"} · used ${when(token.usedAt || token.changedAt)}`;
+    case "rejected":
+      return `Refused${by ? ` by ${by}` : ""} ${when(token.changedAt)}`;
+    case "revoked":
+      return `Cancelled${by ? ` by ${by}` : ""} ${when(token.changedAt)}`;
+    case "expired":
+      return `From ${by || "your manager"} · expired ${when(token.expiresAt)} without being used`;
+    default:
+      return "";
+  }
+}
+
+/** The caller's own leave codes, every status: asked for, ready, used, refused, cancelled, expired. */
+function MyCodes() {
+  const query = useLeaveTokens("mine");
+  const [filter, setFilter] = useState("all");
+  const tokens = useMemo(() => recordsOf(query.data, ["tokens"]).map(normalizeLeaveToken), [query.data]);
+  const shown = tokens.filter((token) => filter === "all" || (filter === "closed" ? CLOSED.includes(token.status) : token.status === filter));
+
+  return (
+    <section aria-labelledby="my-codes" className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 id="my-codes" className={candidateStyles.sectionTitle}>Your codes</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Codes you asked for or were given, and what happened to each.</p>
+        </div>
+        {tokens.length > 0 && <Segmented label="Show" options={MY_CODE_FILTERS} value={filter} onChange={setFilter} />}
+      </div>
+      <QueryState query={query} rows={3}>
+        {shown.length ? (
+          <ul className={cn(candidateStyles.card, "divide-y divide-border")}>
+            {shown.map((token) => (
+              <li key={token.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                <span className="w-20 font-mono text-sm font-semibold tracking-widest text-foreground">{token.code || "——"}</span>
+                <span className="min-w-0 flex-1 basis-56">
+                  <span className="block text-sm text-foreground">
+                    {tokenDates(token) || "Any dates"}{token.leaveType && <span className="text-muted-foreground"> · {token.leaveType}</span>}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{myCodeNote(token)}</span>
+                  {token.status === "rejected" && token.remarks && <span className="mt-1 block text-xs text-foreground">Reason: {token.remarks}</span>}
+                </span>
+                <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-medium", STATUS_BADGE[token.status] || "bg-muted text-foreground")}>
+                  {LEAVE_TOKEN_STATUSES[token.status] || token.status}
+                </span>
+                {token.status === "issued" && token.code && <CopyItemButton value={token.code} />}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className={cn(candidateStyles.card, "px-4 py-4 text-sm text-muted-foreground")}>
+            {tokens.length ? "No codes with this status." : "You haven't asked for or been given a leave code yet. Ask for one when you apply for leave."}
+          </p>
+        )}
+      </QueryState>
+    </section>
+  );
+}
+
 /**
  * Team leads and managers: open requests for leave codes (give or refuse) and the codes they've
  * given (cancel an unused one). Someone needs a code from a person above them to apply for leave.
+ * Everyone also sees their own codes, so people with no one below them still have a history.
  */
 export default function LeaveCodesPanel() {
   const query = useLeaveTokens("to_issue");
@@ -138,7 +215,7 @@ export default function LeaveCodesPanel() {
   return (
     <QueryState query={query} rows={4}>
       {!canIssue && !requests.length && !given.length ? (
-        <EmptyState icon={KeyRound} title="No one reports to you yet">People who report to you, or are in a team or department you lead, ask you for leave codes here.</EmptyState>
+        <MyCodes />
       ) : (
         <div className="space-y-6">
           <section aria-labelledby="code-requests" className="space-y-3">
@@ -201,6 +278,8 @@ export default function LeaveCodesPanel() {
               <p className={cn(candidateStyles.card, "px-4 py-4 text-sm text-muted-foreground")}>Codes you give appear here until they're used or expire.</p>
             )}
           </section>
+
+          <MyCodes />
         </div>
       )}
 

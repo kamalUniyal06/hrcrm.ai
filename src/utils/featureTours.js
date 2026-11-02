@@ -356,6 +356,18 @@ export const FEATURE_TOURS = [
       },
     ],
   },
+  {
+    id: "create-crm-footer-2026-11",
+    path: /^\/$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "footer-create-crm",
+        title: "New: Create CRM",
+        body: "Set up a new CRM from this link in the footer. It opens in a new tab.",
+      },
+    ],
+  },
 ];
 
 const AUDIENCES = {

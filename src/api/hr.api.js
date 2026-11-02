@@ -88,6 +88,11 @@ export const sendNotification = ({ title, body, type, forNotification, targetId,
 export const fetchSentNotifications = ({ mine = true } = {}) => hrApi("notifications_sent", mine ? { mine: 1 } : {});
 export const fetchNotificationReceipts = (id) => hrApi("notification_receipts", { id });
 
+/* ── real-time ─────────────────────────────────────────────────────────── */
+
+/** Socket origin, socket.io event to listen to, the caller's employee id and CRM host. */
+export const fetchRealtimeConfig = () => hrApi("realtime_config");
+
 /* ── self service (and people in scope, with `employeeId`) ─────────────── */
 
 const forEmployee = (employeeId) => (employeeId ? { employee_id: employeeId } : {});

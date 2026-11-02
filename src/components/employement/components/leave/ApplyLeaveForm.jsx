@@ -34,6 +34,10 @@ const leaveTypes = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const CODE_UNUSABLE = "This leave code can't be used for these dates. Check the message under the code, or ask for a new one.";
+const CODE_MISSING = "Enter the leave code from your team lead or manager, or ask them for one.";
+// A code error from an earlier submit goes away once the code is edited or checks out.
+const withoutCodeError = (current) => (current === CODE_UNUSABLE || current === CODE_MISSING ? "" : current);
 const toApiDate = (date) => date ? format(date, "yyyy-MM-dd") : "";
 const dateKey = (date) => format(date, "yyyy-MM-dd");
 
@@ -101,6 +105,10 @@ export default function ApplyLeaveForm() {
     const unpaidDays = balance.data ? unpaidExtraDays(leaveDays, normalizeLeaveBalance(balance.data).total) : 0;
 
     useEffect(() => {
+        if (codeStatus.valid) setError(withoutCodeError);
+    }, [codeStatus.valid]);
+
+    useEffect(() => {
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return undefined;
         const context = gsap.context(() => {
             gsap.from("[data-form-reveal]", { y: 10, opacity: 0, duration: 0.35, stagger: 0.04, ease: "power2.out" });
@@ -133,7 +141,7 @@ export default function ApplyLeaveForm() {
         if (holidays.isError) return setError("Public holidays could not be checked. Please try again.");
         if (proofRequired && !form.proof) return setError("A supporting document is required for leave longer than 3 working days.");
         if (form.proof && form.proof.size > MAX_FILE_SIZE) return setError("PDF must be 10 MB or smaller.");
-        if (codeStatus.required && !codeStatus.valid) return setError(code ? "This leave code can't be used for these dates. Check the message under the code, or ask for a new one." : "Enter the leave code from your team lead or manager, or ask them for one.");
+        if (codeStatus.required && !codeStatus.valid) return setError(code ? CODE_UNUSABLE : CODE_MISSING);
 
         setError("");
         applyLeave({
@@ -287,7 +295,10 @@ export default function ApplyLeaveForm() {
 
                             <LeaveTokenField
                                 value={code}
-                                onChange={setCode}
+                                onChange={(next) => {
+                                    setCode(next);
+                                    setError(withoutCodeError);
+                                }}
                                 leaveFrom={toApiDate(range.from)}
                                 leaveTo={toApiDate(range.to || range.from)}
                                 leaveType={form.type_of_leave}

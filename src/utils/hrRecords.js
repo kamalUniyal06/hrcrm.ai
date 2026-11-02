@@ -76,6 +76,9 @@ export function normalizeNotification(item) {
     hot: type === "hot",
     seen: status ? status === "seen" || status === "read" : truthy(first(item, ["seen", "is_seen", "is_read"])),
     linkUrl: text(first(item, ["link_url", "url"])),
+    // The in-app route the backend picked (always set, default /notifications) and a value to copy, if any.
+    redirectTo: text(item?.redirect_to),
+    copyItem: text(item?.copy_item),
     date: first(item, ["date_entered", "created_at", "sent_at", "date"]),
   };
 }
@@ -96,6 +99,21 @@ export function notificationTarget(linkUrl, origin = "") {
   if (url.startsWith("/") && !url.startsWith("//")) return { internal: true, to: url };
   if (origin && url.startsWith(`${origin}/`)) return { internal: true, to: url.slice(origin.length) };
   return /^https?:\/\//i.test(url) ? { internal: false, to: url } : null;
+}
+
+export const DEFAULT_NOTIFICATION_ROUTE = "/notifications";
+
+/**
+ * Where clicking a notification goes: its `redirect_to` route, unless that is only the default
+ * inbox and the sender gave an external link. `/employees?id=…` opens that person's profile.
+ */
+export function notificationDestination(item, origin = "") {
+  const redirect = notificationTarget(item?.redirectTo, origin);
+  const link = notificationTarget(item?.linkUrl, origin);
+  const target = redirect && !(redirect.to === DEFAULT_NOTIFICATION_ROUTE && link) ? redirect : link;
+  if (!target?.internal) return target;
+  const employee = target.to.match(/^\/employees\?(?:.*&)?id=([^&#]+)/);
+  return employee ? { internal: true, to: `/employees/${employee[1]}` } : target;
 }
 
 export const NOTICE_AUDIENCES = [
@@ -500,6 +518,9 @@ export function normalizeLeaveToken(row) {
     // Stored in UTC without a zone, which parseDateTime reads as UTC.
     expiresAt: text(row?.expires_at),
     askedAt: text(row?.date_entered),
+    usedAt: text(row?.used_at),
+    // When it was last given, refused, cancelled or used.
+    changedAt: text(row?.date_modified),
   };
 }
 

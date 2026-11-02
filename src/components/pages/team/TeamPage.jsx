@@ -183,7 +183,7 @@ export default function TeamPage() {
   const tabs = [
     ["people", "People"],
     ...(balanceScopes.length ? [["balances", "Leave balances"]] : []),
-    // Anyone with people below them gives the one-time codes needed to apply for leave.
+    // Anyone with people below them gives the one-time codes needed to apply for leave; everyone sees their own.
     ["codes", "Leave codes"],
   ];
   const tab = tabs.some(([id]) => id === params.get("tab")) ? params.get("tab") : "people";

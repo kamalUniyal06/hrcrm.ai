@@ -20,6 +20,7 @@ import {
   fetchNotificationCounts,
   fetchNotificationReceipts,
   fetchNotifications,
+  fetchRealtimeConfig,
   fetchOrgTree,
   fetchPayrollOverview,
   fetchPeople,
@@ -63,6 +64,7 @@ export const hrKeys = {
   sentNotifications: ["hr", "notifications-sent"],
   sentNotificationList: (mine) => ["hr", "notifications-sent", mine ? "mine" : "everyone"],
   receipts: (id) => ["hr", "notification-receipts", id],
+  realtimeConfig: ["hr", "realtime-config"],
   timeline: ["hr", "timeline"],
   // `employeeId` empty = the signed-in employee.
   timelineView: (employeeId, majorOnly) => ["hr", "timeline", employeeId || "self", majorOnly ? "major" : "all"],
@@ -168,6 +170,14 @@ export const useSentNotifications = ({ mine = true, enabled = true } = {}) =>
 export const useNotificationReceipts = (id) =>
   useQuery({ queryKey: hrKeys.receipts(id), queryFn: () => fetchNotificationReceipts(id), enabled: Boolean(id), retry });
 
+/* ── real-time ─────────────────────────────────────────────────────────── */
+
+/** Socket settings; fixed for the session, so fetched once. */
+export function useRealtimeConfig({ enabled = true } = {}) {
+  const signedIn = useSignedIn();
+  return useQuery({ queryKey: hrKeys.realtimeConfig, queryFn: fetchRealtimeConfig, enabled: signedIn && enabled, staleTime: Infinity, retry });
+}
+
 /* ── self service (and people in scope, with `employeeId`) ─────────────── */
 
 export const useTimeline = ({ employeeId, majorOnly = false } = {}) =>
@@ -268,8 +278,8 @@ export const useTeamBalanceMap = () =>
 export const useLeaveTokenApprovers = () =>
   useQuery({ queryKey: hrKeys.leaveTokenApprovers, queryFn: fetchLeaveTokenApprovers, staleTime: 5 * 60 * 1000, retry });
 
-export const useLeaveTokens = (view = "mine", { enabled = true } = {}) =>
-  useQuery({ queryKey: hrKeys.leaveTokenView(view), queryFn: () => fetchLeaveTokens({ view }), enabled, refetchOnWindowFocus: true, retry });
+export const useLeaveTokens = (view = "mine", { enabled = true, refetchInterval = false } = {}) =>
+  useQuery({ queryKey: hrKeys.leaveTokenView(view), queryFn: () => fetchLeaveTokens({ view }), enabled, refetchInterval, refetchOnWindowFocus: true, retry });
 
 /** One employee's leave codes (`all` view, admins), to show who gave the code a leave was applied with. */
 export const useEmployeeLeaveTokens = (employeeId, { enabled = true } = {}) =>

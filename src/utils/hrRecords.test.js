@@ -18,6 +18,7 @@ import {
   noticeAudiences,
   noticeTargets,
   notificationCounts,
+  notificationDestination,
   notificationTarget,
   pageCount,
   parseDateTime,
@@ -78,6 +79,29 @@ test("opens in-app notification links with the router and others in a new tab", 
   assert.equal(notificationTarget("//evil.example"), null);
   assert.equal(notificationTarget("javascript:alert(1)"), null);
   assert.equal(notificationTarget(""), null);
+});
+
+test("reads a notification's redirect route and copy value", () => {
+  const item = normalizeNotification({ id: "n1", redirect_to: "/my-leaves?token=t1", copy_item: "K7Q2MZ" });
+  assert.equal(item.redirectTo, "/my-leaves?token=t1");
+  assert.equal(item.copyItem, "K7Q2MZ");
+  assert.equal(normalizeNotification({ copy_item: null }).copyItem, "");
+});
+
+test("opens a notification's redirect route, its external link only over the default inbox", () => {
+  assert.deepEqual(notificationDestination({ redirectTo: "/leave-approvals", linkUrl: "https://meet.example/x" }), { internal: true, to: "/leave-approvals" });
+  assert.deepEqual(notificationDestination({ redirectTo: "/notifications", linkUrl: "https://meet.example/x" }), { internal: false, to: "https://meet.example/x" });
+  assert.deepEqual(notificationDestination({ redirectTo: "/notifications" }), { internal: true, to: "/notifications" });
+  // Older notifications without redirect_to keep using link_url.
+  assert.deepEqual(notificationDestination({ linkUrl: "/salaries" }), { internal: true, to: "/salaries" });
+  assert.deepEqual(notificationDestination({ redirectTo: "javascript:alert(1)", linkUrl: "" }), null);
+  assert.equal(notificationDestination({}), null);
+});
+
+test("opens the employee profile for an employees?id= route", () => {
+  assert.deepEqual(notificationDestination({ redirectTo: "/employees?id=e%201" }), { internal: true, to: "/employees/e%201" });
+  assert.deepEqual(notificationDestination({ redirectTo: "/employees?tab=x&id=e2" }), { internal: true, to: "/employees/e2" });
+  assert.deepEqual(notificationDestination({ redirectTo: "/employees" }), { internal: true, to: "/employees" });
 });
 
 test("reads the leave balance and counts days that would be unpaid", () => {
@@ -351,6 +375,9 @@ test("reads leave tokens and who can give them", () => {
   assert.equal(tokenDates(token), "10 Nov – 12 Nov 2026");
   assert.equal(tokenDates(normalizeLeaveToken({ leave_from: "2026-11-10", leave_to: "2026-11-10" })), "10 Nov 2026");
   assert.equal(tokenDates(normalizeLeaveToken({})), "");
+  const used = normalizeLeaveToken({ status: "used", used_at: "2026-11-02 05:00:00", date_modified: "2026-11-02 05:00:01" });
+  assert.equal(used.usedAt, "2026-11-02 05:00:00");
+  assert.equal(used.changedAt, "2026-11-02 05:00:01");
 
   const approvers = normalizeTokenApprovers({
     settings: { required: true, expiry_hours: 48 },
