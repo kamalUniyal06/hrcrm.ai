@@ -190,6 +190,12 @@ role and saves the choice, so later candidates for that job need no prompt.
 Only roles with questions are offered. **Change** in the drawer updates the
 saved role. Generating is disabled until the job has a role.
 
+**No job posting.** When neither the interview nor the candidate's job
+applications lead to a job posting, HR chooses the test role in the drawer. The
+choice is saved with `job_reference` `candidate:{crmId}`, and the invitation
+sends that reference with the role's title as `job_title` and an empty
+`job_skills_text`, so the candidate's CRM skills choose what is tested.
+
 When HR generates a link, HRCRM sends:
 
 - `job_reference`, `job_title`: the job posting's ID and title.

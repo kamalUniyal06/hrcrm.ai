@@ -4,7 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import * as Tabs from "@radix-ui/react-tabs";
 import { Check, CheckCircle2, ClipboardList, Clock3, Copy, ExternalLink, Link2, Loader2, RefreshCw, ShieldCheck, UserRound, X } from "lucide-react";
 import { useRecruitment } from "../../../context/recruitmentContext";
-import { applicationJob, assessmentProfilePayload, findInterviewCandidate, jobPostingTitle, invitationPayload, recruitmentDate, recruitmentEmail, recruitmentName, safeInvitationUrl } from "../../../services/recruitmentUtils";
+import { applicationJob, assessmentProfilePayload, candidateRoleJob, candidateRoleReference, findInterviewCandidate, jobPostingTitle, invitationPayload, recruitmentDate, recruitmentEmail, recruitmentName, safeInvitationUrl } from "../../../services/recruitmentUtils";
 import { candidateId, isFirstRound } from "../interviews/interviewUtils";
 import { fetchAllRecords, fetchCandidateRecord, fetchShortlistSource, shortlistedCandidatesKey } from "../candidates/candidatesApi";
 import AssessmentResult from "./AssessmentResult";
@@ -151,10 +151,12 @@ function CandidateAssessment({ candidate, canGenerate, job, onBusyChange }) {
   });
   const testJob = interviewJob || appliedJob.data?.job || null;
   const testJobTitle = jobPostingTitle(testJob);
-  const jobReference = String(testJob?.id || "").trim();
+  // Without a job posting, HR chooses the test role for the candidate directly.
+  const roleOnly = Boolean(canGenerate && !testJob && appliedJob.isSuccess && !appliedJob.isFetching);
+  const jobReference = roleOnly ? candidateRoleReference(reference) : String(testJob?.id || "").trim();
   const findingJob = Boolean(canGenerate && !testJob && appliedJob.isFetching);
   let profileIssue = "";
-  if (canGenerate && !findingJob) try { assessmentProfilePayload({ job: testJob }); } catch (err) { profileIssue = appliedJob.isError ? appliedJob.error.message : appliedJob.data?.issue || err.message; }
+  if (canGenerate && !findingJob && !roleOnly) try { assessmentProfilePayload({ job: testJob }); } catch (err) { profileIssue = appliedJob.isError ? appliedJob.error.message : appliedJob.data?.issue || err.message; }
   // Each job posting uses one test role: the one HR saved for it, or the role with the same title.
   const jobRoleKey = ["recruitment", owner, "job-role", jobReference, testJobTitle];
   const jobRole = useQuery({
@@ -193,7 +195,7 @@ function CandidateAssessment({ candidate, canGenerate, job, onBusyChange }) {
     try {
       // The CRM profile replaces registration in the test app.
       const [skills, experiences] = await Promise.all([fetchCandidateRelated(reference, "skills"), fetchCandidateRelated(reference, "experiences")]);
-      const body = { ...invitationPayload(candidate), ...assessmentProfilePayload({ job: testJob, skills, experiences }) };
+      const body = { ...invitationPayload(candidate), ...assessmentProfilePayload({ job: roleOnly ? candidateRoleJob(reference, jobRole.data?.role) : testJob, skills, experiences }) };
       sent = true;
       const data = await request("/invitations", { method: "POST", body });
       if (!safeInvitationUrl(data.invitation_url) || !data.invitation?.id || String(data.invitation.external_reference) !== reference || data.invitation.intended_email?.toLowerCase() !== email)
@@ -242,7 +244,7 @@ function CandidateAssessment({ candidate, canGenerate, job, onBusyChange }) {
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">{active ? `Not opened yet. Expires ${recruitmentDate(active.expires_at)}.` : "Create a personal link. The candidate opens the test directly with their CRM profile, without signing up."}</p>
                 {profile && <p className="mt-2 text-xs leading-5 text-muted-foreground [overflow-wrap:anywhere]">{[profile.role_title && `${profile.role_title} test`, `${profile.experience} years experience`, profile.skills.join(", ")].filter(Boolean).join(" · ")}</p>}
               </div>
-              {canGenerate && !profileIssue && jobReference && <JobRoleSetting key={jobReference} query={jobRole} jobTitle={testJobTitle} canEdit={canInvite} saving={savingRole} onSave={saveRole} />}
+              {canGenerate && !profileIssue && jobReference && <JobRoleSetting key={jobReference} query={jobRole} jobTitle={roleOnly ? "this candidate" : testJobTitle} forCandidate={roleOnly} canEdit={canInvite} saving={savingRole} onSave={saveRole} />}
               {link && <section aria-label="Generated test link" className="space-y-3">
                 <p role="status" className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 size={17} className="text-primary" aria-hidden="true" />Test link generated</p>
                 <label htmlFor="generated-assessment-link" className="sr-only">Personal test link</label>
@@ -268,7 +270,7 @@ function CandidateAssessment({ candidate, canGenerate, job, onBusyChange }) {
   </div>;
 }
 
-function JobRoleSetting({ query, jobTitle, canEdit, saving, onSave }) {
+function JobRoleSetting({ query, jobTitle, forCandidate, canEdit, saving, onSave }) {
   const [editing, setEditing] = useState(false);
   const [choice, setChoice] = useState("");
   if (query.isPending) return <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={15} className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Checking the test role for {jobTitle}…</p>;
@@ -283,7 +285,9 @@ function JobRoleSetting({ query, jobTitle, canEdit, saving, onSave }) {
   if (!canEdit) return <p className="rounded-lg bg-muted/60 p-3 text-sm leading-6 text-muted-foreground">No test role is set for {jobTitle}. An owner, admin or recruiter can choose one.</p>;
   return <form className="space-y-3 rounded-lg border border-border bg-muted/30 p-4" onSubmit={async (event) => { event.preventDefault(); if (await onSave(choice)) setEditing(false); }}>
     <div><label htmlFor="assessment-job-role" className="text-sm font-medium">{role ? `Change the test role for ${jobTitle}` : `Choose the test role for ${jobTitle}`}</label>
-    <p className="mt-1 text-xs leading-5 text-muted-foreground">{role ? "Later candidates for this job use the new role." : "No test role has this job's title. Your choice is saved for this job, so later candidates use it automatically."}</p></div>
+    <p className="mt-1 text-xs leading-5 text-muted-foreground">{forCandidate
+      ? role ? "New test links for this candidate use the new role." : "No job posting is linked to this candidate. Choose the role to test them on. Your choice is saved for this candidate."
+      : role ? "Later candidates for this job use the new role." : "No test role has this job's title. Your choice is saved for this job, so later candidates use it automatically."}</p></div>
     <select id="assessment-job-role" value={choice} onChange={(event) => setChoice(event.target.value)} disabled={saving} className={inputClass}>
       <option value="">Select a test role</option>
       {choosable.map((item) => <option key={item.id} value={item.id}>{item.title} ({item.question_count} questions)</option>)}

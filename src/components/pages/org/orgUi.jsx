@@ -63,7 +63,7 @@ export function EmptyState({ icon = Users, title, children }) {
 }
 
 /** A person's name and title as a button that opens their profile drawer. */
-export function PersonButton({ person, onOpen, note }) {
+export function PersonButton({ person, onOpen, note, aside }) {
   return (
     <button
       type="button"
@@ -77,6 +77,7 @@ export function PersonButton({ person, onOpen, note }) {
           <span className="block truncate text-xs text-muted-foreground">{[note, personTitle(person)].filter(Boolean).join(" · ")}</span>
         )}
       </span>
+      {aside}
     </button>
   );
 }

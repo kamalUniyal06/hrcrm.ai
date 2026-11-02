@@ -113,7 +113,7 @@ export function useLookups() {
 
 export const useRoles = () => useQuery({ queryKey: hrKeys.roles, queryFn: fetchRoles, retry });
 export const useOrgTree = () => useQuery({ queryKey: hrKeys.orgTree, queryFn: fetchOrgTree, retry });
-export const useReportingTree = () => useQuery({ queryKey: hrKeys.reportingTree, queryFn: fetchReportingTree, retry });
+export const useReportingTree = ({ enabled = true } = {}) => useQuery({ queryKey: hrKeys.reportingTree, queryFn: fetchReportingTree, enabled, retry });
 export const useEmployee = (id) =>
   useQuery({ queryKey: hrKeys.employee(id), queryFn: () => fetchEmployee(id), enabled: Boolean(id), retry });
 export const usePeople = (scope, { enabled = true } = {}) =>

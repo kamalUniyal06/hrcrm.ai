@@ -172,6 +172,18 @@ export const FEATURE_TOURS = [
     ],
   },
   {
+    id: "team-today-2026-11",
+    path: /^\/team\/?$/,
+    audience: "staff",
+    steps: [
+      {
+        target: "team-people",
+        title: "New: who's in today",
+        body: "Each person now shows where they are today: working, on lunch, left for the day, on leave or not checked in, with their clock-in time and a note if they came in late. Each team card and the top of the page count them up.",
+      },
+    ],
+  },
+  {
     id: "holidays-management-2026-10",
     path: /^\/holidays-management\/?$/,
     audience: "admin",

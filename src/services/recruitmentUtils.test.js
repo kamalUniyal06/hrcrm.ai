@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applicationJob, assessmentProfilePayload, experienceYears, findInterviewCandidate, invitationPayload, normalizeRecruitmentApiUrl, recruitmentDate, safeInvitationUrl, skillNames } from "./recruitmentUtils.js";
+import { applicationJob, assessmentProfilePayload, candidateRoleJob, candidateRoleReference, experienceYears, findInterviewCandidate, invitationPayload, normalizeRecruitmentApiUrl, recruitmentDate, safeInvitationUrl, skillNames } from "./recruitmentUtils.js";
 
 test("API configuration accepts an API root or the supplied dashboard URL", () => {
   assert.equal(normalizeRecruitmentApiUrl("https://recruitment.example/api/admin/dashboard"), "https://recruitment.example/api");
@@ -74,6 +74,15 @@ test("assessment profiles send the job posting and its requirements", () => {
   assert.throws(() => assessmentProfilePayload({ job: { id: "j", job_title: " " } }), /job posting/);
   assert.throws(() => assessmentProfilePayload({ job: { job_title: "QA" } }), /job posting/);
   assert.throws(() => assessmentProfilePayload({}), /job posting/);
+});
+
+test("candidates without a job posting send the test role HR chose for them", () => {
+  assert.equal(candidateRoleReference(" c-1 "), "candidate:c-1");
+  assert.deepEqual(assessmentProfilePayload({ job: candidateRoleJob("c-1", { id: 4, title: "QA Engineer" }), skills: [{ name: "Selenium" }] }), {
+    job_reference: "candidate:c-1", job_title: "QA Engineer", job_skills_text: "",
+    candidate_skills: ["Selenium"], candidate_experience: 0,
+  });
+  assert.throws(() => assessmentProfilePayload({ job: candidateRoleJob("c-1", null) }), /job posting/);
 });
 
 test("interviews without a job use the candidate's latest job application", () => {

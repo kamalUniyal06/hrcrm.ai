@@ -16,11 +16,13 @@ import {
   movePerson,
   moveTeamTo,
   pathToPerson,
+  peopleUnder,
   personName,
   personTitle,
   teamsOfMe,
   placementOf,
   placeFromMe,
+  teamsUnderMe,
   roleCategory,
   zoneTarget,
 } from "./hrOrg.js";
@@ -160,6 +162,17 @@ test("nests reporting lines and finds the path to a person", () => {
   assert.deepEqual(pathToPerson(tree, "99"), []);
   assert.equal(countReports(tree[0]), 3);
   assert.equal(buildReportingTree([{ id: 1, name: "Solo" }]).length, 1);
+});
+
+test("lists everyone below a manager, direct reports first", () => {
+  const tree = buildReportingTree({
+    tree: [{ id: 1, name: "CEO", reports: [{ id: 2, name: "Vikas", reports: [{ id: 3, name: "Lead", reports: [{ id: 5, name: "Dev" }] }, { id: 4, name: "QA" }] }] }],
+  });
+  const under = peopleUnder(tree, "2");
+  assert.deepEqual(under.map((person) => [person.id, person.depth, person.managerName]), [["3", 1, "Vikas"], ["4", 1, "Vikas"], ["5", 2, "Lead"]]);
+  assert.deepEqual(peopleUnder(tree, "5"), []);
+  assert.deepEqual(peopleUnder(tree, "99"), []);
+  assert.deepEqual(peopleUnder(tree, ""), []);
 });
 
 test("drops a person who appears twice so a loop can't recurse", () => {
@@ -364,10 +377,37 @@ test("lists the teams the user leads or is in, led teams first", () => {
   const asKamal = teamsOfMe({ employee: { id: "k1", teams: [{ id: "t1", membership: "lead" }] } }, withWordpress);
   assert.deepEqual(asKamal.map((item) => [item.name, item.department, item.role, item.size]), [["Frontend", "Engineering", "lead", 2], ["Wordpress", "", "lead", 2]]);
   assert.deepEqual(asKamal[0].members.map((person) => person.id), ["g1"]);
+  // The department head manages its teams; a team with no department has no manager.
+  assert.deepEqual(asKamal.map((item) => item.manager?.id ?? null), ["v1", null]);
   const asGagan = teamsOfMe({ employee: { id: "g1" } }, withWordpress);
   assert.deepEqual(asGagan.map((item) => [item.name, item.role, item.lead.name]), [["Frontend", "member", "Kamal"]]);
   assert.deepEqual(teamsOfMe({ employee: { id: "u1" } }, withWordpress), []);
   assert.deepEqual(teamsOfMe(null, null), []);
+});
+
+test("lists a manager's own teams, then the real teams of the people under them", () => {
+  const withMore = {
+    tree: {
+      ...tree.tree,
+      teams_without_department: [
+        ...tree.tree.teams_without_department,
+        { id: "t3", name: "Wordpress", lead: { id: "s1", name: "Shiv" }, members: [{ id: "j1", name: "Jatin" }] },
+        { id: "t4", name: "Sales", lead: { id: "x1", name: "Other" }, members: [] },
+      ],
+    },
+  };
+  const reporting = buildReportingTree([{ id: "v1", name: "Vikas", reports: [kamal, gagan, { id: "s1", name: "Shiv", reports: [{ id: "j1", name: "Jatin" }] }, { id: "a1", name: "Anshik" }] }]);
+  const under = peopleUnder(reporting, "v1");
+  const teams = teamsUnderMe({ employee: { id: "v1" } }, withMore, under);
+  assert.deepEqual(teams.map((item) => [item.id, item.name, item.department, item.role, item.size]), [
+    ["t1", "Frontend", "Engineering", "under", 2],
+    ["t3", "Wordpress", "", "under", 2],
+    ["unplaced", "Not in a team", "", "unplaced", 1],
+  ]);
+  assert.deepEqual(teams[2].members.map((person) => [person.id, person.reports]), [["a1", undefined]]);
+  // Kamal leads Frontend himself, so it's one of his own teams, and Gagan sees nothing extra.
+  assert.deepEqual(teamsUnderMe({ employee: { id: "k1" } }, withMore, []).map((item) => [item.id, item.role]), [["t1", "lead"]]);
+  assert.deepEqual(teamsUnderMe(null, null, []), []);
 });
 
 test("moves a team between departments", () => {
