@@ -205,6 +205,38 @@ export function pathToPerson(nodes, id) {
   return [];
 }
 
+/** The node for `id` anywhere in a built reporting tree, or null. */
+function findInTree(nodes, id) {
+  for (const node of list(nodes)) {
+    if (node.id === id) return node;
+    const found = findInTree(node.reports, id);
+    if (found) return found;
+  }
+  return null;
+}
+
+const withoutReports = (node) => {
+  const card = { ...node };
+  delete card.reports;
+  return card;
+};
+
+/**
+ * Everyone below `selfId` in a built reporting tree, nearest first: `depth` 1 for direct reports,
+ * and `managerName` for who each one reports to. [] when the person isn't in the tree.
+ */
+export function peopleUnder(nodes, selfId) {
+  const id = text(selfId);
+  const self = id ? findInTree(nodes, id) : null;
+  const out = [];
+  let level = list(self?.reports).map((person) => ({ person, manager: self }));
+  for (let depth = 1; level.length; depth += 1) {
+    out.push(...level.map(({ person, manager }) => ({ ...person, depth, managerName: personName(manager) })));
+    level = level.flatMap(({ person }) => list(person.reports).map((child) => ({ person: child, manager: person })));
+  }
+  return out;
+}
+
 export const countReports = (node) => list(node?.reports).reduce((sum, child) => sum + 1 + countReports(child), 0);
 
 /**
@@ -401,16 +433,44 @@ export function buildStructure(response) {
 export function teamsOfMe(me, response) {
   const selfId = personId(me?.employee);
   const linked = new Map(list(me?.employee?.teams).map((row) => [text(row?.id), row?.membership]));
-  const structure = buildStructure(response);
-  const teams = [
-    ...structure.departments.flatMap((department) => department.teams.map((item) => ({ ...item, department: department.name }))),
-    ...structure.looseTeams.map((item) => ({ ...item, department: "" })),
-  ];
   const leads = (item) => Boolean(selfId && item.lead?.id === selfId) || linked.get(item.id) === "lead";
-  return teams
+  return allTeams(response)
     .filter((item) => linked.has(item.id) || leads(item) || Boolean(selfId && item.members.some((person) => person.id === selfId)))
-    .map((item) => ({ ...item, role: leads(item) ? "lead" : "member", size: item.members.length + (item.lead ? 1 : 0) }))
+    .map((item) => ({ ...item, role: leads(item) ? "lead" : "member" }))
     .sort((a, b) => Number(b.role === "lead") - Number(a.role === "lead") || a.name.localeCompare(b.name));
+}
+
+/**
+ * Every team in `org_tree`, with its department name, its manager (the department head, null
+ * without one) and size (lead included).
+ */
+function allTeams(response) {
+  const structure = buildStructure(response);
+  return [
+    ...structure.departments.flatMap((department) => department.teams.map((item) => ({ ...item, department: department.name, manager: department.head }))),
+    ...structure.looseTeams.map((item) => ({ ...item, department: "", manager: null })),
+  ].map((item) => ({ ...item, size: item.members.length + (item.lead ? 1 : 0) }));
+}
+
+/**
+ * A manager's teams: the ones they lead or are in (`teamsOfMe`), then every other team that is led
+ * by or holds someone under them (`role` "under"), then one "Not in a team" group for the people
+ * under them who are in none of those (`role` "unplaced"). `under` is from `peopleUnder`.
+ */
+export function teamsUnderMe(me, response, under) {
+  const own = teamsOfMe(me, response);
+  const below = new Set(list(under).map(personId).filter(Boolean));
+  const ownIds = new Set(own.map((item) => item.id));
+  const has = (item) => below.has(item.lead?.id) || item.members.some((person) => below.has(person.id));
+  const others = allTeams(response)
+    .filter((item) => !ownIds.has(item.id) && has(item))
+    .map((item) => ({ ...item, role: "under" }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const teams = [...own, ...others];
+  const shown = new Set(teams.flatMap((item) => [item.lead?.id, ...item.members.map((person) => person.id)]).filter(Boolean));
+  const loose = list(under).filter((person) => personId(person) && !shown.has(personId(person))).map(withoutReports);
+  if (!loose.length) return teams;
+  return [...teams, { id: "unplaced", name: "Not in a team", department: "", manager: null, lead: null, members: loose, size: loose.length, role: "unplaced" }];
 }
 
 /** Where a drop zone puts people: "team:<id>", "department:<id>" (no team) or "none". */

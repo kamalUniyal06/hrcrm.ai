@@ -82,6 +82,11 @@ export function applicationJob(applications, jobs) {
   };
 }
 
+// Candidates without a job posting get a test role HR saves for the candidate
+// instead; the backend resolves saved roles by this reference before titles.
+export const candidateRoleReference = (candidateId) => `candidate:${String(candidateId || "").trim()}`;
+export const candidateRoleJob = (candidateId, role) => ({ id: candidateRoleReference(candidateId), job_title: role?.title || "" });
+
 // The recruitment backend matches the job title to its test role, so the
 // candidate opens the test without registering.
 export function assessmentProfilePayload({ job, skills, experiences }, now = Date.now()) {
